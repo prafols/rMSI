@@ -1,14 +1,26 @@
 Package: rMSI
 Type: Package
-Title: What the Package Does (Title Case)
+Title: MSI Tools
 Version: 0.1
 Date: 2015-11-30
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
+Author: Pere Ràfols Soler
+Maintainer: Pere Ràfols Soler<pere.rafols@urv.cat>
 Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
-Imports: 
-    Rcpp (>= 0.12.2)
-LinkingTo: 
+Imports:
+    Rcpp (>= 0.12.2),
+    XML (>= 3.98),
+    gWidgets2 (>= 1.0),
+    RGtk2 (>= 2.20.31),
+    cairoDevice (>= 2.22),
+    gWidgets2RGtk2 (>= 1.0),
+    MALDIquant (>= 1.13),
+    jpeg (>= 0.1),
+    ff (>= 2.2),
+    R.oo (>= 1.19.0),
+    fields (>= 8.3),
+    parallel (>= 3.2.2),
+    fftw (>= 1.0)
+LinkingTo:
     Rcpp

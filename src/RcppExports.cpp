@@ -5,13 +5,16 @@
 
 using namespace Rcpp;
 
-// rcpp_hello
-List rcpp_hello();
-RcppExport SEXP rMSI_rcpp_hello() {
+// runMSIProcessingCpp
+void runMSIProcessingCpp(int numberOfThreads, int numberOfCubes, Rcpp::Function rLoadCube, Rcpp::Function rSaveCube);
+RcppExport SEXP rMSI_runMSIProcessingCpp(SEXP numberOfThreadsSEXP, SEXP numberOfCubesSEXP, SEXP rLoadCubeSEXP, SEXP rSaveCubeSEXP) {
 BEGIN_RCPP
-    Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
-    __result = Rcpp::wrap(rcpp_hello());
-    return __result;
+    Rcpp::traits::input_parameter< int >::type numberOfThreads(numberOfThreadsSEXP);
+    Rcpp::traits::input_parameter< int >::type numberOfCubes(numberOfCubesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Function >::type rLoadCube(rLoadCubeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Function >::type rSaveCube(rSaveCubeSEXP);
+    runMSIProcessingCpp(numberOfThreads, numberOfCubes, rLoadCube, rSaveCube);
+    return R_NilValue;
 END_RCPP
 }
