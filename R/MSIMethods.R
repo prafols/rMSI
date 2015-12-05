@@ -9,6 +9,7 @@ LoadImageWithProgressBar <- function( img_full_path )
   setPbarValue<-function(progress)
   {
     setTxtProgressBar(pb, progress)
+    return(T)
   }
 
   cat("Loading Image...\n")

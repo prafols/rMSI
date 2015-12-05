@@ -18,7 +18,6 @@ Imports:
     MALDIquant (>= 1.13),
     jpeg (>= 0.1),
     ff (>= 2.2),
-    R.oo (>= 1.19.0),
     fields (>= 8.3),
     parallel (>= 3.2.2),
     fftw (>= 1.0)

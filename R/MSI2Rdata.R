@@ -158,7 +158,10 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
     if(!is.null(fun_progress_event) && (round(pp) > round(pp_ant)) )
     {
       #Update progress bar
-      fun_progress_event(pp)
+      if( !fun_progress_event(pp) )
+      {
+        return(NULL) #progress ar function must return true if the loading process is to be continued.
+      }
     }
   }
 
