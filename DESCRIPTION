@@ -3,11 +3,21 @@ Type: Package
 Title: MSI Tools
 Version: 0.1
 Date: 2015-11-30
-Author: Pere Ràfols Soler
-Maintainer: Pere Ràfols Soler<pere.rafols@urv.cat>
+Author: Pere Rafols Soler
+Maintainer: Pere Rafols Soler<pere.rafols@urv.cat>
 Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
+Depends:
+    Rcpp (>= 0.12.2),
+    XML (>= 3.98),
+    gWidgets2 (>= 1.0),
+    RGtk2 (>= 2.20.31),
+    cairoDevice (>= 2.22),
+    gWidgets2RGtk2 (>= 1.0),
+    MALDIquant (>= 1.13),
+    jpeg (>= 0.1),
+    fields (>= 8.3)
 Imports:
     Rcpp (>= 0.12.2),
     XML (>= 3.98),
@@ -20,6 +30,7 @@ Imports:
     ff (>= 2.2),
     fields (>= 8.3),
     parallel (>= 3.2.2),
-    fftw (>= 1.0)
+    fftw (>= 1.0),
+    raster (>= 2.4)
 LinkingTo:
     Rcpp

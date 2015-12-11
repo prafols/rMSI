@@ -53,10 +53,6 @@ buildImageByPeak<-function(img, mass.peak, tolerance=0.25, selectedPixels = NULL
   xy_i<-1
   for(icube in 1:length(img$data))
   {
-    #iSelInCube <-  which((selectedPixels - (icube -1) * nrow(img$data[[1]])) %in% 1:nrow(img$data[[icube]]))
-    #iSelInCube <- iSelInCube - (icube -1) * nrow(img$data[[1]]) #Substract the offset to get cube coordinate space
-
-
     SelinCubeCoords<-(selectedPixels - (icube -1) * nrow(img$data[[1]]))
     SelinCubeCoords<-SelinCubeCoords[which(SelinCubeCoords >= 1 & SelinCubeCoords <= nrow(img$data[[icube]]))]
 
@@ -83,7 +79,7 @@ buildImageByPeak<-function(img, mass.peak, tolerance=0.25, selectedPixels = NULL
       for(i in 1:length(valpixel))
       {
         x<-img$pos[ selectedPixels[xy_i], "x" ]
-        y<- 1 + img_height - img$pos[ selectedPixels[xy_i], "y" ] #Flip image verticaly to match ploting
+        y<- 1 + img_height - img$pos[ selectedPixels[xy_i], "y" ] #Flip image verticaly to match ploting #TODO oju k si la nova rutina xuta be aixo canviara!
         zplots[x,y]<- valpixel[i] * NormCoefs[selectedPixels[xy_i]] #Draw pixel apply normalization
         xy_i<- xy_i+1
       }
@@ -142,23 +138,196 @@ DoubleImgResolution = function(im) {
 
 
 ###Plot an image in matrix format
+#img_RGB must be a list of 3 images ordered as RGB channels. And each element must be named as R, G or B
+#At minimum one image is accepted but other chanels must contain a 0
+plotMassImageRGB <- function( img_RGB, smoothing=0.1, XResLevel = "x1" )
+{
+  #Grab only Lists
+  if(typeof(img_RGB) != "list")
+  {
+    stop("Error in plotMassImageRGB(), img_RGB is not a list")
+  }
+
+  #Image size
+  num_rows <- max(unlist(lapply( img_RGB, function(x){
+        if( !is.list(x) ){
+          return( 0 )
+        } else {
+          return( nrow(x$img.data) )
+        } } )))
+
+  num_cols <- max(unlist(lapply( img_RGB, function(x){
+    if( !is.list(x) ){
+      return( 0 )
+    } else {
+      return( ncol(x$img.data) )
+    } } )))
+
+  #Fill null matrices with zeros
+  availableColorChannels <- c( F, F, F)
+  for(i in 1:length(img_RGB))
+  {
+    if( !is.list(img_RGB[[i]]))
+    {
+      img_RGB[[i]]$img.data <- matrix(0, nrow = num_rows, ncol = num_cols)
+    }
+    else
+    {
+      availableColorChannels[i] <- T
+    }
+  }
+
+  selChannel <- which(availableColorChannels)
+  if(length(selChannel) == 0)
+  {
+    print("There is no data in any channel. Plotting aborted.")
+    return()
+  }
+
+  if(length(selChannel) == 1)
+  {
+    #Only one channel is present, lets plot with rainbow colors
+    imgMat <- img_RGB[[selChannel]]$img.data
+    imgMat <- imgMat/max(imgMat) #Normalize to 1
+
+    #Remaping hue space
+    hue_top <- 0.7
+    hue_bottom <- 0.85
+    hMapped <- (1 + hue_top - hue_bottom) * (-1*as.vector(imgMat) + 1) + hue_bottom
+    over_one <- which(hMapped > 1)
+    hMapped[ over_one ] <- hMapped[over_one] -1
+
+    vMapped <- as.vector(imgMat)*10
+    vMapped[ vMapped > 1] <- 1
+
+    rgbSpace <- col2rgb(hsv( h =  hMapped, s = rep(1, length(imgMat)), v = vMapped))
+
+    imgR <- rgbSpace[1, ] #Extract R
+    imgG <- rgbSpace[2, ] #Extract G
+    imgB <- rgbSpace[3, ] #Extract B
+
+    dim(imgR) <- dim(imgMat)
+    dim(imgG) <- dim(imgMat)
+    dim(imgB) <- dim(imgMat)
+
+  }
+  else
+  {
+    #Multiple color channels, lets plot with RGB colors
+    #Normalize to 255 (8 bits per color channel)
+    NormalizeTo255 <-function( m )
+    {
+      maxN<- max(m)
+      if(maxN > 0)
+      {
+        return( 255 * m / maxN )
+      }
+      return(m)
+    }
+    imgR <- NormalizeTo255(img_RGB$R$img.data)
+    imgG <- NormalizeTo255(img_RGB$G$img.data)
+    imgB <- NormalizeTo255(img_RGB$B$img.data)
+  }
+
+#   imgR  <- .InterpolateResolution(  imgR , XResLevel)
+#   imgG  <- .InterpolateResolution(  imgG , XResLevel)
+#   imgB  <- .InterpolateResolution(  imgB , XResLevel)
+
+# TODO this smoothing method is veeeerrryyy slooooooow
+#   #Smoothing
+#   imgR<-image.smooth(x=imgR, theta = smoothing)
+#   imgG<-image.smooth(x=imgG, theta = smoothing)
+#   imgB<-image.smooth(x=imgB, theta = smoothing)
+
+  #Create an RGB image space
+  CreatRasterLayer <- function(img, resolution)
+  {
+    my_raster <- raster::raster( nrow = nrow(img), ncol = ncol(img), xmn= 0, xmx= ncol(img), ymn= 0, ymx= nrow(img))
+    raster::values(my_raster) <- as.vector(t(img))
+
+
+    ###TODO im here add resolution param to interpolate image here and calibrate with raster size
+    #raster::res(my_raster) <- 0.5
+
+    return(my_raster)
+  }
+
+  R_raster<-CreatRasterLayer(imgR, 1)
+  G_raster<-CreatRasterLayer(imgG, 1)
+  B_raster<-CreatRasterLayer(imgB, 1)
+  RGB_raster <- raster::addLayer(R_raster,G_raster,B_raster )
+
+
+  interpol_factor <-  XResLevel##Must be integer! Odd values performs better
+  interpolated_raster <- raster::raster( nrow= interpol_factor*RGB_raster@nrows, ncol= interpol_factor*RGB_raster@ncols, xmn= 0, xmx= RGB_raster@ncols, ymn= 0, ymx= RGB_raster@nrows)
+  RGB_raster<-raster::resample(RGB_raster, interpolated_raster)
+  raster::values(RGB_raster)[ raster::values(RGB_raster) < 0  ] <- 0 #Values below zero are dube interpolation artifacts, clip it to zero.
+
+
+  #Setting my tricky par values...
+  par( bg = "black", fg =  "white", col.lab="white", xaxt="n", yaxt="n", col.axis = "white", col.main = "white", col.sub = "white",
+       cex.axis = 0.6, mar = c(2,2,2,1), mgp = c(2, 0.3, 0.3))
+
+
+
+  ###TODO: amb el param zlim = c(min, max) pot fer que tots els valors per sobre de max agafin color de max i per sota min de min
+  ###      seria un bon metode per implementar un limitador a nivell de raster (molt eficient)
+
+  raster::plotRGB(RGB_raster, axes = T, asp = 1, interpolate = T )
+
+
+  #Add the main title
+  main_title<-""
+  if( availableColorChannels[1] )
+  {
+    main_title<- paste(main_title, sprintf("R: %0.3f+/-%0.2f\t", img_RGB$R$mass.peak, img_RGB$R$tolerance), sep = "")
+  }
+  if( availableColorChannels[2] )
+  {
+    main_title<- paste(main_title, sprintf("G: %0.3f+/-%0.2f\t", img_RGB$G$mass.peak, img_RGB$G$tolerance), sep = "")
+  }
+  if( availableColorChannels[3] )
+  {
+    main_title<- paste(main_title, sprintf("B: %0.3f+/-%0.2f", img_RGB$B$mass.peak, img_RGB$B$tolerance), sep = "")
+  }
+  title(main_title, cex.main = 0.7)
+
+  #Add calibrated axes
+  cal_um2pixels <-  1 ##TODO implement the pixel 2 um convertion with this constant
+  xAxis<- seq(0, RGB_raster@extent@xmax, by = (RGB_raster@extent@xmax/10))
+  xLabels <- sprintf( "%0.1f", xAxis * cal_um2pixels)
+  yAxis<- seq(0, RGB_raster@extent@ymax, by = (RGB_raster@extent@ymax/10))
+  yLabels <- sprintf( "%0.1f", yAxis * cal_um2pixels)
+  par(xaxt = "l", yaxt = "l")
+  axis(side=2, tck = -0.015, cex.axis = 0.7, pos = 0, at = yAxis, labels = yLabels, las = 1) #Y axes
+  axis(side=1, tck = -0.015, cex.axis = 0.7, pos = 0, at = xAxis, labels = xLabels ) #X axes
+}
+
+#Increase the imatge resolution artificialy to improve visualitzation
+.InterpolateResolution <- function( imgMat,  XResLevel)
+{
+  if(XResLevel == "x2")
+  {
+    imgMat<-DoubleImgResolution(imgMat)
+  }
+  if(XResLevel == "x4")
+  {
+    imgMat<-DoubleImgResolution(imgMat)
+    imgMat<-DoubleImgResolution(imgMat)
+  }
+  return(imgMat)
+}
+
+###Plot an image in matrix format
 plotMassImage<-function(in_img, useColors=TRUE, smoothing=0.1, screenWidth = 100, screenHeight = 100 , XResLevel = "x1")
 {
   #Comute data range auto as maximum spike
   data_range<-max(in_img[[1]] , na.rm=TRUE) ####Remove NA's to compute max , na.rm=TRUE)
 
   #Double the imatge resolution artificialy to improve visualitzation
-  if(XResLevel == "x2")
-  {
-    in_img[[1]]<-DoubleImgResolution(in_img[[1]])
-  }
-  if(XResLevel == "x4")
-  {
-    in_img[[1]]<-DoubleImgResolution(in_img[[1]])
-    in_img[[1]]<-DoubleImgResolution(in_img[[1]])
-  }
+  in_img[[1]] <- .InterpolateResolution( in_img[[1]] , XResLevel)
 
-  #Create the image in a regular 3D Grid
+    #Create the image in a regular 3D Grid
   img_width<-nrow(in_img[[1]])
   img_height<-ncol(in_img[[1]])
   img <- list(x=seq(from=1,to=img_width ,by=1), y=seq(from=1,to=img_height,by=1), z=in_img[[1]])

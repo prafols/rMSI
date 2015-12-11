@@ -5,8 +5,6 @@
 #Simply call this function each time you want to plot a mass spectrum and it will be overlayed
 plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_intensity = 0, col = "" )
 {
-  require(gWidgets2)
-  require(gWidgets2RGtk2)
   bFirstRun <- F
   if( !exists( x = ".SpectraWidget", mode = "environment") )
   {
@@ -40,10 +38,6 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
 
 .SpectraPlotWidget <- function( parent_widget=gwindow ( "Default SpectraPlotWidget" , visible = FALSE ), clicFuntion = NULL, showOpenFileButton = T)
 {
-  require(cairoDevice)
-  require(gWidgets2)
-  require(gWidgets2RGtk2)
-
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
   options(warn = -1)
@@ -74,8 +68,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   in_lim <- c() #c(0 ,max(intensity_data)*1.05),
   data_mass_range <- c() #c(min(mass_data),max(mass_data)),
   PointerCoords <- c(0,0)
-  SelIon_mz <- NA
-  SelIon_tol <- NA
+  SelIon_mz_R <- NA
+  SelIon_tol_R <- NA
+  SelIon_mz_G <- NA
+  SelIon_tol_G <- NA
+  SelIon_mz_B <- NA
+  SelIon_tol_B <- NA
 
   #Add spectrum data================================================================================
   AddSpectra <- function( mass_data, intensity_data, mass_peaks = 0, intensity_peaks = 0, col = "" )
@@ -168,10 +166,22 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
       abline(v = this$ref_mass, col = "grey", lty = 2)
     }
 
-    #Plot selection range
-    if(!is.na(this$SelIon_mz) && !is.na(this$SelIon_tol))
+    #Plot selection range Red
+    if(!is.na(this$SelIon_mz_R) && !is.na(this$SelIon_tol_R))
     {
-      rect(xleft = this$SelIon_mz - this$SelIon_tol, xright = this$SelIon_mz + this$SelIon_tol, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "snow2", border = "snow3")
+      rect(xleft = this$SelIon_mz_R - this$SelIon_tol_R, xright = this$SelIon_mz_R + this$SelIon_tol_R, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightsalmon", border = "red3")
+    }
+
+    #Plot selection range Green
+    if(!is.na(this$SelIon_mz_G) && !is.na(this$SelIon_tol_G))
+    {
+      rect(xleft = this$SelIon_mz_G - this$SelIon_tol_G, xright = this$SelIon_mz_G + this$SelIon_tol_G, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightgreen", border = "green3")
+    }
+
+    #Plot selection range Blue
+    if(!is.na(this$SelIon_mz_B) && !is.na(this$SelIon_tol_B))
+    {
+      rect(xleft = this$SelIon_mz_B - this$SelIon_tol_B, xright = this$SelIon_mz_B + this$SelIon_tol_B, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightblue", border = "blue3")
     }
 
     for(li in 1:length(this$spectra_mass))
@@ -336,7 +346,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
         this$ReDraw()
       }
     }
-    else if(svalue(this$radio_buttons) == "Select")
+    else
     {
       top_left <- min(evt$x)
       top_right <- max(evt$x)
@@ -346,15 +356,25 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
       mz_sel<-round(mz_sel, digits = 2)
       mz_tol<-max(mz_tol, 0)
 
-      if(!is.null(this$clicFun))
+      if(svalue(this$radio_buttons) == "Sel Red" && !is.null(this$clicFun))
       {
-        ret <- this$clicFun(mz_sel, mz_tol)
-        mz_sel <- ret$selMz
-        mz_tol <- ret$selTol
+        ret <- this$clicFun(1, mz_sel, mz_tol)
+        this$SelIon_mz_R = ret$selMz
+        this$SelIon_tol_R = ret$selTol
+      }
+      else if ( svalue(this$radio_buttons) == "Sel Green" && !is.null(this$clicFun))
+      {
+        ret <- this$clicFun(2, mz_sel, mz_tol)
+        this$SelIon_mz_G = ret$selMz
+        this$SelIon_tol_G = ret$selTol
+      }
+      else if ( svalue(this$radio_buttons) == "Sel Blue" && !is.null(this$clicFun))
+      {
+        ret <- this$clicFun(3, mz_sel, mz_tol)
+        this$SelIon_mz_B = ret$selMz
+        this$SelIon_tol_B = ret$selTol
       }
       #Plot selection in spectra
-      this$SelIon_mz = mz_sel
-      this$SelIon_tol = mz_tol
       this$ReDraw()
     }
 
@@ -497,7 +517,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   Btn_reset_zoom<- gWidgets2::gbutton(text = "Reset Zoom", handler = this$ZoomResetClicked, action = this, container = Grp_Buttons)
   Btn_auto_zoom_mz<- gWidgets2::gbutton(text = "Auto Zoom m/z", handler = this$ZoomMzClicked, action = this, container = Grp_Buttons)
   Btn_auto_zoom_in<- gWidgets2::gbutton(text = "Auto Zoom Intensity", handler = this$ZoomInClicked, action = this, container = Grp_Buttons)
-  this$radio_buttons <- gWidgets2::gradio( c("Zoom","Select"), selected = 1, horizontal = T, handler = this$CheckBox_Changed, action = this, container = Grp_Buttons)
+  this$radio_buttons <- gWidgets2::gradio( c("Zoom","Sel Red", "Sel Green", "Sel Blue"), selected = 1, horizontal = T, handler = this$CheckBox_Changed, action = this, container = Grp_Buttons)
 
   gWidgets2::addSpring(Grp_Buttons)
   if(showOpenFileButton)
@@ -506,7 +526,8 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   }
   rm(showOpenFileButton)
 
-  this$plot_device <- gWidgets2::ggraphics()
+  this$plot_device <- gWidgets2::ggraphics(  )
+  size( this$plot_device )<- c(-1, 220)
   gWidgets2::add(obj = Grp_Top, child = this$plot_device, expand = T, fill = T)
 
   Grp_BottomLabel<-ggroup(horizontal = T, container = Grp_Top)
