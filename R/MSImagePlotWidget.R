@@ -28,51 +28,121 @@
   iSel <- 1:nrow(img$pos) #Initially grab the whole image
   image_range <- c( 1, 1, img$size["x"], img$size["y"] )
   AddSpectra_ptr <- AddSpectra_function #Pointer to a AddSpectra method of a spectraWidget to be able of ploting directly
-  CurrentPlotImg <-  list( R = 0, G =  0, B = 0)
+
+  #Current image RGB layers
+  Rlayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
+  Glayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
+  Blayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
+
 
   #==================================================================================================
   ImgBuildFun <- function(channel, mass, tol )
   {
     this$mz_tolerance[channel] <- tol
     this$mz_selected[channel] <- mass
-    img_new<-buildImageByPeak(this$img, mass.peak = this$mz_selected[channel], tolerance = this$mz_tolerance[channel], selectedPixels = this$iSel, NormCoefs = NULL, rotate = this$Rotation)
+    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL ) #TODO some day I can use this to include various normalizations
+
     if( channel == 1)
     {
-      this$CurrentPlotImg$R <- img_new
+      this$Rlayer_raster<-img_new
     }
     else if (channel == 2)
     {
-      this$CurrentPlotImg$G <- img_new
+      this$Glayer_raster<-img_new
     }
     else if (channel == 3)
     {
-      this$CurrentPlotImg$B <- img_new
+      this$Blayer_raster<-img_new
     }
 
     #Return del buildImage
-    return(list(selMz = img_new$mass.peak, selTol = img_new$tolerance))
+    return(list(selMz = img_new$mass, selTol = img_new$tolerance))
   }
 
   #==================================================================================================
   PlotMassImageRGB <- function()
   {
-    imgCopy <-  this$CurrentPlotImg
+    ch_count <- 0
+    if( svalue(this$Btn_RedEnable))
+    {
+      red_layer <- this$Rlayer_raster
+      unique_layer <- red_layer
+      ch_count <- ch_count + 1
+    }
+    else
+    {
+      red_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
+    }
+    if( svalue(this$Btn_GreenEnable))
+    {
+      green_layer <- this$Glayer_raster
+      unique_layer <- green_layer
+      ch_count <- ch_count + 1
+    }
+    else
+    {
+      green_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
+    }
+    if( svalue(this$Btn_BlueEnable))
+    {
+      blue_layer <- this$Blayer_raster
+      unique_layer <- blue_layer
+      ch_count <- ch_count + 1
+    }
+    else
+    {
+      blue_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
+    }
 
-    if( !svalue(this$Btn_RedEnable))
+    if(ch_count < 1)
     {
-      imgCopy$R <- 0
+      print("No selected data to plot image")
+      return()
     }
-    if( !svalue(this$Btn_GreenEnable))
+    if(ch_count == 1)
     {
-      imgCopy$G <- 0
+      plotting_raster<-.BuildSingleIonRGBImage( unique_layer,   XResLevel = 1 )##TODO now the XResLvel is set with an integer addapt it
     }
-    if( !svalue(this$Btn_BlueEnable))
+    else
     {
-      imgCopy$B <- 0
+      plotting_raster<-.BuildRGBImage( imgR = red_layer, imgG = green_layer, imgB = blue_layer, XResLevel = 1 )##TODO now the XResLvel is set with an integer addapt it
     }
 
     visible(this$imaging_dev)<-TRUE
-    plotMassImageRGB( img_RGB = imgCopy, smoothing=svalue(this$Spin_Smooth), XResLevel = 3 ) ##TODO now the XResLvel is set with an integer addapt it
+    .plotMassImageRGB (plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F)
+
+
+    visible(this$scaleRed_dev)<-TRUE
+    if(ch_count == 1)
+    {
+      .plotIntensityScale(red_layer)
+    }
+    else
+    {
+      .plotIntensityScale(red_layer, "R")
+    }
+
+    visible(this$scaleGreen_dev)<-TRUE
+    if(ch_count == 1)
+    {
+      .plotIntensityScale(green_layer)
+    }
+    else
+    {
+      .plotIntensityScale(green_layer, "G")
+    }
+
+
+    visible(this$scaleBlue_dev)<-TRUE
+    if(ch_count == 1)
+    {
+      .plotIntensityScale(blue_layer)
+    }
+    else
+    {
+      .plotIntensityScale(blue_layer, "B")
+    }
+
 
     ###TODO this is the old implementation to b remove when the new method works
     #plotMassImageByPeak(this$img, mass.peak = this$mz_selected, tolerance = this$mz_tolerance, useColors = T, smoothFactor =   svalue(this$Spin_Smooth), XResLevel  = svalue(this$Combo_Xres), selectedPixels = this$iSel, rotation = this$Rotation)
@@ -290,26 +360,55 @@
   #==================================================================================================
   SaveImg2Png <- function( ... )
   {
-    fname<-gfile("Save current MSI plot to png file", type="save", multi = F, filter =  c("jpeg"="jpeg"), initial.dir = path.expand(getwd()))
+    mass_sel <- c()
+    tol_sel <-c ()
+    if( svalue(this$Btn_RedEnable))
+    {
+      mass_sel<-c(mass_sel, mz_selected[1])
+      tol_sel<-c(tol_sel, mz_tolerance[1])
+    }
+    if( svalue(this$Btn_GreenEnable))
+    {
+      mass_sel<-c(mass_sel, mz_selected[2])
+      tol_sel<-c(tol_sel, mz_tolerance[2])
+    }
+    if( svalue(this$Btn_BlueEnable))
+    {
+      mass_sel<-c(mass_sel, mz_selected[3])
+      tol_sel<-c(tol_sel, mz_tolerance[3])
+    }
+    if(length(mass_sel) == 0)
+    {
+      gWidgets2::gmessage("No channel enabled, nothing is exported.", icon = "info")
+      return()
+    }
+
+
+    fname<-gfile("Save current MSI plot to png file", type="save", multi = F, filter =  c("tiff"="tiff"), initial.dir = path.expand(getwd()))
     if(length(fname) == 0)
     {
       return ()
     }
 
     #Auto append the image file extension
-    if(!grepl(".jpeg", basename(fname)))
+    if(!grepl(".tiff", basename(fname)))
     {
-      fname<-paste(fname, ".jpeg", sep = "")
+      fname<-paste(fname, ".tiff", sep = "")
     }
 
-    visible(this$imaging_dev)<-TRUE
-    dev.print(jpeg, filename = fname, quality = "99", width = size(this$imaging_dev)["width"], height = size(this$imaging_dev)["height"])
+     #This was the old implementation
+#     visible(this$imaging_dev)<-TRUE
+#     dev.print(jpeg, filename = fname, quality = "99", width = size(this$imaging_dev)["width"], height = size(this$imaging_dev)["height"])
+
+    #New implementation
+    tiff( filename = fname , width = 1200, height = 500, compression = "none", res = 160)
+    plotMassImageByPeak(this$img,  mass.peak = mass_sel, tolerance = tol_sel, XResLevel = 3, rotation = this$Rotation)
+    dev.off()
   }
 
   #==================================================================================================
   SpinSmoothChanged <- function( ... )
   {
-    visible(this$imaging_dev)<-TRUE
     this$PlotMassImageRGB()
   }
 
@@ -373,7 +472,6 @@
     #   cat("iSel:\n")
     #   print(this$.iSel)
 
-    visible(this$imaging_dev)<-TRUE
     this$PlotMassImageRGB()
   }
 
@@ -465,20 +563,12 @@
     this$Spin_Ymax$add_handler_changed(this$SpinImageRangeChanged)
 
     #Plot rotated image
-    visible(this$imaging_dev)<-TRUE
-
-    #Re-generate the rotated image
-    for(i in 1:3)
-    {
-      this$ImgBuildFun(i, this$mz_selected[i], this$mz_tolerance[i] )
-    }
     this$PlotMassImageRGB()
   }
 
   #==================================================================================================
   ComboBox_XRes_Changed <- function( ... )
   {
-    visible(this$imaging_dev)<-TRUE
     this$PlotMassImageRGB()
   }
 
@@ -578,13 +668,14 @@
 
   Grp_ImgTop<-ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
   imaging_dev <- ggraphics(spacing = 5 )
-  size( imaging_dev )<- c(-1, 340)
+  size( imaging_dev )<- c(650, 340)
   addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
   add(obj = Grp_ImgTop, child = imaging_dev,  fill = T, expand = T)
 
   #Red Color Scale
   Grp_RedScale<-ggroup( horizontal = F, container = Grp_ImgTop)
   scaleRed_dev <- ggraphics(spacing = 5 )
+  size( scaleRed_dev )<- c(120, 300)
   add(obj = Grp_RedScale, child = scaleRed_dev,  fill = T, expand = T)
   Lbl_RedMz <- glabel("R M/Z", container = Grp_RedScale)
   Btn_RedEnable<-gcheckbox("On", container = Grp_RedScale, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
@@ -592,6 +683,7 @@
   #Green Color scale
   Grp_GreenScale<-ggroup( horizontal = F, container = Grp_ImgTop)
   scaleGreen_dev <- ggraphics(spacing = 5 )
+  size( scaleGreen_dev )<- c(120, 300)
   add(obj = Grp_GreenScale, child = scaleGreen_dev,  fill = T, expand = T)
   Lbl_GreenMz <- glabel("G M/Z", container = Grp_GreenScale)
   Btn_GreenEnable<-gcheckbox("On", container = Grp_GreenScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
@@ -599,6 +691,7 @@
   #Blue Color scale
   Grp_BlueScale<-ggroup( horizontal = F, container = Grp_ImgTop)
   scaleBlue_dev <- ggraphics(spacing = 5 )
+  size( scaleBlue_dev )<- c(120, 300)
   add(obj = Grp_BlueScale, child = scaleBlue_dev,  fill = T, expand = T)
   Lbl_BlueMz <- glabel("B M/Z", container = Grp_BlueScale)
   Btn_BlueEnable<-gcheckbox("On", container = Grp_BlueScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")

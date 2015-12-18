@@ -1,7 +1,7 @@
 #MALDI Imaging pack 2 R data file
 
 #data_processing_function must be a function with a MALDIquant object input and MALDIquant object output
-MSI2Rdata<-function(raw_data_full_path, spot_selection_xml_file_full_path, output_data_filename, data_processing_function = NULL, ...)
+MSI2Rdata<-function(raw_data_full_path, resolution_um, spot_selection_xml_file_full_path, output_data_filename, data_processing_function = NULL, ...)
 {
   cat("Importing data to R session...\n")
   pt<-proc.time()
@@ -62,7 +62,7 @@ MSI2Rdata<-function(raw_data_full_path, spot_selection_xml_file_full_path, outpu
 
     cat("Packaging R data objects...\n")
     pt<-proc.time()
-    SaveMsiData(output_data_filename, raw, meanSpc)
+    SaveMsiData(output_data_filename, raw, meanSpc, resolution_um)
     pt<-proc.time() - pt
     cat(paste("Data saving time:", round(pt["elapsed"], digits = 1),"seconds\n"))
 
@@ -81,7 +81,7 @@ MSI2Rdata<-function(raw_data_full_path, spot_selection_xml_file_full_path, outpu
 #data_file - full path to hdd location to save image as a tar file
 #imgData - the image to save in custom ff data format
 #meanSpcData - Maldiquant object containing the average spectrum
-SaveMsiData<-function(data_file, imgData, meanSpcData)
+SaveMsiData<-function(data_file, imgData, meanSpcData, um2pixel)
 {
   cat("Saving Image...\n")
   pt<-proc.time()
@@ -96,6 +96,9 @@ SaveMsiData<-function(data_file, imgData, meanSpcData)
   posObj<-imgData$pos
   save(posObj, file = file.path(data_dir, "pos.ImgR")) #Save pos Object
   save(meanSpcData, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
+  resolutionObj<-um2pixel
+  save(resolutionObj, file = file.path(data_dir, "pixel_size_um.ImgR")) #Save pixel size um Object
+
 
   #Store also a vector of names of ff data in order to be able to restore it
   ffDataNames <- paste(names(imgData$data), "_ffzip", sep = "")
@@ -143,6 +146,15 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
   load(file.path(img_path, "pos.ImgR"))
   load(file.path(img_path, "mean.SpcR"))
   load(file.path(img_path, "ffnames.ImgR"))
+  if(file.exists(file.path(img_path, "pixel_size_um.ImgR")))
+  {
+    load(file.path(img_path, "pixel_size_um.ImgR"))
+  }
+  else
+  {
+    print("Warining: Old image without resolution object. It is set to 9999 um by default!")
+    resolutionObj <- 9999
+  }
 
   spectra<-list()
   ppStep<-100/length(ffDataNames)
@@ -166,7 +178,7 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
   }
 
   lapply(spectra, ff::open.ff)
-  datacube<-list(name = basename(data_file), mass = massObj,  size = sizeObj,  pos = posObj, mean = meanSpcData, data = spectra)
+  datacube<-list(name = basename(data_file), mass = massObj,  size = sizeObj,  pos = posObj, pixel_size_um = resolutionObj, mean = meanSpcData, data = spectra)
   unlink("ImgData", recursive = T)
 
   save(datacube, file = file.path(restore_path, "datacube.RImg"))

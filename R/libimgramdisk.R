@@ -59,10 +59,10 @@ getCubeRowFromIds<-function(Img, Ids)
   max_nrow<-nrow(Img$data[[1]])
   icube<-(1+((Ids - 1) %/% max_nrow))
   irow<- (Ids - (icube -1) * max_nrow)
-  
+
   cls<-list()
   cls[[1]]<- list( cube = icube[1], row = c(irow[1]))
-  
+
   if(length(Ids) > 1)
   {
     for(i in 2:length(Ids))
@@ -79,7 +79,7 @@ getCubeRowFromIds<-function(Img, Ids)
       }
     }
   }
-    
+
   return(cls)
 }
 
@@ -89,10 +89,10 @@ getCubeRowFromIds<-function(Img, Ids)
 # returns - a vector of identifiers corresponding to given coords spectra
 getIdsFromCoords<-function(Img, Coords)
 {
-  Zpos <-complex(real = Img$pos[,"x"], imaginary = Img$pos[,"y"]) #Convert positions to a complex numbers 
+  Zpos <-complex(real = Img$pos[,"x"], imaginary = Img$pos[,"y"]) #Convert positions to a complex numbers
   Ids<-unlist(sapply(Coords, function(x) { which(Zpos == x) }))
   return(Ids)
 }
 
-###TODO functions to store data in FF object  
-  
+
+###TODO functions to store data in FF object

@@ -32,6 +32,23 @@ importBrukerXMASSImg_Wizard <- function()
   }
   path_output_file<- file.path(path_output, paste(tools::file_path_sans_ext(basename(path_xml)),".tar",sep = "" ))
 
+  #Ask for resolution
+  resolutions <- rep(NA, length(path_xml))
+  for( i in 1:length(path_xml))
+  {
+    while(T)
+    {
+      resp <- readline(prompt = paste("Pixel resolution in um of ", basename(path_xml[i]), ": ", sep = ""))
+      resolutions[i] <- as.numeric(resp)
+      if( !is.na(resolutions[i]) )
+      {
+        break
+      }
+      cat("Please provide a valid number for the resolution. Try again.")
+    }
+
+  }
+
   #Propmt user to proceed
   cat("Data will be imported with the following settings:\n")
   cat(paste("RAW Data directory:\n\t",path_data, "\n", sep =""))
@@ -44,7 +61,7 @@ importBrukerXMASSImg_Wizard <- function()
   cat("XML files:\n")
   for(i in 1:length(path_xml))
   {
-    cat(paste("\t[", i,"]\t",path_xml[i], "\n", sep = ""))
+    cat(paste("\t[", i,"]\t",path_xml[i], " resolution: ", resolutions[i], " um\n", sep = ""))
   }
   cat("\n\n")
   resp <- ""
@@ -60,7 +77,7 @@ importBrukerXMASSImg_Wizard <- function()
     {
       cat(paste("\n\nStarting imporation of:", basename(path_xml[i]), "(file", i, "of", length(path_xml), ")\n"))
       veryStart<-proc.time()
-      MSI2Rdata(raw_data_full_path = path_data, spot_selection_xml_file_full_path = path_xml[i], output_data_filename= path_output_file[i])
+      MSI2Rdata(raw_data_full_path = path_data, resolution_um =  resolutions[i] , spot_selection_xml_file_full_path = path_xml[i], output_data_filename= path_output_file[i])
       cat(paste("Importation of", basename(path_xml[i]), "complete  with the following time statistics:\n"))
       print(proc.time() - veryStart)
     }
