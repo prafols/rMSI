@@ -25,9 +25,11 @@
   Spin_Ymax <- 0
   Rotation <- 0
   Tbl_spotList <- 0
+  Scale_light <- 0
   iSel <- 1:nrow(img$pos) #Initially grab the whole image
   image_range <- c( 1, 1, img$size["x"], img$size["y"] )
   AddSpectra_ptr <- AddSpectra_function #Pointer to a AddSpectra method of a spectraWidget to be able of ploting directly
+  rm(AddSpectra_function)
 
   #Current image RGB layers
   Rlayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
@@ -40,7 +42,7 @@
   {
     this$mz_tolerance[channel] <- tol
     this$mz_selected[channel] <- mass
-    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL ) #TODO some day I can use this to include various normalizations
+    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL) #TODO some day I can use this to include various normalizations
 
     if( channel == 1)
     {
@@ -101,11 +103,11 @@
     }
     if(ch_count == 1)
     {
-      plotting_raster<-.BuildSingleIonRGBImage( unique_layer,   XResLevel = 1 )##TODO now the XResLvel is set with an integer addapt it
+      plotting_raster<-.BuildSingleIonRGBImage( unique_layer,   XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
     }
     else
     {
-      plotting_raster<-.BuildRGBImage( imgR = red_layer, imgG = green_layer, imgB = blue_layer, XResLevel = 1 )##TODO now the XResLvel is set with an integer addapt it
+      plotting_raster<-.BuildRGBImage( imgR = red_layer, imgG = green_layer, imgB = blue_layer, XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
     }
 
     visible(this$imaging_dev)<-TRUE
@@ -115,44 +117,38 @@
     visible(this$scaleRed_dev)<-TRUE
     if(ch_count == 1)
     {
-      .plotIntensityScale(red_layer)
+      .plotIntensityScale(red_layer, light = svalue(this$Scale_light))
     }
     else
     {
-      .plotIntensityScale(red_layer, "R")
+      .plotIntensityScale(red_layer, "R", light = svalue(this$Scale_light) )
     }
 
     visible(this$scaleGreen_dev)<-TRUE
     if(ch_count == 1)
     {
-      .plotIntensityScale(green_layer)
+      .plotIntensityScale(green_layer, light = svalue(this$Scale_light))
     }
     else
     {
-      .plotIntensityScale(green_layer, "G")
+      .plotIntensityScale(green_layer, "G", light = svalue(this$Scale_light))
     }
 
 
     visible(this$scaleBlue_dev)<-TRUE
     if(ch_count == 1)
     {
-      .plotIntensityScale(blue_layer)
+      .plotIntensityScale(blue_layer, light = svalue(this$Scale_light))
     }
     else
     {
-      .plotIntensityScale(blue_layer, "B")
+      .plotIntensityScale(blue_layer, "B", light = svalue(this$Scale_light))
     }
-
-
-    ###TODO this is the old implementation to b remove when the new method works
-    #plotMassImageByPeak(this$img, mass.peak = this$mz_selected, tolerance = this$mz_tolerance, useColors = T, smoothFactor =   svalue(this$Spin_Smooth), XResLevel  = svalue(this$Combo_Xres), selectedPixels = this$iSel, rotation = this$Rotation)
   }
 
   #==================================================================================================
   BtnClearSpotList <- function( mass, tol, ... )
   {
-    this$spectraWidget$OnLostFocus() #This is just a test
-
     this$Tbl_spotList$set_items(data.frame(this$Tbl_spotList$get_items())[1,])
     gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0),
                                gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0))[[1]],
@@ -168,24 +164,34 @@
   SpectraListSelChange <- function( ... )
   {
     selected <- svalue(this$Tbl_spotList)
-    this$spectraWidget$ClearSpectra()
     df<-data.frame(this$Tbl_spotList$get_items())  #get data frame...
     max_nrow<-nrow(this$img$data[[1]])
+
+    intensity_list<-list()
+    color_list<-list()
 
     for( i in selected)
     {
       selDf<-df[ df$ID == i,] #Get the correct data row
       if(i == 0)
       {
-        this$spectraWidget$AddSpectra(this$spectra_mass, this$spectra_intensity, col = as.character(selDf$Colour))
+        intensity_list[[length(intensity_list) + 1]] <- this$img$mean@intensity
       }
       else
       {
         icube<-(1+((i-1) %/% max_nrow))
         irow<- (i - (icube -1) * max_nrow)
-        this$spectraWidget$AddSpectra(this$img$mass, this$img$data[[icube]][ irow ,] , col =  as.character(selDf$Colour))
+        intensity_list[[length(intensity_list) + 1]] <- this$img$data[[icube]][ irow ,]
       }
+      color_list[[length(color_list) + 1]] <- as.character(selDf$Colour)
     }
+
+    #Add spectra to plot
+    if(!is.null(this$AddSpectra_ptr) && length(intensity_list) > 0 && length(color_list) > 0)
+    {
+      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list)
+    }
+
   }
 
   #==================================================================================================
@@ -275,7 +281,11 @@
   #==================================================================================================
   OnPixelSelection <- function( evt, ...)
   {
+
+    #######TODO###### Pixel coords a la llista ara corresponen a la imatge original, el millor es dibuixar arrows amb origens de coordenades
+
     xResDiv<-switch(svalue(this$Combo_Xres), x1 = 1, x2 = 2, x4 = 4)
+    xResDiv<-1
 
     X_left<-round(min(evt$x)/xResDiv)
     X_right<-round(max(evt$x)/xResDiv)
@@ -335,12 +345,15 @@
       {
         yimg <- 1 + this$img$size["y"] - yi
         preID <- which( Zpos == complex(real = xi, imaginary = yimg) )
-        if(!(preID %in% currID))
+        if(length(preID) > 0)
         {
-          X<-c(X, xi)
-          Y<-c(Y, yi)
-          Colour<- c(Colour ,hsv( h = preID/length(Zpos), s = 0.7, v = 1))
-          ID<-c(ID, preID)
+          if(!(preID %in% currID))
+          {
+            X<-c(X, xi)
+            Y<-c(Y, yi)
+            Colour<- c(Colour ,hsv( h = preID/length(Zpos), s = 0.7, v = 1))
+            ID<-c(ID, preID)
+          }
         }
       }
     }
@@ -384,25 +397,29 @@
     }
 
 
-    fname<-gfile("Save current MSI plot to png file", type="save", multi = F, filter =  c("tiff"="tiff"), initial.dir = path.expand(getwd()))
+    fname<-gfile("Save current MSI plot to png file", type="save", multi = F, filter =  c("tiff"="tiff", "svg"="svg"), initial.dir = path.expand(getwd()))
     if(length(fname) == 0)
     {
       return ()
     }
 
     #Auto append the image file extension
-    if(!grepl(".tiff", basename(fname)))
+    if(grepl(".svg", basename(fname)))
     {
-      fname<-paste(fname, ".tiff", sep = "")
+      fname<-paste(fname, ".svg", sep = "")
+      svg( filename = fname , width = 1200, height = 500)
+    }
+    else
+    {
+      if(!grepl(".tiff", basename(fname)))
+      {
+        fname<-paste(fname, ".tiff", sep = "")
+      }
+      tiff( filename = fname , width = 1200, height = 500, compression = "none", res = 160)
     }
 
-     #This was the old implementation
-#     visible(this$imaging_dev)<-TRUE
-#     dev.print(jpeg, filename = fname, quality = "99", width = size(this$imaging_dev)["width"], height = size(this$imaging_dev)["height"])
-
     #New implementation
-    tiff( filename = fname , width = 1200, height = 500, compression = "none", res = 160)
-    plotMassImageByPeak(this$img,  mass.peak = mass_sel, tolerance = tol_sel, XResLevel = 3, rotation = this$Rotation)
+    plotMassImageByPeak(this$img,  mass.peak = mass_sel, tolerance = tol_sel, XResLevel = 3, rotation = this$Rotation, vlight= svalue(this$Scale_light))
     dev.off()
   }
 
@@ -472,6 +489,13 @@
     #   cat("iSel:\n")
     #   print(this$.iSel)
 
+    this$PlotMassImageRGB()
+  }
+
+  #==================================================================================================
+  SliderLightChanged<- function( ... )
+  {
+    #TODO this is ugly slow, disconnect signal handler until processing is complete!
     this$PlotMassImageRGB()
   }
 
@@ -667,10 +691,15 @@
   Spin_Ymax<- gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = img$size["y"], handler = this$SpinImageRangeChanged, container = Grp_Buttons)
 
   Grp_ImgTop<-ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
+  Grp_ImgAndLightScale <-ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
   imaging_dev <- ggraphics(spacing = 5 )
   size( imaging_dev )<- c(650, 340)
   addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
-  add(obj = Grp_ImgTop, child = imaging_dev,  fill = T, expand = T)
+  add(obj = Grp_ImgAndLightScale, child = imaging_dev,  fill = T, expand = T)
+
+  Grp_LblLighScale <- ggroup( horizontal = T, container =  Grp_ImgAndLightScale)
+  glabel("Light:", container = Grp_LblLighScale)
+  Scale_light <- gslider( from = 0.6, to = 10, by = 0.2, value = 3, horizontal = T, handler = this$SliderLightChanged, container =  Grp_LblLighScale)
 
   #Red Color Scale
   Grp_RedScale<-ggroup( horizontal = F, container = Grp_ImgTop)

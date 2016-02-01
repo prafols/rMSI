@@ -62,9 +62,15 @@ MSIWindow <- function( img )
   }
 
   #A connector between spectraWidget and msiWidgets because them can not be joined directly
-  AddSpectra <- function (...)
+  AddSpectra <- function ( mass_axis, intensity_list, color_list)
   {
-    this$spectraWidget$AddSpectra(...)
+    ##TODO ill need to rework that for multiple image display
+    this$spectraWidget$ClearSpectra()
+
+    for( i in 1:length(intensity_list))
+    {
+      this$spectraWidget$AddSpectra(mass_axis, intensity_list[[i]], col = color_list[[i]])
+    }
   }
 
   #GUI builder

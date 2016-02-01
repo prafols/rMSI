@@ -3,7 +3,7 @@
 
 #Plot Sigles Spectra "User Friendly"
 #Simply call this function each time you want to plot a mass spectrum and it will be overlayed
-plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_intensity = 0, col = "" )
+plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_intensity = 0, ref_mass = NULL, col = "" )
 {
   bFirstRun <- F
   if( !exists( x = ".SpectraWidget", mode = "environment") )
@@ -27,6 +27,11 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
     {
       .SpectraWidget$ZoomResetClicked()
     }
+  }
+
+  if( !is.null(ref_mass) )
+  {
+    .SpectraWidget$SetRefMass( ref_mass  )
   }
 }
 
