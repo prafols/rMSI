@@ -1,4 +1,0 @@
-#Makevars to provide gcc compiler flags for extra libraries
-
-PKG_CXXFLAGS ="-lboost_thread"
-PKG_LIBS = "-lboost_thread"

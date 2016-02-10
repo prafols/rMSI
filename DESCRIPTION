@@ -9,7 +9,6 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
 Depends:
-    Rcpp (>= 0.12.2),
     XML (>= 3.98),
     gWidgets2 (>= 1.0),
     RGtk2 (>= 2.20.31),
@@ -19,7 +18,6 @@ Depends:
     jpeg (>= 0.1),
     fields (>= 8.3)
 Imports:
-    Rcpp (>= 0.12.2),
     XML (>= 3.98),
     gWidgets2 (>= 1.0),
     RGtk2 (>= 2.20.31),
@@ -32,5 +30,3 @@ Imports:
     parallel (>= 3.2.2),
     fftw (>= 1.0),
     raster (>= 2.4)
-LinkingTo:
-    Rcpp
