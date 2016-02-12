@@ -1,86 +1,22 @@
-#MALDI Imaging pack 2 R data file
-
-#data_processing_function must be a function with a MALDIquant object input and MALDIquant object output
-MSI2Rdata<-function(raw_data_full_path, resolution_um, spot_selection_xml_file_full_path, output_data_filename, data_processing_function = NULL, ...)
-{
-  cat("Importing data to R session...\n")
-  pt<-proc.time()
-  ff_folder<-file.path(raw_data_full_path, "ffdata")
-  dir.create(ff_folder)
-  raw<-importBrukerXmassImg(raw_data_folder = raw_data_full_path, xml_file = spot_selection_xml_file_full_path, ff_data_folder = ff_folder)
-  pt<-proc.time() - pt
-  cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
-
-  #OLD CODE I will not convert to MALDIquant the whole dataset anymore
-  ##cat("Converting data to MALDIquant object...\n")
-  ##imgQuant<-ConvertMyImg2MassSpectrum(imgOrig)
-  ##gc()
-
-  cat("Calculating average spectrum...\n")
-  pt<-proc.time()
-
-  avgI<-apply(matrix(unlist(lapply(raw$data, function(x){ ff::ffrowapply(colSums(x[i1:i2,,drop=FALSE]), X=x, RETURN = TRUE, CFUN = "csum", FF_RETURN = FALSE) })), nrow = length(raw$data), byrow = T), 2, sum)
-  avgI<-avgI/( sum(unlist(lapply(raw$data, nrow))) )
-
-  ###TODO test if new splited approach works an remove the old one
-  ###avgI<-(ff::ffrowapply(colSums(raw$data[i1:i2,,drop=FALSE]), X=raw$data, RETURN = TRUE, CFUN = "csum", FF_RETURN = FALSE))/nrow(raw$data)
-
-  meanSpc<-createMassSpectrum(mass =  raw$mass, intensity = avgI)
-  meanSpc<-smoothIntensity(meanSpc, halfWindowSize=2)
-  pt<-proc.time() - pt
-  cat(paste("Average spectrun time:",round(pt["elapsed"], digits = 1),"seconds\n"))
-  gc()
-
-  ##TODO commented old code must be re.implemented with the new ff approach
-  #Custom data processing
-#   if(!is.null(data_processing_function))
-#   {
-#     startTime<-proc.time()
-#     cat("Data Processing ", length(imgQuant) , "spectras...\n")
-#     imgQuant<-data_processing_function(imgQuant, ...)
-#     elapsedTime<-proc.time() - startTime
-#     cat("Processing done in ", elapsedTime["elapsed"], " seconds\n" )
-#
-#     if(output_data_filename != "")
-#     {
-#       cat("Converting to imgOrig\n")
-#       imgOrig<-ConvertMassSpectrum2MyImg(imgQuant)
-#     }
-#     else
-#     {
-#       return(imgQuant)
-#     }
-#   }
-#   gc()
-
-  if(output_data_filename != "")
-  {
-    #TODO commented old code
-#     cat("Creating JPEG compressed imgage slices...\n")
-#     img_jpeg<-CompressMyImg2JpegSlices(imgOrig)
-#     save(img_jpeg, file = paste(output_data_filename, "jpeg", sep = "_" ), compress = T)
-
-    cat("Packaging R data objects...\n")
-    pt<-proc.time()
-    SaveMsiData(output_data_filename, raw, meanSpc, resolution_um)
-    pt<-proc.time() - pt
-    cat(paste("Data saving time:", round(pt["elapsed"], digits = 1),"seconds\n"))
-
-    cat("Done. Data is saved in:\n",  output_data_filename, "\n")
-    gc()
-  }
-
-  #Remove ff file created on HDD
-  lapply(raw$data, ff::delete)
-  rm(raw)
-  unlink(ff_folder, recursive = T) #Remove folder containing ffdata
-}
-
+###TODO work here... input ha de ser un datacube, un sol objecte complet per facilitar guardar iumatges de PCA i altres cuentos....
+###TODO els metodes d'aki estic segur k poden anar a la api d'acces a objecte rMSI....
 
 #Save image using custom format
 #data_file - full path to hdd location to save image as a tar file
 #imgData - the image to save in custom ff data format
 #meanSpcData - Maldiquant object containing the average spectrum
+
+#' Save a rMSI object to disk in a compressed .tar file.
+#'
+#' @param data_file Full path to hdd location to save image as a tar file.
+#' @param imgData TODO.
+#' @param meanSpcData TODO.
+#' @param um2pixel TODO.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 SaveMsiData<-function(data_file, imgData, meanSpcData, um2pixel)
 {
   cat("Saving Image...\n")
@@ -121,14 +57,26 @@ SaveMsiData<-function(data_file, imgData, meanSpcData, um2pixel)
   cat(paste("Saving time:",round(pt["elapsed"], digits = 1),"seconds\n"))
 }
 
-#Load image using custom format
-#fun_progress_event is a callback function to update the progress of loading data
-#Prototipe must be: fun_progress_event( currentState, TotalNumberOfStates)
-LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_overwrite = T)
+#' Load rMSI data from a compressed tar.
+#'
+#' @param data_file The tar file containing the MS image in rMSI format.
+#' @param restore_path Where the ramdisk will be created.
+#' @param fun_progress_event This is a callback function to update the progress of loading data. See details for more information.
+#' @param ff_overwrite Tell ff to overwrite or not current ramdisk files.
+#'
+#' @return an rMSI object pointing to ramdisk stored data
+#'
+#' Loads a rMSI data object from .tar compressed file. It will be uncompressed at specified restore_path.
+#' fun_progress_event can be NULL or a function with the following prototipe: fun_progress_event( currentState, TotalNumberOfStates).
+#' This function will be called periodically to monitor the loading status. This is usefull to implement progressbars.
+#' If ramdisk is already created befor calling this method the parameter ff_overwrite will control the loadin behaviour. If it is set to false (default)
+#' The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
+#'
+LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_overwrite = F)
 {
   #1- Check if the specified image ramdisk exists in the restore_path location
-  datacube<-FastLoad(restore_path)
-  if(!is.null(datacube))
+  datacube<-.FastLoad(restore_path)
+  if(!is.null(datacube) && !ff_overwrite)
   {
     if(!is.null(fun_progress_event))
     {
@@ -161,7 +109,7 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
   pp<-0
   for(i in 1:length(ffDataNames))
   {
-    ff::ffload(file.path(img_path, ffDataNames[i]), rootpath = restore_path, overwrite = ff_overwrite)
+    ff::ffload(file.path(img_path, ffDataNames[i]), rootpath = restore_path, overwrite = T)
     spectra[[i]]<-ffObj
     names(spectra)[i]<-paste("ramdisk",i,".dat",sep = "")
 
@@ -189,7 +137,7 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
 #The LoadMsiData whill produce a R objecte image file in the same directory of ramdisk in HDD
 #This function will check for the R objecte image in the provided path if it exist and ff object is correct it will return with the image object
 #In case it is not possible loading the image it will return NULL
-FastLoad<-function( restorePath )
+.FastLoad<-function( restorePath )
 {
   #1- Check if restorePath exists
   if( !dir.exists(restorePath) )
