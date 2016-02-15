@@ -282,8 +282,6 @@
   OnPixelSelection <- function( evt, ...)
   {
 
-    #######TODO###### Pixel coords a la llista ara corresponen a la imatge original, el millor es dibuixar arrows amb origens de coordenades
-
     xResDiv<-switch(svalue(this$Combo_Xres), x1 = 1, x2 = 2, x4 = 4)
     xResDiv<-1
 
@@ -343,8 +341,9 @@
     {
       for(yi in Bottom:Top)
       {
-        yimg <- 1 + this$img$size["y"] - yi
-        preID <- which( Zpos == complex(real = xi, imaginary = yimg) )
+        yi <- 1 + this$img$size["y"] - yi #Transform raster coords to image coords (only Y axis is affected)
+        preID <- which( Zpos == complex(real = xi, imaginary = yi) )
+
         if(length(preID) > 0)
         {
           if(!(preID %in% currID))

@@ -29,8 +29,6 @@
 
 #' Import a MSI dataset from Bruker XMASS folder and a XML file.
 #'
-#' \code{ importBrukerXmassImg } imports data using rMSI format and stores it to given ramdisk.
-#'
 #' This function converts MSI data contained in Bruker XMASS directory into  rMSI data structure.
 #' Only spectra contained in the XML file are imported. The ramdisk will be created at the specified
 #' directory as a collection of ff files with the maximum specified size (50 MB is the default setting).
@@ -42,6 +40,7 @@
 #' @param output_data_filename Where the compressed image .tar will be stored
 #' @param ... Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).
 #'
+#' @export
 importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_path, output_data_filename, ...)
 {
   cat("Importing data to R session...\n")
@@ -65,15 +64,15 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   cat(paste("Average spectrun time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   gc()
 
-
-  #Pack data to my format
-  #TODO
-
-
-
   cat("Packaging R data objects...\n")
   pt<-proc.time()
-  SaveMsiData(output_data_filename, raw, meanSpc, resolution_um)
+
+  #Append mean spectrum and resolution fields to img Object
+  raw$pixel_size_um <- resolution_um
+  raw$mean <- meanSpc
+
+  #Store the img to hdd
+  SaveMsiData(raw, output_data_filename)
   pt<-proc.time() - pt
   cat(paste("Data saving time:", round(pt["elapsed"], digits = 1),"seconds\n"))
 
@@ -124,7 +123,7 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
       }
     }
     names(spots)<-NULL
-    spots
+    return(spots)
   }
 
   #Read Spectrum acqu file
@@ -269,12 +268,11 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
 
 #' Import a MSI dataset from Bruker XMASS folder and a XML file using a Wizard.
 #'
-#' \code{ importBrukerXMASSImg_Wizard } Easy import Bruker image files from a XMASS data directory and a xml file specifying raster spots in Bruker format.
-#'
 #' This function converts MSI data contained in Bruker XMASS directory into  rMSI data structure.
 #' Only spectra contained in the XML file are imported. This method will prompt the user to select
 #' the data direcotry, the XML files and output data path. A rMSI compressed images are stored as .tar
 #' in specified output directory.
+#' @export
 importBrukerXMASSImg_Wizard <- function()
 {
   startWD <- getwd()

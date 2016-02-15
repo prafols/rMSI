@@ -1,23 +1,10 @@
-###TODO work here... input ha de ser un datacube, un sol objecte complet per facilitar guardar iumatges de PCA i altres cuentos....
-###TODO els metodes d'aki estic segur k poden anar a la api d'acces a objecte rMSI....
-
-#Save image using custom format
-#data_file - full path to hdd location to save image as a tar file
-#imgData - the image to save in custom ff data format
-#meanSpcData - Maldiquant object containing the average spectrum
-
 #' Save a rMSI object to disk in a compressed .tar file.
 #'
+#' @param imgData a rMSI objecte with a image with a working ramdisk.
 #' @param data_file Full path to hdd location to save image as a tar file.
-#' @param imgData TODO.
-#' @param meanSpcData TODO.
-#' @param um2pixel TODO.
 #'
-#' @return
 #' @export
-#'
-#' @examples
-SaveMsiData<-function(data_file, imgData, meanSpcData, um2pixel)
+SaveMsiData<-function(imgData, data_file)
 {
   cat("Saving Image...\n")
   pt<-proc.time()
@@ -31,8 +18,9 @@ SaveMsiData<-function(data_file, imgData, meanSpcData, um2pixel)
   save(sizeObj, file = file.path(data_dir, "size.ImgR")) #Save size Object
   posObj<-imgData$pos
   save(posObj, file = file.path(data_dir, "pos.ImgR")) #Save pos Object
-  save(meanSpcData, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
-  resolutionObj<-um2pixel
+  meanSpcObj<-imgData$mean
+  save(meanSpcObj, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
+  resolutionObj<-imgData$pixel_size_um
   save(resolutionObj, file = file.path(data_dir, "pixel_size_um.ImgR")) #Save pixel size um Object
 
 
@@ -57,32 +45,57 @@ SaveMsiData<-function(data_file, imgData, meanSpcData, um2pixel)
   cat(paste("Saving time:",round(pt["elapsed"], digits = 1),"seconds\n"))
 }
 
+
 #' Load rMSI data from a compressed tar.
 #'
 #' @param data_file The tar file containing the MS image in rMSI format.
 #' @param restore_path Where the ramdisk will be created.
-#' @param fun_progress_event This is a callback function to update the progress of loading data. See details for more information.
+#' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
 #' @param ff_overwrite Tell ff to overwrite or not current ramdisk files.
 #'
 #' @return an rMSI object pointing to ramdisk stored data
 #'
 #' Loads a rMSI data object from .tar compressed file. It will be uncompressed at specified restore_path.
-#' fun_progress_event can be NULL or a function with the following prototipe: fun_progress_event( currentState, TotalNumberOfStates).
+#' fun_progress can be NULL or a function with the following prototipe: fun_progress( currentState ). If NULL is used
+#' a default command line progress bar is used.
 #' This function will be called periodically to monitor the loading status. This is usefull to implement progressbars.
 #' If ramdisk is already created befor calling this method the parameter ff_overwrite will control the loadin behaviour. If it is set to false (default)
 #' The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
 #'
-LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_overwrite = F)
+#' @export
+LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F)
 {
+  cat("Loading Image...\n")
+  pt<-proc.time()
+
   #1- Check if the specified image ramdisk exists in the restore_path location
   datacube<-.FastLoad(restore_path)
   if(!is.null(datacube) && !ff_overwrite)
   {
-    if(!is.null(fun_progress_event))
+    if(!is.null(fun_progress))
     {
-      fun_progress_event(100)
+      fun_progress(100)
     }
+
+    pt<-proc.time() - pt
+    cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
     return(datacube)
+  }
+
+  setPbarValue<-function(progress)
+  {
+    setTxtProgressBar(pb, progress)
+    return(T)
+  }
+
+  if(is.null(fun_progress))
+  {
+    pb<-txtProgressBar(min = 0, max = 100, style = 3 )
+    fun_progress <- setPbarValue
+  }
+  else
+  {
+    pb<-NULL
   }
 
   #2 - Image is not preloaded so... the slow way
@@ -115,12 +128,12 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
 
     pp_ant<-pp
     pp<-pp+ppStep
-    if(!is.null(fun_progress_event) && (round(pp) > round(pp_ant)) )
+    if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
     {
       #Update progress bar
-      if( !fun_progress_event(pp) )
+      if( !fun_progress(pp) )
       {
-        return(NULL) #progress ar function must return true if the loading process is to be continued.
+        return(NULL) #progress bar function must return true if the loading process is to be continued.
       }
     }
   }
@@ -130,6 +143,12 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
   unlink("ImgData", recursive = T)
 
   save(datacube, file = file.path(restore_path, "datacube.RImg"))
+  if(!is.null(pb))
+  {
+    close(pb)
+  }
+  pt<-proc.time() - pt
+  cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   return(datacube)
 }
 
@@ -167,4 +186,28 @@ LoadMsiData<-function(data_file, restore_path, fun_progress_event = NULL, ff_ove
 
   cat("\nRamdisk has been sucessfully restored\n")
   return(datacube)
+}
+
+
+#'Remove an rMSI object ramdisk
+#'
+#' @param img an rMSI object.
+#'
+#' Removes a rMSI objecte ramdisk.
+#'
+#' @export
+DeleteRamdisk<-function(img)
+{
+  ramdisk_path <- dirname(attr(attributes(img$data[[1]])$physical, "filename"))
+  ramdisk_path_splited <- unlist(strsplit(ramdisk_path, "/"))
+  ramdisk_path <- ""
+  for( i in 1:length(ramdisk_path_splited))
+  {
+    ramdisk_path<-file.path(ramdisk_path, ramdisk_path_splited[i])
+    if( length(grep("ramdisk_", ramdisk_path_splited[i])) > 0 )
+    {
+      break;
+    }
+  }
+  unlink(ramdisk_path, recursive = T)
 }

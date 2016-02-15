@@ -1,8 +1,19 @@
 ###A GUI to display spectra in an interactive way
 
-
-#Plot Sigles Spectra "User Friendly"
-#Simply call this function each time you want to plot a mass spectrum and it will be overlayed
+#' Plot Mass Spectra in a interactive way.
+#'
+#' @param mass the mass axis of spectrum
+#' @param intensity a intensity vector of spectrum
+#' @param peaks_mass a vector of peak masses to be labeled on spectrum
+#' @param peaks_intensity a vector of peak intensities to be labeled on spectrum
+#' @param ref_mass a vector of reference masses to be represented as vertical dashed lines
+#' @param col the color for the spectrum
+#'
+#' Simply call this function each time you want to plot a mass spectrum and it will be overlayed with the current spectra.
+#' Peaks can be specified in the same call and it will be labeled over the spectrum.
+#'
+#' @export
+#'
 plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_intensity = 0, ref_mass = NULL, col = "" )
 {
   bFirstRun <- F

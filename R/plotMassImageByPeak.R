@@ -1,5 +1,3 @@
-#NEW API functions definitions
-
 #Idem k anterior xo sense:
 # - selectedPixels: Ho solucionare amb raster::crop raster::zoom i limatant el valor maxim de Z en plot del raster per cada layer RGB
 # - rotate: Ho solucionare directament rotant objecte de raster en plotar, no em cal re-generar imatge per plotar
@@ -217,7 +215,7 @@
     yB <- Lp*rasterRGB@extent@ymax
     yT <- (Lp + Hp)*rasterRGB@extent@ymax
 
-    if( rotation == 90  )
+    if( rotation == 180  )
     {
       #Avoid overlapping scale and axes
       xL <- rasterRGB@extent@xmin + (Lp + Wp)*(rasterRGB@extent@xmax - rasterRGB@extent@xmin)
@@ -234,38 +232,33 @@
     #Add coors system arrows
     raster_size <- c(rasterRGB@extent@xmax-rasterRGB@extent@xmin, rasterRGB@extent@ymax-rasterRGB@extent@ymin)
     arrow_length <- 0.25*min(raster_size)
-    #Text_Adj <- 0.1*arrow_length
     if( rotation == 0  )
     {
-      P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      P_Y <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
-      #Text_Adj <- c(Text_Adj, Text_Adj)
-      Txt_Adj <- c(0, 0)
+      P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+      P_X <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+      P_Y <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
+      Txt_Adj <- c(0, 1)
     }
     if( rotation == 90 )
     {
-      P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
-      P_Y <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      #Text_Adj <- c(-Text_Adj, Text_Adj)
-      Txt_Adj <- c(1, 0)
+      P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+      P_X <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
+      P_Y <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+      Txt_Adj <- c(0, 0)
     }
     if( rotation == 270 )
     {
-      P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
-      P_Y <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      #Text_Adj <- c(Text_Adj, -Text_Adj)
-      Txt_Adj <- c(0, 1)
+      P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+      P_X <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
+      P_Y <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+      Txt_Adj <- c(1, 1)
     }
     if( rotation == 180 )
     {
-      P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      P_Y <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
-      #Text_Adj <- c(-Text_Adj, -Text_Adj)
-      Txt_Adj <- c(1, 1)
+      P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+      P_X <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+      P_Y <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
+      Txt_Adj <- c(1, 0)
     }
 
     arrows(x0 = P_0[1], y0 = P_0[2], x1 = P_X[1], y1 = P_X[2], code = 2, lwd = 2, col = "white", length = 0.1)
@@ -345,6 +338,23 @@
 
 #Combinar funcions anteior per fer aixo facil
 #La idea es que si mass.peak i tolerance es passen com a vectors de 1 a 3 valors es fan imatges RGB
+#' Plot a mass image of a up to 3 selected ions.
+#'
+#' @param img an rMSI data object.
+#' @param mass.peak a vector of up to 3 elements containing the mass of ions to plot.
+#' @param tolerance a vector of up to 3 elements containing the mass range to plot for each ion.
+#' @param XResLevel the interpolation factor (default is 3).
+#' @param NormalizationCoefs optional parameter with a matrix containing the scaling factors for each pixel.
+#' @param rotation the rotation of image expressed in deg. Valid values are: 0, 90, 180 and 270.
+#' @param show_axes if true axis will be plotted. Otherwise a um scale and xy arrows  are drawn.
+#' @param scale_to_global_intensity scale the image intensity to fit into the global intensity (only for RGB).
+#' @param vlight the lighting of the plotted image.
+#'
+#' Plots a mass image. If only one mass ion are used a rainbow color code image is generated. If more ions are used each mass will
+#' be encoded in an RGB color channel.
+#'
+#' @export
+#'
 plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, NormalizationCoefs = NULL, rotation = 0, show_axes = F, scale_to_global_intensity = F, vlight = 3)
 {
   numberOfChannels <- 1

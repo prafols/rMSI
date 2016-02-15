@@ -7,9 +7,6 @@
 importBrukerXMASSImg_Wizard()
 }
 \description{
-\code{ importBrukerXMASSImg_Wizard } Easy import Bruker image files from a XMASS data directory and a xml file specifying raster spots in Bruker format.
-}
-\details{
 This function converts MSI data contained in Bruker XMASS directory into  rMSI data structure.
 Only spectra contained in the XML file are imported. This method will prompt the user to select
 the data direcotry, the XML files and output data path. A rMSI compressed images are stored as .tar

@@ -4,25 +4,21 @@
 \alias{importBrukerXmassImg}
 \title{Import a MSI dataset from Bruker XMASS folder and a XML file.}
 \usage{
-importBrukerXmassImg(raw_data_folder, xml_file, ff_data_folder,
-  max_ff_file_size_MB = 50)
+importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path,
+  output_data_filename, ...)
 }
 \arguments{
-\item{raw_data_folder}{Where the Bruker XMASS data is located.}
+\item{raw_data_full_path}{Where the Bruker XMASS data is located.}
 
-\item{xml_file}{Full path to the XML file.}
+\item{resolution_um}{The image pixel size un micrometers (sorry it can not be read directly from XMASS).}
 
-\item{ff_data_folder}{Full path to where the ff ramdisk will be stored.}
+\item{xml_file_full_path}{Full path to the XML file.}
 
-\item{max_ff_file_size_MB}{Max size in MB of each created ff file of the ramdisk.}
-}
-\value{
-A rMSI data object pointing to the ramdisk.
+\item{output_data_filename}{Where the compressed image .tar will be stored}
+
+\item{...}{Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).}
 }
 \description{
-\code{ importBrukerXmassImg } imports data using rMSI format and stores it to given ramdisk.
-}
-\details{
 This function converts MSI data contained in Bruker XMASS directory into  rMSI data structure.
 Only spectra contained in the XML file are imported. The ramdisk will be created at the specified
 directory as a collection of ff files with the maximum specified size (50 MB is the default setting).

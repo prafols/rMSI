@@ -1,7 +1,15 @@
 #MALDI Image reconstruction by selected ion Top Windows
 ##########################################################
 
-#Open img from Hdd directly, the easy way...
+#' Open a MS image from Hdd directly allowing the user to chose it from a file dialog.
+#'
+#' A file choser dialog is presented to allow the selection of a .tar file containing an rMSI data object.
+#' If a ramdisk has been previously created it will be used to speed up the loading process.
+#' The image will be presented using the GUI and it will be returned as rMSI object.
+#'
+#' @return the rMSI object containing the MS image.
+#'
+#' @export
 OpenMSI<-function()
 {
   fname<-gfile("Select an MSI file to open", type="open", multi = F, filter =  c("tar"="tar"), initial.dir = path.expand("~/"))
@@ -14,7 +22,7 @@ OpenMSI<-function()
   mPBar<-.ProgressBarDialog("Loading data please wait...")
 
   #Preloading 2 speedup
-  raw<-LoadMsiData(data_file = fname, restore_path = file.path(dirname(fname), paste("ramdisk",basename(fname), sep = "_")), fun_progress_event = mPBar$setValue)
+  raw<-LoadMsiData(data_file = fname, restore_path = file.path(dirname(fname), paste("ramdisk",basename(fname), sep = "_")), fun_progress = mPBar$setValue)
 
   if(is.null(raw))
   {
@@ -38,7 +46,15 @@ OpenMSI<-function()
   }
 }
 
-MSIWindow <- function( img )
+
+#' Open the GUI to explore a MS image
+#'
+#' @param img a rMSI data object
+#'
+#'  Open the GUI to explore the MS image provided as parameter.
+#'
+#' @export
+MSIWindow<-function(img)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
