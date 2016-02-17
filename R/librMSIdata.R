@@ -18,8 +18,8 @@ SaveMsiData<-function(imgData, data_file)
   save(sizeObj, file = file.path(data_dir, "size.ImgR")) #Save size Object
   posObj<-imgData$pos
   save(posObj, file = file.path(data_dir, "pos.ImgR")) #Save pos Object
-  meanSpcObj<-imgData$mean
-  save(meanSpcObj, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
+  meanSpcData<-imgData$mean
+  save(meanSpcData, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
   resolutionObj<-imgData$pixel_size_um
   save(resolutionObj, file = file.path(data_dir, "pixel_size_um.ImgR")) #Save pixel size um Object
 
@@ -113,7 +113,7 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   }
   else
   {
-    print("Warining: Old image without resolution object. It is set to 9999 um by default!")
+    print("Warning: Old image without resolution object. It is set to 9999 um by default!")
     resolutionObj <- 9999
   }
 
@@ -210,4 +210,48 @@ DeleteRamdisk<-function(img)
     }
   }
   unlink(ramdisk_path, recursive = T)
+}
+
+#' Create an empty rMSI object with defined mass axis and size.
+#'
+#' @param x_size the number of pixel in X direction.
+#' @param y_size the number of pixel in Y direction.
+#' @param mass_axis the mass axis.
+#' @param pixel_resolution defined pixel size in um.
+#' @param ramdisk_folder where ramdisk will be stored.
+#'
+#' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
+#' and synthetic datasets to test and develops processing methods and tools.
+#'
+#' @return the created rMSI object
+#' @export
+#'
+CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, ramdisk_folder = getwd())
+{
+  img<-list()
+
+  img$mass <- mass_axis
+  img$size <- c( x_size, y_size )
+  names(img$size) <- c("x", "y")
+
+  #Prepare the pos matrix
+  img$pos <- matrix( ncol = 2, nrow = x_size*y_size )
+  colnames(img$pos)<- c("x", "y")
+  i <- 1
+  for( xi in 1:x_size)
+  {
+    for( yi in 1:y_size)
+    {
+      img$pos[i,]<- c(xi, yi)
+      i<-i+1
+    }
+  }
+
+  img$pixel_size_um <-  pixel_resolution
+  img$mean <- MALDIquant::createMassSpectrum(mass_axis, rep(0, length(mass_axis)))
+
+  #Prepare an empty datacube
+  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder)
+
+  return(img)
 }

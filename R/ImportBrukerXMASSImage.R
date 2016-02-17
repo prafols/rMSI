@@ -58,8 +58,8 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   avgI<-apply(matrix(unlist(lapply(raw$data, function(x){ ff::ffrowapply(colSums(x[i1:i2,,drop=FALSE]), X=x, RETURN = TRUE, CFUN = "csum", FF_RETURN = FALSE) })), nrow = length(raw$data), byrow = T), 2, sum)
   avgI<-avgI/( sum(unlist(lapply(raw$data, nrow))) )
 
-  meanSpc<-createMassSpectrum(mass =  raw$mass, intensity = avgI)
-  meanSpc<-smoothIntensity(meanSpc, halfWindowSize=2)
+  meanSpc<-MALDIquant::createMassSpectrum(mass =  raw$mass, intensity = avgI)
+  meanSpc<-MALDIquant::smoothIntensity(meanSpc, halfWindowSize=2)
   pt<-proc.time() - pt
   cat(paste("Average spectrun time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   gc()
@@ -174,18 +174,8 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   #3- Read Spectrum FID file and fill data structure if not zero intensity
   dataPos <- matrix(NA, ncol = 2, nrow = length(spectraList))
   colnames(dataPos)<-c("x","y")
-
-  #Do not create to big files (> 50 MB by default)
-  max_nrow <- floor((max_ff_file_size_MB*1024*1024)/(4*length(mz_axis)))
-  max_nrow <- min(max_nrow, floor(.Machine$integer.max / (length(mz_axis))))
-
-  dataCube<-list()
-  for(i in 1:ceiling(length(spectraList)/ max_nrow))
-  {
-    nrows<-min(max_nrow, (length(spectraList) - sum(unlist(lapply(dataCube, nrow)))))
-    dataCube[[i]]<-ff::ff(vmode = "integer", dim = c(nrows, length(mz_axis)), filename = file.path(ff_data_folder, paste("ramdisk",i,".dat",sep = "")))
-    names(dataCube)[i]<-paste("ramdisk",i,".dat",sep = "")
-  }
+  dataCube<-.CreateEmptyRamdisk(length(mz_axis), length(spectraList), ff_data_folder, max_ff_file_size_MB )
+  max_nrow <- nrow(dataCube[[1]])
 
   for(i in 1:length(spectraList))
   {
@@ -263,8 +253,6 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   #7- Return dataCube, mz_axis, xsize, ysize as a list of elements
   return(list(mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos))
 }
-
-
 
 #' Import a MSI dataset from Bruker XMASS folder and a XML file using a Wizard.
 #'
@@ -349,7 +337,7 @@ importBrukerXMASSImg_Wizard <- function()
     {
       cat(paste("\n\nStarting imporation of:", basename(path_xml[i]), "(file", i, "of", length(path_xml), ")\n"))
       veryStart<-proc.time()
-      importBrukerXmassImg(raw_data_full_path = path_data, resolution_um =  resolutions[i] , spot_selection_xml_file_full_path = path_xml[i], output_data_filename= path_output_file[i])
+      importBrukerXmassImg(raw_data_full_path = path_data, resolution_um =  resolutions[i] , xml_file_full_path = path_xml[i], output_data_filename= path_output_file[i])
       cat(paste("Importation of", basename(path_xml[i]), "complete  with the following time statistics:\n"))
       print(proc.time() - veryStart)
     }

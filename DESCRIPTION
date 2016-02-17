@@ -10,14 +10,14 @@ License: What license is it under?
 LazyData: TRUE
 Depends:
     gWidgets2 (>= 1.0),
-    RGtk2 (>= 2.20.31),
+    RGtk2 (>= 2.20.25),
     cairoDevice (>= 2.22),
     gWidgets2RGtk2 (>= 1.0),
     MALDIquant (>= 1.13)
 Imports:
     XML (>= 3.98),
     gWidgets2 (>= 1.0),
-    RGtk2 (>= 2.20.31),
+    RGtk2 (>= 2.20.25),
     cairoDevice (>= 2.22),
     gWidgets2RGtk2 (>= 1.0),
     MALDIquant (>= 1.13),

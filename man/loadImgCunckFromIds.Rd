@@ -13,10 +13,8 @@ loadImgCunckFromIds(Img, Ids)
 }
 \value{
 a matrix containing the loaded spectra.
-
-Loads a part of a rMSI object in computer memory. The spectra to load is specified by its identifiers (Ids).
 }
 \description{
-Loads a part of a ff data img in RAM.
+Loads a part of a rMSI object in computer memory. The spectra to load is specified by its identifiers (Ids).
 }
 

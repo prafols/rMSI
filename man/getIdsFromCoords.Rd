@@ -13,10 +13,8 @@ getIdsFromCoords(Img, Coords)
 }
 \value{
 a vector of identifiers corresponding to given coords.
-
-Calculate the pixel identifiers from the pixel coordinates.
 }
 \description{
-Obtain the image Identifiers from a given set of images coords
+Calculate the pixel identifiers from the pixel coordinates.
 }
 

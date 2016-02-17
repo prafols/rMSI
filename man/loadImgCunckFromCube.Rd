@@ -13,11 +13,9 @@ loadImgCunckFromCube(Img, Cube)
 }
 \value{
 a matrix containing the loaded spectra.
-
-This function loads a specified ff datacubes.
-It loads full cubes so it should be the most eficient and fast way of loading data to RAM.
 }
 \description{
-Loads a part of a ff data img in RAM.
+This function loads a specified ff datacubes.
+It loads full cubes so it should be the most eficient and fast way of loading data to RAM.
 }
 

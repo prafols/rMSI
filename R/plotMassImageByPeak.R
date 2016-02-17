@@ -14,61 +14,15 @@
     stop("Error in rMSI::.buildImageByPeak(), img is not a list")
   }
 
-  img_width<-img$size["x"]
-  img_height<-img$size["y"]
-
-  #Normalization coeficients, 1 if null
-  if(is.null(NormCoefs))
-  {
-    NormCoefs<-rep(1, nrow(img$pos))
-  }
-
-  l1 <-which.min( abs( img$mass - ( mass.peak - tolerance ) ) )
-  l2 <-which.min( abs( img$mass - ( mass.peak + tolerance ) ) )
-
-  l1 <- l1[1] #Store only the first element
-  l2 <- l2[length(l2)] #store only the last element
-  mass.peak <- round(mean(c(img$mass[l2] , img$mass[l1])), digits = 4)
-  tolerance <- round(0.5*(img$mass[l2] - img$mass[l1]), digits = 4)
-
-  z_indexes <- l1:l2
-  if(length(z_indexes) == 1)
-  {
-    z_indexes <- c(z_indexes,z_indexes)
-  }
-
-  #Fill raster matrix
-  zplots<-matrix(0, nrow=img_width, ncol=img_height) #Now I'm using a zero instead of NA to display a completely black background
-  curr_id <- 0
-  for( iCube in 1:length(img$data))
-  {
-    if( nrow(img$data[[iCube]]) > 1 )
-    {
-      valpixels<-apply(img$data[[iCube]][ , z_indexes], 1, mean)
-      ##valpixels<-apply(img$data[[iCube]][ , z_indexes], 1, max)
-    }
-    else
-    {
-      valpixels<-mean(img$data[[iCube]][, z_indexes])
-      #valpixels<-max(img$data[[iCube]][, z_indexes])
-    }
-
-    for( i in 1:nrow(img$data[[iCube]]))
-    {
-      curr_id <- curr_id + 1
-      x<-img$pos[ curr_id , "x" ]
-      y<- 1 + img_height - img$pos[ curr_id, "y" ] #Flip image verticaly to match ploting #TODO oju k si la nova rutina xuta be aixo canviara!
-      zplots[x,y]<- valpixels[i] * NormCoefs[curr_id] #Draw pixel apply normalization
-    }
-  }
+  #Get the image slice
+  img_slice<-builRasterImageFromMass( img, mass.peak, tolerance, "max", NormCoefs) #TODO implement more methods
 
   #Create the raster
-  my_raster <- raster::raster( nrow = ncol(zplots), ncol = nrow(zplots), xmn= 0, xmx= nrow(zplots), ymn= 0, ymx= ncol(zplots))
-  raster::values(my_raster) <- as.vector(zplots)
-  my_raster<-raster::flip(my_raster, 'y')
+  my_raster <- raster::raster( nrow = ncol(img_slice$pixels), ncol = nrow(img_slice$pixels), xmn= 0, xmx= nrow(img_slice$pixels), ymn= 0, ymx= ncol(img_slice$pixels))
+  raster::values(my_raster) <- as.vector(img_slice$pixels)
 
   #Return zplots matrix and some metadata in a list
-  list(raster = my_raster, mass = mass.peak, tolerance = tolerance, cal_resolution = img$pixel_size_um)
+  list(raster = my_raster, mass = img_slice$Mass, tolerance = img_slice$Tolerance, cal_resolution = img$pixel_size_um)
 }
 
 
@@ -161,7 +115,7 @@
   }
   interpolated_raster <- raster::raster( nrow= XResLevel*RGB_raster@nrows, ncol= XResLevel*RGB_raster@ncols, xmn= 0, xmx= RGB_raster@ncols, ymn= 0, ymx= RGB_raster@nrows)
   RGB_raster<-raster::resample(RGB_raster, interpolated_raster)
-  raster::values(RGB_raster)[ raster::values(RGB_raster) < 0  ] <- 0 #Values below zero are dube interpolation artifacts, clip it to zero.
+  raster::values(RGB_raster)[ raster::values(RGB_raster) < 0  ] <- 0 #Values below zero are due interpolation artifacts, clip it to zero.
 
   return(RGB_raster)
 }
@@ -405,7 +359,6 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
 
 
   layout( matrix( (numberOfChannels+1):1, ncol = (1+numberOfChannels), nrow = 1, byrow = TRUE ), widths = c(7, rep(1, numberOfChannels)) )
-
 
   if(numberOfChannels == 1 )
   {
