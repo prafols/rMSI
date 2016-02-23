@@ -54,12 +54,7 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
 
   cat("Calculating average spectrum...\n")
   pt<-proc.time()
-
-  avgI<-apply(matrix(unlist(lapply(raw$data, function(x){ ff::ffrowapply(colSums(x[i1:i2,,drop=FALSE]), X=x, RETURN = TRUE, CFUN = "csum", FF_RETURN = FALSE) })), nrow = length(raw$data), byrow = T), 2, sum)
-  avgI<-avgI/( sum(unlist(lapply(raw$data, nrow))) )
-
-  meanSpc<-MALDIquant::createMassSpectrum(mass =  raw$mass, intensity = avgI)
-  meanSpc<-MALDIquant::smoothIntensity(meanSpc, halfWindowSize=2)
+  raw$mean <-AverageSpectrum(raw)
   pt<-proc.time() - pt
   cat(paste("Average spectrun time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   gc()
@@ -67,9 +62,8 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   cat("Packaging R data objects...\n")
   pt<-proc.time()
 
-  #Append mean spectrum and resolution fields to img Object
+  #Append esolution fields to img Object
   raw$pixel_size_um <- resolution_um
-  raw$mean <- meanSpc
 
   #Store the img to hdd
   SaveMsiData(raw, output_data_filename)

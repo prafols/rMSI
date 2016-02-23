@@ -175,7 +175,15 @@
       selDf<-df[ df$ID == i,] #Get the correct data row
       if(i == 0)
       {
-        intensity_list[[length(intensity_list) + 1]] <- this$img$mean@intensity
+        if(class(this$img$mean) == "MassSpectrum")
+        {
+          #Addap to old data mean spectrum using MALDIquant object
+          intensity_list[[length(intensity_list) + 1]] <- this$img$mean@intensity
+        }
+        else
+        {
+          intensity_list[[length(intensity_list) + 1]] <- this$img$mean
+        }
       }
       else
       {
@@ -220,7 +228,15 @@
 
 
     #Save mean spectra
-    spc <- matrix(data= c(this$img$mean@mass, this$img$mean@intensity), ncol = 2, byrow = F)
+    if(class(this$img$mean) == "MassSpectrum")
+    {
+      #Handling old mean based on MALDIquant
+      spc <- matrix(data= c(this$img$mean@mass, this$img$mean@intensity), ncol = 2, byrow = F)
+    }
+    else
+    {
+      spc <- matrix(data= c(this$mass, this$img$mean), ncol = 2, byrow = F)
+    }
     write( x = t(spc), file = file.path( store_paths, "average.txt" ), ncolumns = 2  )
 
 

@@ -99,7 +99,15 @@ MSIWindow<-function(img)
   visible(window)<-TRUE
 
   ##TODO revisar aixo quan tinguis multiples plots com ho faras???
-  spectraWidget$AddSpectra(  img$mass, img$mean@intensity, col = "red")
+  if( class( img$mean) == "MassSpectrum")
+  {
+    #Old mean MALDIquant handling
+    spectraWidget$AddSpectra(  img$mass, img$mean@intensity, col = "red")
+  }
+  else
+  {
+    spectraWidget$AddSpectra(  img$mass, img$mean, col = "red")
+  }
   spectraWidget$ZoomResetClicked()
 
 

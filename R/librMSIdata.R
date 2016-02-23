@@ -248,10 +248,25 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, ramdisk_
   }
 
   img$pixel_size_um <-  pixel_resolution
-  img$mean <- MALDIquant::createMassSpectrum(mass_axis, rep(0, length(mass_axis)))
+  img$mean <- rep(0, length(mass_axis))
 
   #Prepare an empty datacube
   img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder)
 
   return(img)
+}
+
+#' Computes the average spectrum of a whole rMSI image.
+#'
+#' @param img the rMSI image object.
+#'
+#' @return A vector with the average spectrum intensities. Masses are the same as the rMSI object.
+#' @export
+#'
+AverageSpectrum <- function(img)
+{
+  avgI<-apply(matrix(unlist(lapply(img$data, function(x){ ff::ffrowapply(colSums(x[i1:i2,,drop=FALSE]), X=x, RETURN = TRUE, CFUN = "csum", FF_RETURN = FALSE) })), nrow = length(img$data), byrow = T), 2, sum)
+  avgI<-avgI/( sum(unlist(lapply(img$data, nrow))) )
+
+  return(avgI)
 }

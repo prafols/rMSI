@@ -319,7 +319,15 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
     im_sgn<-.buildImageByPeak(img, mass.peak, tolerance, NormalizationCoefs)
     if(scale_to_global_intensity)
     {
-      raster_RGB<-.BuildSingleIonRGBImage(im_sgn, XResLevel = XResLevel, global_intensity_scaling_factor = max(img$mean@intensity), light = vlight)
+      if(class(img$mean) == "MassSpectrum")
+      {
+        #Handling old data format
+        raster_RGB<-.BuildSingleIonRGBImage(im_sgn, XResLevel = XResLevel, global_intensity_scaling_factor = max(img$mean@intensity), light = vlight)
+      }
+      else
+      {
+        raster_RGB<-.BuildSingleIonRGBImage(im_sgn, XResLevel = XResLevel, global_intensity_scaling_factor = max(img$mean), light = vlight)
+      }
     }
     else
     {

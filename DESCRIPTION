@@ -12,15 +12,13 @@ Depends:
     gWidgets2 (>= 1.0),
     RGtk2 (>= 2.20.25),
     cairoDevice (>= 2.22),
-    gWidgets2RGtk2 (>= 1.0),
-    MALDIquant (>= 1.13)
+    gWidgets2RGtk2 (>= 1.0)
 Imports:
     XML (>= 3.98),
     gWidgets2 (>= 1.0),
     RGtk2 (>= 2.20.25),
     cairoDevice (>= 2.22),
     gWidgets2RGtk2 (>= 1.0),
-    MALDIquant (>= 1.13),
     ff (>= 2.2),
     raster (>= 2.4)
 RoxygenNote: 5.0.1
