@@ -28,6 +28,9 @@
   Scale_light <- 0
   iSel <- 1:nrow(img$pos) #Initially grab the whole image
   image_range <- c( 1, 1, img$size["x"], img$size["y"] )
+  plotting_raster <- NULL #Current plotted MS image object
+  ROI <- NULL #Current used ROI on image, NULL means no ROI
+  ZOOM_win <- NULL #Current zoom windows
   AddSpectra_ptr <- AddSpectra_function #Pointer to a AddSpectra method of a spectraWidget to be able of ploting directly
   rm(AddSpectra_function)
 
@@ -59,6 +62,22 @@
 
     #Return del buildImage
     return(list(selMz = img_new$mass, selTol = img_new$tolerance))
+  }
+
+  #==================================================================================================
+  RedrawMSImage <-function()
+  {
+    visible(this$imaging_dev)<-TRUE
+    if(is.null(this$ZOOM_win))
+    {
+      .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
+                         roi_rectangle =  this$ROI)
+    }
+    else
+    {
+      .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
+                         zoom_roi = this$ZOOM_win, roi_rectangle =  this$ROI)
+    }
   }
 
   #==================================================================================================
@@ -103,16 +122,14 @@
     }
     if(ch_count == 1)
     {
-      plotting_raster<-.BuildSingleIonRGBImage( unique_layer,   XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
+      this$plotting_raster<-.BuildSingleIonRGBImage( unique_layer,   XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
     }
     else
     {
-      plotting_raster<-.BuildRGBImage( imgR = red_layer, imgG = green_layer, imgB = blue_layer, XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
+      this$plotting_raster<-.BuildRGBImage( imgR = red_layer, imgG = green_layer, imgB = blue_layer, XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
     }
 
-    visible(this$imaging_dev)<-TRUE
-    .plotMassImageRGB (plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F)
-
+    RedrawMSImage()
 
     visible(this$scaleRed_dev)<-TRUE
     if(ch_count == 1)
@@ -297,92 +314,34 @@
   #==================================================================================================
   OnPixelSelection <- function( evt, ...)
   {
-
+    ##TODO fix the xResDiv or remove it!
     xResDiv<-switch(svalue(this$Combo_Xres), x1 = 1, x2 = 2, x4 = 4)
     xResDiv<-1
 
     X_left<-round(min(evt$x)/xResDiv)
     X_right<-round(max(evt$x)/xResDiv)
-    Y_bottom<-round(min(evt$y)/xResDiv)
     Y_top<-round(max(evt$y)/xResDiv)
+    Y_bottom<-round(min(evt$y)/xResDiv)
 
-    #Apply rotation
+    #Apply rotation!
     if(this$Rotation >= 0 && this$Rotation < 90)
     {
-      Left <- X_left
-      Right <- X_right
-      Bottom <- Y_bottom
-      Top <- Y_top
+      this$ROI <- c(X_left, X_right, Y_bottom, Y_top)
     }
     if(this$Rotation >= 90 && this$Rotation < 180)
     {
-      Left <- Y_bottom
-      Right <- Y_top
-      Bottom <- this$img$size["y"] - X_right
-      Top <- this$img$size["y"] - X_left
+      this$ROI <- c(Y_bottom, Y_top, this$img$size["y"] - X_right, this$img$size["y"] - X_left)
     }
     if(this$Rotation >= 180 && this$Rotation < 270)
     {
-      Left <- this$img$size["x"] - X_right
-      Right <- this$img$size["x"] - X_left
-      Bottom <- this$img$size["y"] - Y_top
-      Top <- this$img$size["y"] - Y_bottom
+      this$ROI <- c(this$img$size["x"] - X_right, this$img$size["x"] - X_left, this$img$size["y"] -  Y_top, this$img$size["y"] - Y_bottom)
     }
     if(this$Rotation >= 270 && this$Rotation < 360)
     {
-      Left <- this$img$size["x"] - Y_top
-      Right <- this$img$size["x"] - Y_bottom
-      Bottom <- X_left
-      Top <- X_right
+      this$ROI <- c( this$img$size["x"] - Y_top, this$img$size["x"] - Y_bottom,  X_left, X_right)
     }
 
-    #Limits to image size
-    Left<-max(1, Left)
-    Right<-max(1, Right)
-    Bottom<-max(1, Bottom)
-    Top<-max(1, Top)
-
-    Left<-min(this$img$size["x"], Left)
-    Right<-min(this$img$size["x"], Right)
-    Bottom<-min(this$img$size["y"], Bottom)
-    Top<-min(this$img$size["y"], Top)
-
-    ID<-c()
-    X<-c()
-    Y<-c()
-    Colour<-c()
-    Zpos <-complex(real = this$img$pos[,"x"], imaginary = this$img$pos[,"y"]) #Convert positions to a complex numbers vector to find pointed coords fast and easy
-    currID <- data.frame(this$Tbl_spotList$get_items())$ID
-    for(xi in Left:Right)
-    {
-      for(yi in Bottom:Top)
-      {
-        yi <- 1 + this$img$size["y"] - yi #Transform raster coords to image coords (only Y axis is affected)
-        preID <- which( Zpos == complex(real = xi, imaginary = yi) )
-
-        if(length(preID) > 0)
-        {
-          if(!(preID %in% currID))
-          {
-            X<-c(X, xi)
-            Y<-c(Y, yi)
-            Colour<- c(Colour ,hsv( h = preID/length(Zpos), s = 0.7, v = 1))
-            ID<-c(ID, preID)
-          }
-        }
-      }
-    }
-    this$Tbl_spotList$set_items(rbind(data.frame(this$Tbl_spotList$get_items()), data.frame(ID, X, Y, Colour)))
-    gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0),
-                               gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0))[[1]],
-                               background = 3
-    )
-
-    render<-gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0))[[1]]
-    render$set( font = "bold")
-    gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0), render)
-
-    gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 3)$set(visible = F)
+    RedrawMSImage()
   }
 
   #==================================================================================================
@@ -614,7 +573,8 @@
   #==================================================================================================
   ROI_Deleted <-function (...)
   {
-    ##TODO
+    this$ROI <- NULL
+    RedrawMSImage()
   }
 
   #==================================================================================================
@@ -626,19 +586,100 @@
   #==================================================================================================
   ROI_ZoomIn <- function( ... )
   {
-    ##TODO
+    this$ZOOM_win <- this$ROI
+    RedrawMSImage()
   }
 
   #==================================================================================================
   ROI_ZoomOut <- function( ... )
   {
-    ##TODO
+    this$ZOOM_win <- NULL
+    RedrawMSImage()
   }
 
   #==================================================================================================
   ROI_GetSpectra <- function( ... )
   {
-    ##TODO
+    if(!is.null(this$ROI))
+    {
+      #Apply rotation
+      if(this$Rotation >= 0 && this$Rotation < 90)
+      {
+        Left <- this$ROI[1]
+        Right <- this$ROI[2]
+        Bottom <- this$ROI[3]
+        Top <- this$ROI[4]
+      }
+      if(this$Rotation >= 90 && this$Rotation < 180)
+      {
+        Left <- this$ROI[3]
+        Right <- this$ROI[4]
+        Bottom <- this$img$size["y"] - this$ROI[2]
+        Top <- this$img$size["y"] - this$ROI[1]
+      }
+      if(this$Rotation >= 180 && this$Rotation < 270)
+      {
+        Left <- this$img$size["x"] - this$ROI[2]
+        Right <- this$img$size["x"] - this$ROI[1]
+        Bottom <- this$img$size["y"] - this$ROI[4]
+        Top <- this$img$size["y"] - this$ROI[3]
+      }
+      if(this$Rotation >= 270 && this$Rotation < 360)
+      {
+        Left <- this$img$size["x"] - this$ROI[4]
+        Right <- this$img$size["x"] - this$ROI[3]
+        Bottom <- this$ROI[1]
+        Top <- this$ROI[2]
+      }
+
+      #Limits to image size
+      Left<-max(1, Left)
+      Right<-max(1, Right)
+      Bottom<-max(1, Bottom)
+      Top<-max(1, Top)
+
+      Left<-min(this$img$size["x"], Left)
+      Right<-min(this$img$size["x"], Right)
+      Bottom<-min(this$img$size["y"], Bottom)
+      Top<-min(this$img$size["y"], Top)
+
+      ID<-c()
+      X<-c()
+      Y<-c()
+      Colour<-c()
+      Zpos <-complex(real = this$img$pos[,"x"], imaginary = this$img$pos[,"y"]) #Convert positions to a complex numbers vector to find pointed coords fast and easy
+      currID <- data.frame(this$Tbl_spotList$get_items())$ID
+      for(xi in Left:Right)
+      {
+        for(yi in Bottom:Top)
+        {
+          yi <- 1 + this$img$size["y"] - yi #Transform raster coords to image coords (only Y axis is affected)
+          preID <- which( Zpos == complex(real = xi, imaginary = yi) )
+
+          if(length(preID) > 0)
+          {
+            if(!(preID %in% currID))
+            {
+              X<-c(X, xi)
+              Y<-c(Y, yi)
+              Colour<- c(Colour ,hsv( h = preID/length(Zpos), s = 0.7, v = 1))
+              ID<-c(ID, preID)
+            }
+          }
+        }
+      }
+      this$Tbl_spotList$set_items(rbind(data.frame(this$Tbl_spotList$get_items()), data.frame(ID, X, Y, Colour)))
+      gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0),
+                                 gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0))[[1]],
+                                 background = 3
+      )
+
+      render<-gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0))[[1]]
+      render$set( font = "bold")
+      gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 0), render)
+
+      gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 3)$set(visible = F)
+    }
   }
 
   #==================================================================================================

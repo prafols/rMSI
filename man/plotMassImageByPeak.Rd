@@ -6,7 +6,8 @@
 \usage{
 plotMassImageByPeak(img, mass.peak, tolerance = 0.25, XResLevel = 3,
   NormalizationCoefs = NULL, rotation = 0, show_axes = F,
-  scale_to_global_intensity = F, vlight = 3)
+  scale_to_global_intensity = F, vlight = 3, crop_area = c(0,
+  img$size["x"], 0, img$size["y"]))
 }
 \arguments{
 \item{img}{an rMSI data object.}
