@@ -310,6 +310,12 @@ saveImageSliceAtMass<-function(Img, Mass, dm)
   saveImageSliceAtCols(Img, sel_cols, dm)
 }
 
+#Private method to obtain pixels values from image slice data matrix dm
+getPixelValuesFromImageSlice <- function(dm, method)
+{
+  pixel_values <- apply(dm, 1, method)
+}
+
 #' Build a image slice from specified datacube columns.
 #'
 #' Builds a image from the selected columns in the rMSI object. The image is returned arranged in a matrix containing each pixel value.
@@ -347,7 +353,7 @@ builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NU
 
   dm <- loadImageSliceFromCols(Img, Cols)
   zplots<-matrix(0, nrow=Img$size["x"], ncol=Img$size["y"]) #Now I'm using a zero instead of NA to display a completely black background
-  pixel_values <- apply(dm, 1, fmethod)
+  pixel_values<-getPixelValuesFromImageSlice(dm, fmethod)
 
   for( i in 1:nrow(Img$pos))
   {

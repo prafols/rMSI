@@ -26,8 +26,6 @@
   Rotation <- 0
   Tbl_spotList <- 0
   Scale_light <- 0
-  iSel <- 1:nrow(img$pos) #Initially grab the whole image
-  image_range <- c( 1, 1, img$size["x"], img$size["y"] )
   plotting_raster <- NULL #Current plotted MS image object
   ROI <- NULL #Current used ROI on image, NULL means no ROI
   ZOOM_win <- NULL #Current zoom windows
@@ -39,13 +37,37 @@
   Glayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
   Blayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
 
-
   #==================================================================================================
   ImgBuildFun <- function(channel, mass, tol )
   {
     this$mz_tolerance[channel] <- tol
     this$mz_selected[channel] <- mass
-    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL) #TODO some day I can use this to include various normalizations
+
+
+    if(svalue(this$Btn_RoiIntLimited))
+    {
+      #Limit max intensity to max intensity in ROI
+      cord_list <-c()
+      for(ix in this$ROI[1]:this$ROI[2])
+      {
+        for(iy in this$ROI[3]:this$ROI[4])
+        {
+          cord_list <- c(cord_list, complex(real = ix, imaginary = iy))
+        }
+      }
+      dm <- loadImageSliceFromMass(this$img, mass, tol )
+      Zpos<-complex(real = this$img$pos[,"x"], imaginary = this$img$pos[,"y"])
+      roi_dmrows<-unlist(lapply( cord_list, function(x){ which( Zpos == x ) } ))
+      Int_Limit<-max(getPixelValuesFromImageSlice(dm$data[roi_dmrows,], max)) ###TODO si canvies de metode de plot aki seguiras tenin un MAX!!
+    }
+    else
+    {
+      #Disable intensity limitation
+      Int_Limit <- NULL
+    }
+
+
+    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL, limit_intensity = Int_Limit) #TODO some day I can use this to include various normalizations
 
     if( channel == 1)
     {
@@ -71,12 +93,12 @@
     if(is.null(this$ZOOM_win))
     {
       .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
-                         roi_rectangle =  this$ROI)
+                         roi_rectangle =  this$ROI, zoom = F)
     }
     else
     {
       .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
-                         zoom_roi = this$ZOOM_win, roi_rectangle =  this$ROI)
+                         roi_rectangle =  this$ZOOM_win, zoom = T)
     }
   }
 
@@ -120,16 +142,18 @@
       print("No selected data to plot image")
       return()
     }
+
+    inter_level<-switch(svalue(this$Combo_Xres), x1 = 1, x2 = 2, x3 = 3, x4 = 4, x5 = 5)
     if(ch_count == 1)
     {
-      this$plotting_raster<-.BuildSingleIonRGBImage( unique_layer,   XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
+      this$plotting_raster<-.BuildSingleIonRGBImage( unique_layer,   XResLevel = inter_level, light =  svalue(this$Scale_light) )
     }
     else
     {
-      this$plotting_raster<-.BuildRGBImage( imgR = red_layer, imgG = green_layer, imgB = blue_layer, XResLevel = 1, light =  svalue(this$Scale_light) )##TODO now the XResLvel is set with an integer addapt it
+      this$plotting_raster<-.BuildRGBImage( imgR = red_layer, imgG = green_layer, imgB = blue_layer, XResLevel = inter_level, light =  svalue(this$Scale_light) )
     }
 
-    RedrawMSImage()
+    this$RedrawMSImage()
 
     visible(this$scaleRed_dev)<-TRUE
     if(ch_count == 1)
@@ -314,34 +338,44 @@
   #==================================================================================================
   OnPixelSelection <- function( evt, ...)
   {
-    ##TODO fix the xResDiv or remove it!
-    xResDiv<-switch(svalue(this$Combo_Xres), x1 = 1, x2 = 2, x4 = 4)
-    xResDiv<-1
-
-    X_left<-round(min(evt$x)/xResDiv)
-    X_right<-round(max(evt$x)/xResDiv)
-    Y_top<-round(max(evt$y)/xResDiv)
-    Y_bottom<-round(min(evt$y)/xResDiv)
+    X_left<-round(min(evt$x))
+    X_right<-round(max(evt$x))
+    Y_bottom<-round(min(evt$y)) #Transform raster coords to image coords (only Y axis is affected)
+    Y_top<-round(max(evt$y)) #Transform raster coords to image coords (only Y axis is affected)
 
     #Apply rotation!
-    if(this$Rotation >= 0 && this$Rotation < 90)
+    if(this$Rotation == 0)
     {
-      this$ROI <- c(X_left, X_right, Y_bottom, Y_top)
+      this$ROI <- c(X_left + 1, X_right, this$img$size["y"] - Y_top + 1, this$img$size["y"] - Y_bottom )
     }
-    if(this$Rotation >= 90 && this$Rotation < 180)
+    if(this$Rotation == 90)
     {
-      this$ROI <- c(Y_bottom, Y_top, this$img$size["y"] - X_right, this$img$size["y"] - X_left)
+      this$ROI <- c(Y_bottom + 1, Y_top, X_left + 1, X_right)
     }
-    if(this$Rotation >= 180 && this$Rotation < 270)
+    if(this$Rotation == 180)
     {
-      this$ROI <- c(this$img$size["x"] - X_right, this$img$size["x"] - X_left, this$img$size["y"] -  Y_top, this$img$size["y"] - Y_bottom)
+      this$ROI <- c( this$img$size["x"] - X_right + 1, this$img$size["x"] - X_left, Y_bottom + 1, Y_top)
     }
-    if(this$Rotation >= 270 && this$Rotation < 360)
+    if(this$Rotation == 270)
     {
-      this$ROI <- c( this$img$size["x"] - Y_top, this$img$size["x"] - Y_bottom,  X_left, X_right)
+      this$ROI <- c( this$img$size["x"] - Y_top + 1, this$img$size["x"] - Y_bottom, this$img$size["y"] - X_right + 1, this$img$size["y"] - X_left)
     }
 
-    RedrawMSImage()
+    #Set it to ROI spinbuttons
+    this$Spin_Xmin$remove_handlers()
+    this$Spin_Xmax$remove_handlers()
+    this$Spin_Ymin$remove_handlers()
+    this$Spin_Ymax$remove_handlers()
+    svalue(this$Spin_Xmin) <- this$ROI[1]
+    svalue(this$Spin_Xmax) <- this$ROI[2]
+    svalue(this$Spin_Ymin) <- this$ROI[3]
+    svalue(this$Spin_Ymax) <- this$ROI[4]
+    this$Spin_Xmin$add_handler_changed(this$SpinImageRangeChanged)
+    this$Spin_Xmax$add_handler_changed(this$SpinImageRangeChanged)
+    this$Spin_Ymin$add_handler_changed(this$SpinImageRangeChanged)
+    this$Spin_Ymax$add_handler_changed(this$SpinImageRangeChanged)
+
+    this$RedrawMSImage()
   }
 
   #==================================================================================================
@@ -398,78 +432,20 @@
   }
 
   #==================================================================================================
-  SpinSmoothChanged <- function( ... )
-  {
-    this$PlotMassImageRGB()
-  }
-
-  #==================================================================================================
   SpinImageRangeChanged <- function( ... )
   {
-    #Grab new roi to plot
-    X_left<-svalue(this$Spin_Xmin)
-    X_right<-svalue(this$Spin_Xmax)
-    Y_bottom<-svalue(this$Spin_Ymin)
-    Y_top<-svalue(this$Spin_Ymax)
-
-    #Apply rotation!
-    if(this$Rotation >= 0 && this$Rotation < 90)
-    {
-      x_min <- X_left
-      x_max <- X_right
-      y_min <- Y_bottom
-      y_max <- Y_top
-    }
-    if(this$Rotation >= 90 && this$Rotation < 180)
-    {
-      x_min <- Y_bottom
-      x_max <- Y_top
-      y_min <- this$img$size["y"] - X_right
-      y_max <- this$img$size["y"] - X_left
-    }
-    if(this$Rotation >= 180 && this$Rotation < 270)
-    {
-      x_min <- this$img$size["x"] - X_right
-      x_max <- this$img$size["x"] - X_left
-      y_min <- this$img$size["y"] - Y_top
-      y_max <- this$img$size["y"] - Y_bottom
-    }
-    if(this$Rotation >= 270 && this$Rotation < 360)
-    {
-      x_min <- this$img$size["x"] - Y_top
-      x_max <- this$img$size["x"] - Y_bottom
-      y_min <- X_left
-      y_max <- X_right
-    }
-
-    #Keep a copy of image limits
-    this$image_range <- c( x_min, x_max, y_min, y_max )
-
-    #Transform Y coord to fit img space
-    y_min_aux<-y_min
-    y_min<-1 + this$img$size["y"] -y_max
-    y_max<-1 + this$img$size["y"] -y_min_aux
-
-    iSel <- ((this$img$pos[, "x"] >= x_min) & (this$img$pos[, "x"] <= x_max))
-    iSel <- iSel & ((this$img$pos[, "y"] >= y_min) & (this$img$pos[, "y"] <= y_max))
-    this$iSel <- which(iSel)
-
-    # DEBUG PRINTS
-    #   cat("\nImage Range Changed!\n")
-    #   cat(paste("x_min = ", x_min, "\n"))
-    #   cat(paste("x_max = ", x_max, "\n"))
-    #   cat(paste("y_min = ", y_min, "\n"))
-    #   cat(paste("y_max = ", y_max, "\n"))
-    #   cat("iSel:\n")
-    #   print(this$.iSel)
-
-    this$PlotMassImageRGB()
+    #Set ROI from spinbuttons
+    this$ROI[1]<- svalue(this$Spin_Xmin)
+    this$ROI[2] <- svalue(this$Spin_Xmax)
+    this$ROI[3] <- svalue(this$Spin_Ymin)
+    this$ROI[4] <- svalue(this$Spin_Ymax)
+    this$RedrawMSImage()
   }
 
   #==================================================================================================
   SliderLightChanged<- function( ... )
   {
-    #TODO this is ugly slow, disconnect signal handler until processing is complete!
+    #Set it to ROI spinbuttons
     this$PlotMassImageRGB()
   }
 
@@ -501,67 +477,10 @@
     rotateLabel <- this$Rotation
     if( rotateLabel == 90 ) {rotateLabel<-270}
     else if(rotateLabel == 270){ rotateLabel<-90}
-    Lbl_Rotation$set_value(paste("Rotation:", rotateLabel, "º"))
-
-    #Adjust range controls to fit rotation
-    this$Spin_Xmin$remove_handlers()
-    this$Spin_Xmax$remove_handlers()
-    this$Spin_Ymin$remove_handlers()
-    this$Spin_Ymax$remove_handlers()
-
-    if(angle >= 0 && angle < 90 || angle >= 180 && angle < 270)
-    {
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Xmin), min = 1, max = this$img$size["x"] )
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Xmax), min = 1, max = this$img$size["x"] )
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Ymin), min = 1, max = this$img$size["y"] )
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Ymax), min = 1, max = this$img$size["y"] )
-    }
-    if(angle >= 90 && angle < 180 || angle >= 270 && angle < 360)
-    {
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Xmin), min = 1, max = this$img$size["y"] )
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Xmax), min = 1, max = this$img$size["y"] )
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Ymin), min = 1, max = this$img$size["x"] )
-      gtkSpinButtonSetRange(getToolkitWidget(this$Spin_Ymax), min = 1, max = this$img$size["x"] )
-    }
-
-    #Apply rotation to image range
-    if(angle >= 0 && angle < 90)
-    {
-      svalue(this$Spin_Xmin) <- this$image_range[1]
-      svalue(this$Spin_Xmax) <- this$image_range[2]
-      svalue(this$Spin_Ymin) <- this$image_range[3]
-      svalue(this$Spin_Ymax) <- this$image_range[4]
-    }
-    if(angle >= 90 && angle < 180)
-    {
-      svalue(this$Spin_Xmin) <- this$img$size["y"] - this$image_range[4] + 1
-      svalue(this$Spin_Xmax) <- this$img$size["y"] - this$image_range[3] + 1
-      svalue(this$Spin_Ymin) <- this$image_range[1]
-      svalue(this$Spin_Ymax) <- this$image_range[2]
-    }
-    if(angle >= 180 && angle < 270)
-    {
-      svalue(this$Spin_Xmin) <- this$img$size["x"] - this$image_range[2] + 1
-      svalue(this$Spin_Xmax) <- this$img$size["x"] - this$image_range[1] + 1
-      svalue(this$Spin_Ymin) <- this$img$size["y"] - this$image_range[4] + 1
-      svalue(this$Spin_Ymax) <- this$img$size["y"] - this$image_range[3] + 1
-    }
-    if(angle >= 270 && angle < 360)
-    {
-      svalue(this$Spin_Xmin) <- this$image_range[3]
-      svalue(this$Spin_Xmax) <- this$image_range[4]
-      svalue(this$Spin_Ymin) <- this$img$size["x"] - this$image_range[2] + 1
-      svalue(this$Spin_Ymax) <- this$img$size["x"] - this$image_range[1] + 1
-    }
-
-    #Re-connect handlers
-    this$Spin_Xmin$add_handler_changed(this$SpinImageRangeChanged)
-    this$Spin_Xmax$add_handler_changed(this$SpinImageRangeChanged)
-    this$Spin_Ymin$add_handler_changed(this$SpinImageRangeChanged)
-    this$Spin_Ymax$add_handler_changed(this$SpinImageRangeChanged)
+    Lbl_Rotation$set_value(paste("Rotation:", rotateLabel))
 
     #Plot rotated image
-    this$PlotMassImageRGB()
+    this$RedrawMSImage()
   }
 
   #==================================================================================================
@@ -573,28 +492,29 @@
   #==================================================================================================
   ROI_Deleted <-function (...)
   {
+    #Set it to ROI spinbuttons
+    this$Spin_Xmin$remove_handlers()
+    this$Spin_Xmax$remove_handlers()
+    this$Spin_Ymin$remove_handlers()
+    this$Spin_Ymax$remove_handlers()
+    svalue(this$Spin_Xmin) <- 1
+    svalue(this$Spin_Xmax) <- img$size["x"]
+    svalue(this$Spin_Ymin) <- 1
+    svalue(this$Spin_Ymax) <- img$size["y"]
+    this$Spin_Xmin$add_handler_changed(this$SpinImageRangeChanged)
+    this$Spin_Xmax$add_handler_changed(this$SpinImageRangeChanged)
+    this$Spin_Ymin$add_handler_changed(this$SpinImageRangeChanged)
+    this$Spin_Ymax$add_handler_changed(this$SpinImageRangeChanged)
+
     this$ROI <- NULL
-    RedrawMSImage()
+    this$RedrawMSImage()
   }
 
   #==================================================================================================
-  ROI_Cropped <- function( ... )
+  ROI_Zoom <- function( ... )
   {
-    ##TODO
-  }
-
-  #==================================================================================================
-  ROI_ZoomIn <- function( ... )
-  {
-    this$ZOOM_win <- this$ROI
-    RedrawMSImage()
-  }
-
-  #==================================================================================================
-  ROI_ZoomOut <- function( ... )
-  {
-    this$ZOOM_win <- NULL
-    RedrawMSImage()
+    this$ZOOM_win <- switch(svalue(this$Btn_RoiZoom) , this$ROI)
+    this$RedrawMSImage()
   }
 
   #==================================================================================================
@@ -602,35 +522,10 @@
   {
     if(!is.null(this$ROI))
     {
-      #Apply rotation
-      if(this$Rotation >= 0 && this$Rotation < 90)
-      {
-        Left <- this$ROI[1]
-        Right <- this$ROI[2]
-        Bottom <- this$ROI[3]
-        Top <- this$ROI[4]
-      }
-      if(this$Rotation >= 90 && this$Rotation < 180)
-      {
-        Left <- this$ROI[3]
-        Right <- this$ROI[4]
-        Bottom <- this$img$size["y"] - this$ROI[2]
-        Top <- this$img$size["y"] - this$ROI[1]
-      }
-      if(this$Rotation >= 180 && this$Rotation < 270)
-      {
-        Left <- this$img$size["x"] - this$ROI[2]
-        Right <- this$img$size["x"] - this$ROI[1]
-        Bottom <- this$img$size["y"] - this$ROI[4]
-        Top <- this$img$size["y"] - this$ROI[3]
-      }
-      if(this$Rotation >= 270 && this$Rotation < 360)
-      {
-        Left <- this$img$size["x"] - this$ROI[4]
-        Right <- this$img$size["x"] - this$ROI[3]
-        Bottom <- this$ROI[1]
-        Top <- this$ROI[2]
-      }
+      Left <- this$ROI[1]
+      Right <- this$ROI[2]
+      Bottom <- this$ROI[3]
+      Top <- this$ROI[4]
 
       #Limits to image size
       Left<-max(1, Left)
@@ -653,7 +548,6 @@
       {
         for(yi in Bottom:Top)
         {
-          yi <- 1 + this$img$size["y"] - yi #Transform raster coords to image coords (only Y axis is affected)
           preID <- which( Zpos == complex(real = xi, imaginary = yi) )
 
           if(length(preID) > 0)
@@ -685,111 +579,112 @@
   #==================================================================================================
   IntensityScale_EnableClicked <- function( evt, ...)
   {
-    ##TODO remove I dont need it, remove also from the handler action connection
-    ###channel <- evt$action #"R" for the red image, "G" for the green image or "Blue" for the blue image
-
     this$PlotMassImageRGB()
+  }
 
+  #==================================================================================================
+  ROI_IntensityLimit <- function( ... )
+  {
+    #Re-Build the raster with the new intensity limit
+    for( ich in 1:length(this$mz_selected))
+    {
+      this$ImgBuildFun(ich, this$mz_selected[ich], this$mz_tolerance[ich] )
+    }
+    this$PlotMassImageRGB()
   }
 
   #Build the GUI
-  Top_grp <- ggroup(horizontal = F, container = parent)
-  Top_captionGrp <- ggroup(horizontal = T, container = Top_grp)
-  lbl_title <- glabel( paste("  Image:",img$name) , container = Top_captionGrp)
+  Top_grp <- gWidgets2::ggroup(horizontal = F, container = parent)
+  Top_captionGrp <- gWidgets2::ggroup(horizontal = T, container = Top_grp)
+  lbl_title <- gWidgets2::glabel( paste("  Image:",img$name) , container = Top_captionGrp)
   font(lbl_title)<-list(weight = "bold", size = 9)
-  addSpring(Top_captionGrp)
-  Btn_plot2file<- gbutton("Save to jpeg", container = Top_captionGrp, handler = this$SaveImg2Png)
-  Panel_Img<- gpanedgroup(horizontal = T, container = Top_grp,  expand=TRUE )
-  spectraListFrame<-gframe("Spectra List", container = Panel_Img,  fill = T, spacing = 5 )
-  Grp_Tbl <- ggroup(horizontal = F, container = spectraListFrame,  expand=TRUE, fill = TRUE)
+  gWidgets2::addSpring(Top_captionGrp)
+  Btn_plot2file<- gWidgets2::gbutton("Save to jpeg", container = Top_captionGrp, handler = this$SaveImg2Png)
+  Panel_Img<- gWidgets2::gpanedgroup(horizontal = T, container = Top_grp,  expand=TRUE )
+  spectraListFrame<-gWidgets2::gframe("Spectra List", container = Panel_Img,  fill = T, spacing = 5 )
+  Grp_Tbl <- gWidgets2::ggroup(horizontal = F, container = spectraListFrame,  expand=TRUE, fill = TRUE)
   ID<-0
   X<-0
   Y<-0
   Colour<-"red" #default colour for mean spectra
-  Tbl_spotList<-gtable( data.frame(ID,X,Y,Colour), container = Grp_Tbl, multiple = T, chosen.col = 1)
+  Tbl_spotList<-gWidgets2::gtable( data.frame(ID,X,Y,Colour), container = Grp_Tbl, multiple = T, chosen.col = 1)
   size( Tbl_spotList )<- c(120, -1)
   ##Set table style using colors
-  gtkTreeViewSetGridLines(getToolkitWidget(Tbl_spotList), 3)
-  gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0),
+  RGtk2::gtkTreeViewSetGridLines(getToolkitWidget(Tbl_spotList), 3)
+  RGtk2::gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0),
                              gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0))[[1]],
                              background = 3
-  )
+                              )
 
-  render<-gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0))[[1]]
+  render<-RGtk2::gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0))[[1]]
   render$set( font = "bold")
   gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0), render)
 
   gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 3)$set(visible = F)
 
-  Grp_BtmTbl <-ggroup(horizontal = F, container =Grp_Tbl)
-  Btn_PlotSelSpotList<-gbutton("Plot", container= Grp_BtmTbl,  handler = this$SpectraListSelChange)
-  Btn_ClearSpotList<-gbutton("Clear", container= Grp_BtmTbl,  handler = this$BtnClearSpotList)
-  Btn_ExportSpotList<-gbutton("Export", container= Grp_BtmTbl,  handler = this$BtnExportSpotList)
+  Grp_BtmTbl <-gWidgets2::ggroup(horizontal = F, container =Grp_Tbl)
+  Btn_PlotSelSpotList<-gWidgets2::gbutton("Plot", container= Grp_BtmTbl,  handler = this$SpectraListSelChange)
+  Btn_ClearSpotList<-gWidgets2::gbutton("Clear", container= Grp_BtmTbl,  handler = this$BtnClearSpotList)
+  Btn_ExportSpotList<-gWidgets2::gbutton("Export", container= Grp_BtmTbl,  handler = this$BtnExportSpotList)
 
-  Grp_TopImg <- ggroup(horizontal = F, container = Panel_Img, expand = T)
-  Grp_Buttons <- ggroup(horizontal = T, container = Grp_TopImg)
-  Lbl_Rotation<- glabel(text = "Rotation: 0º", container = Grp_Buttons)
-  Btn_rotate_CCW <- gbutton("", container = Grp_Buttons, handler = this$BtnRotateCCW)
-  gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CCW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CCW.png") )
-  Btn_rotate_CW <- gbutton("", container = Grp_Buttons, handler = this$BtnRotateCW)
-  gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CW.png") )
-  Lbl_Smooth<- glabel(text = "Smooth:", container = Grp_Buttons)
-  Spin_Smooth<- gspinbutton(from = 0.1, to = 10, digest = 2, by = 0.2 , value = 0.3, handler = this$SpinSmoothChanged, container = Grp_Buttons)
-  addSpring(Grp_Buttons)
-  Lbl_Xres<- glabel(text = "Resolution:", container = Grp_Buttons)
-  Combo_Xres <- gcombobox( items = c("x1","x2","x4"), selected = 2, container = Grp_Buttons, handler = this$ComboBox_XRes_Changed)
+  Grp_TopImg <- gWidgets2::ggroup(horizontal = F, container = Panel_Img, expand = T)
+  Grp_Buttons <- gWidgets2::ggroup(horizontal = T, container = Grp_TopImg)
+  Lbl_Rotation<- gWidgets2::glabel(text = "Rotation: 0", container = Grp_Buttons)
+  Btn_rotate_CCW <- gWidgets2::gbutton("", container = Grp_Buttons, handler = this$BtnRotateCCW)
+  RGtk2::gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CCW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CCW.png") )
+  Btn_rotate_CW <- gWidgets2::gbutton("", container = Grp_Buttons, handler = this$BtnRotateCW)
+  RGtk2::gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CW.png") )
+  Lbl_Xres<- gWidgets2::glabel(text = "Interpolation:", container = Grp_Buttons)
+  Combo_Xres <- gWidgets2::gcombobox( items = c("x1","x2","x3","x4","x5"), selected = 2, container = Grp_Buttons, handler = this$ComboBox_XRes_Changed)
+  gWidgets2::addSpring(Grp_Buttons)
+  gWidgets2::glabel("Light:", container = Grp_Buttons)
+  Scale_light <- gWidgets2::gslider( from = 0.6, to = 10, by = 0.2, value = 3, horizontal = T, handler = this$SliderLightChanged, container =  Grp_Buttons)
 
-  Lbl_XImgRange<- glabel(text = "X range:", container = Grp_Buttons)
-  Spin_Xmin<- gspinbutton(from = 1, to =  img$size["x"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_Buttons)
-  Spin_Xmax<- gspinbutton(from = 1, to = img$size["x"], digest = 0, by = 1 , value = img$size["x"], handler = this$SpinImageRangeChanged, container = Grp_Buttons)
-  Lbl_YImgRange<- glabel(text = "Y range:", container = Grp_Buttons)
-  Spin_Ymin<- gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_Buttons)
-  Spin_Ymax<- gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = img$size["y"], handler = this$SpinImageRangeChanged, container = Grp_Buttons)
-
-  Grp_ImgTop<-ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
-  Grp_ImgAndLightScale <-ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
-  imaging_dev <- ggraphics(spacing = 5 )
+  Grp_ImgTop<-gWidgets2::ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
+  imaging_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( imaging_dev )<- c(650, 340)
-  addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
-  add(obj = Grp_ImgAndLightScale, child = imaging_dev,  fill = T, expand = T)
-
-  Grp_LblLighScale <- ggroup( horizontal = T, container =  Grp_ImgAndLightScale)
-  glabel("Light:", container = Grp_LblLighScale)
-  Scale_light <- gslider( from = 0.6, to = 10, by = 0.2, value = 3, horizontal = T, handler = this$SliderLightChanged, container =  Grp_LblLighScale)
+  gWidgets2::addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
+  gWidgets2::add(obj = Grp_ImgTop, child = imaging_dev,  fill = T, expand = T)
 
   #Red Color Scale
-  Grp_RedScale<-ggroup( horizontal = F, container = Grp_ImgTop)
-  scaleRed_dev <- ggraphics(spacing = 5 )
+  Grp_RedScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ImgTop)
+  scaleRed_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( scaleRed_dev )<- c(120, 300)
-  add(obj = Grp_RedScale, child = scaleRed_dev,  fill = T, expand = T)
-  Lbl_RedMz <- glabel("R M/Z", container = Grp_RedScale)
-  Btn_RedEnable<-gcheckbox("On", container = Grp_RedScale, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
+  gWidgets2::add(obj = Grp_RedScale, child = scaleRed_dev,  fill = T, expand = T)
+  Lbl_RedMz <- gWidgets2::glabel("R M/Z", container = Grp_RedScale)
+  Btn_RedEnable<-gWidgets2::gcheckbox("On", container = Grp_RedScale, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
 
   #Green Color scale
-  Grp_GreenScale<-ggroup( horizontal = F, container = Grp_ImgTop)
-  scaleGreen_dev <- ggraphics(spacing = 5 )
+  Grp_GreenScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ImgTop)
+  scaleGreen_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( scaleGreen_dev )<- c(120, 300)
-  add(obj = Grp_GreenScale, child = scaleGreen_dev,  fill = T, expand = T)
-  Lbl_GreenMz <- glabel("G M/Z", container = Grp_GreenScale)
-  Btn_GreenEnable<-gcheckbox("On", container = Grp_GreenScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
+  gWidgets2::add(obj = Grp_GreenScale, child = scaleGreen_dev,  fill = T, expand = T)
+  Lbl_GreenMz <- gWidgets2::glabel("G M/Z", container = Grp_GreenScale)
+  Btn_GreenEnable<-gWidgets2::gcheckbox("On", container = Grp_GreenScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
 
   #Blue Color scale
-  Grp_BlueScale<-ggroup( horizontal = F, container = Grp_ImgTop)
-  scaleBlue_dev <- ggraphics(spacing = 5 )
+  Grp_BlueScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ImgTop)
+  scaleBlue_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( scaleBlue_dev )<- c(120, 300)
-  add(obj = Grp_BlueScale, child = scaleBlue_dev,  fill = T, expand = T)
-  Lbl_BlueMz <- glabel("B M/Z", container = Grp_BlueScale)
-  Btn_BlueEnable<-gcheckbox("On", container = Grp_BlueScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")
+  gWidgets2::add(obj = Grp_BlueScale, child = scaleBlue_dev,  fill = T, expand = T)
+  Lbl_BlueMz <- gWidgets2::glabel("B M/Z", container = Grp_BlueScale)
+  Btn_BlueEnable<-gWidgets2::gcheckbox("On", container = Grp_BlueScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")
 
   #ROI CTL
-  Frame_RoiCtl<-gframe("ROI Controls", container = Grp_TopImg )
-  Grp_RoiCtl<-ggroup(horizontal = T, container = Frame_RoiCtl)
-  Btn_RoiDelete<-gbutton("Delete", container = Grp_RoiCtl, handler = this$ROI_Deleted)
-  Btn_RoiCrop<-gcheckbox("Crop", container = Grp_RoiCtl, handler = this$ROI_Croped, use.togglebutton = T, checked = F)
-  Btn_RoiZoomIn<-gbutton("Zoom In", container = Grp_RoiCtl, handler = this$ROI_ZoomIn)
-  Btn_RoiZoomOut<-gbutton("Zoom Out", container = Grp_RoiCtl, handler = this$ROI_ZoomOut)
-  Btn_RoiGetSpectra<-gbutton("Get Spectra", container = Grp_RoiCtl, handler = this$ROI_GetSpectra)
-  addSpring(Grp_RoiCtl)
+  Frame_RoiCtl<-gWidgets2::gframe("ROI Controls", container = Grp_TopImg )
+  Grp_RoiCtl<-gWidgets2::ggroup(horizontal = T, container = Frame_RoiCtl)
+  Btn_RoiDelete<-gWidgets2::gbutton("Delete", container = Grp_RoiCtl, handler = this$ROI_Deleted)
+  Btn_RoiZoom<-gWidgets2::gcheckbox("Zoom In", checked = F, use.togglebutton = T, container = Grp_RoiCtl, handler = this$ROI_Zoom)
+  Btn_RoiGetSpectra<-gWidgets2::gbutton("Get Spectra", container = Grp_RoiCtl, handler = this$ROI_GetSpectra)
+  Btn_RoiIntLimited<-gWidgets2::gcheckbox("Intensity Limit", checked = F, use.togglebutton = T, container = Grp_RoiCtl, handler = this$ROI_IntensityLimit)
+  Lbl_RoiIntLimited<-gWidgets2::glabel("Intensity Limit label TODO###", container = Grp_RoiCtl)
+  gWidgets2::addSpring(Grp_RoiCtl)
+  Lbl_XImgRange<- gWidgets2::glabel(text = "X range:", container = Grp_RoiCtl)
+  Spin_Xmin<- gWidgets2::gspinbutton(from = 1, to =  img$size["x"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
+  Spin_Xmax<- gWidgets2::gspinbutton(from = 1, to = img$size["x"], digest = 0, by = 1 , value = img$size["x"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
+  Lbl_YImgRange<- gWidgets2::glabel(text = "Y range:", container = Grp_RoiCtl)
+  Spin_Ymin<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
+  Spin_Ymax<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = img$size["y"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
 
   ## Set the name for the class
   class(this) <- append(class(this),"MSImagePlotWidget")

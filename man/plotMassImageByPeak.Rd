@@ -6,8 +6,8 @@
 \usage{
 plotMassImageByPeak(img, mass.peak, tolerance = 0.25, XResLevel = 3,
   NormalizationCoefs = NULL, rotation = 0, show_axes = F,
-  scale_to_global_intensity = F, vlight = 3, crop_area = c(0,
-  img$size["x"], 0, img$size["y"]))
+  scale_to_global_intensity = F, vlight = 3, crop_area = NULL,
+  intensity_limit = NULL)
 }
 \arguments{
 \item{img}{an rMSI data object.}
@@ -26,7 +26,11 @@ plotMassImageByPeak(img, mass.peak, tolerance = 0.25, XResLevel = 3,
 
 \item{scale_to_global_intensity}{scale the image intensity to fit into the global intensity (only for RGB).}
 
-\item{vlight}{the lighting of the plotted image.
+\item{vlight}{the lighting of the plotted image.}
+
+\item{crop_area}{the region of image to show in a vector formated as c(left, right, bottom, top) if null the whole image is plot.}
+
+\item{intensity_limit}{limit the all pixels intensities to a given value. If null no limiting is used.
 
 Plots a mass image. If only one mass ion are used a rainbow color code image is generated. If more ions are used each mass will
 be encoded in an RGB color channel.}

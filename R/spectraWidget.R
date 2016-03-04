@@ -52,7 +52,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   gc()
 }
 
-.SpectraPlotWidget <- function( parent_widget=gwindow ( "Default SpectraPlotWidget" , visible = FALSE ), clicFuntion = NULL, showOpenFileButton = T)
+.SpectraPlotWidget <- function( parent_widget=gwindow ( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -63,8 +63,19 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   this <- environment()
 
   ##Class data members
+
   parent <- parent_widget
   rm(parent_widget)
+
+  if(is.null(top_window_widget))
+  {
+    top_window <- parent
+  }
+  else
+  {
+    top_window <- top_window_widget
+  }
+  rm(top_window_widget)
   clicFun <- clicFuntion
   rm(clicFuntion)
   AnteriorClickMz <- 0
@@ -161,7 +172,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   }
 
   #Redraw ggraph with interpolation, event args must be passed======================================
-  ReDraw <- function( ) # TODO hi tenia ... com a param
+  ReDraw <- function( )
   {
     if(length(this$spectra_mass) == 0) return()
 
@@ -267,7 +278,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
     }
 
     #Update cursor
-    this$CheckBox_Changed( ) #TODO hi tenia ... com a param
+    this$CheckBox_Changed( )
   }
 
   #OpenTXT==========================================================================================
@@ -476,6 +487,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
     }
 
     this$ReDraw()
+
     return(TRUE) #The scroll event requires this return
   }
 
@@ -565,9 +577,9 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
 
   #Signal handlers
   gWidgets2::addHandler(this$plot_device, signal = "scroll-event", handler = this$ScrollEventOnSpectra, action = this)
-  gWidgets2::addHandler(this$parent, signal = "key-press-event", handler = this$OnKeyPress, action = this)
-  gWidgets2::addHandler(this$parent, signal = "key-release-event", handler = this$OnKeyRelease, action = this)
-  gWidgets2::addHandler(this$parent, signal = "focus-out-event", handler = this$OnLostFocus, action = this)
+  gWidgets2::addHandler(this$top_window, signal = "key-press-event", handler = this$OnKeyPress, action = this)
+  gWidgets2::addHandler(this$top_window, signal = "key-release-event", handler = this$OnKeyRelease, action = this)
+  gWidgets2::addHandler(this$top_window, signal = "focus-out-event", handler = this$OnLostFocus, action = this)
   gWidgets2::addHandlerMouseMotion(this$plot_device, handler = this$OnMouseMotion)
   gWidgets2::addHandlerSelectionChanged(this$plot_device, handler = this$OnSelection, action = this)
   gWidgets2::addHandler(this$plot_device, signal = "size-allocate", handler = this$OnResize, action = this)

@@ -94,7 +94,7 @@ MSIWindow<-function(img)
   Grp_Top <- gpanedgroup(horizontal = F, container = window)
   msiWidget <- .MSImagePlotWidget(in_img = img , parent_widget = Grp_Top, AddSpectra_function = this$AddSpectra)
   spectraFrame<-gframe("Average Spectra", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
-  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, clicFuntion = this$SpectrumClicked, showOpenFileButton = F)
+  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F)
 
   visible(window)<-TRUE
 
@@ -109,6 +109,16 @@ MSIWindow<-function(img)
     spectraWidget$AddSpectra(  img$mass, img$mean, col = "red")
   }
   spectraWidget$ZoomResetClicked()
+
+  #Plot a initial image which is the maximum peak in mean spectrum with a tolereance of 100 ppm of the mass range
+  if( class( img$mean) == "MassSpectrum")
+  {
+    SpectrumClicked( channel = 1, mass = img$mass[which.max(img$mean@intensity)], tol = 100/1e6*(max(img$mass)-min(img$mass)))
+  }
+  else
+  {
+    SpectrumClicked( channel = 1, mass = img$mass[which.max(img$mean)], tol = 100/1e6*(max(img$mass)-min(img$mass)))
+  }
 
 
   window$widget$present() ##Tot i forzzar aki un raise-up del top widget en RStudio no deixa!

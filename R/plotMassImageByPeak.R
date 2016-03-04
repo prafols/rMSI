@@ -6,7 +6,7 @@
 #         mass.peak
 #         tolerance
 # El resultat d'aquest metode es guardara en la classe MSImagePlotWidget en una llista de capes R,G,B
-.buildImageByPeak<-function(img, mass.peak, tolerance=0.25, NormCoefs = NULL )
+.buildImageByPeak<-function(img, mass.peak, tolerance=0.25, NormCoefs = NULL, limit_intensity = NULL )
 {
   #Grab only MassPeaks Lists
   if(typeof(img) != "list")
@@ -16,6 +16,10 @@
 
   #Get the image slice
   img_slice<-builRasterImageFromMass( img, mass.peak, tolerance, "max", NormCoefs) #TODO implement more methods
+  if(!is.null(limit_intensity))
+  {
+    img_slice$pixels[ img_slice$pixels > limit_intensity ] <- limit_intensity
+  }
 
   #Create the raster
   my_raster <- raster::raster( nrow = ncol(img_slice$pixels), ncol = nrow(img_slice$pixels), xmn= 0, xmx= nrow(img_slice$pixels), ymn= 0, ymx= ncol(img_slice$pixels))
@@ -120,69 +124,76 @@
   return(RGB_raster)
 }
 
-#zoom_roi  is c(left, rigth, bottom, top)
 #roi_rectangle  is c(left, rigth, bottom, top)
-.plotMassImageRGB <- function(rasterRGB, cal_um2pixels = 1,  rotation=0, flipV=F, flipH=F, display_axes=T, zoom_roi = c(rasterRGB@extent@xmin, rasterRGB@extent@xmax, rasterRGB@extent@ymin, rasterRGB@extent@ymax), roi_rectangle = NULL)
+.plotMassImageRGB <- function(rasterRGB, cal_um2pixels = 1,  rotation=0, flipV=F, flipH=F, display_axes=T, roi_rectangle = NULL, zoom = F)
 {
+  img_Xmax <- rasterRGB@extent@xmax
+  img_Ymax <- rasterRGB@extent@ymax
+
   #Crop raster according the zoom window
-  rasterRGB<- raster::crop( rasterRGB, raster::extent(zoom_roi))
+  if( zoom && !is.null(roi_rectangle) )
+  {
+    rasterRGB<- raster::crop( rasterRGB, raster::extent( c(roi_rectangle[1] -1, roi_rectangle[2], rasterRGB@extent@ymax - roi_rectangle[4], rasterRGB@extent@ymax - roi_rectangle[3] + 1)))
+  }
 
   #Setting my tricky par values...
   par( bg = "black", fg =  "white", col.lab="white", xaxt="n", yaxt="n", col.axis = "white", col.main = "white", col.sub = "white",
        cex.axis = 0.6, mar = c(1,1,1,1), mgp = c(2, 0.5, 0.5))
 
+  #TODO la ROI no es mostra be amb zooms rotats! Xo oju k ara esta ben quadrat per no-zoom!
+
   #Apply rotation
   roi_rectangle_pre <- roi_rectangle
-  zoom_roi_pre <- zoom_roi
+  if( rotation == 0 )
+  {
+    if(!is.null(roi_rectangle))
+    {
+      roi_rectangle[1] <- roi_rectangle_pre[1] - 1 #Left maps Left
+      roi_rectangle[2] <- roi_rectangle_pre[2] #Rigth maps Right
+      roi_rectangle[3] <- img_Ymax - roi_rectangle_pre[4] #Bottom  maps Top
+      roi_rectangle[4] <- img_Ymax - roi_rectangle_pre[3] + 1 #Top maps Bottom
+    }
+  }
+
   if( rotation == 90 )
   {
     if(!is.null(roi_rectangle))
     {
-      roi_rectangle[1] <- rasterRGB@extent@ymax - roi_rectangle_pre[4] #Left maps Top
-      roi_rectangle[2] <- rasterRGB@extent@ymax - roi_rectangle_pre[3] #Rigth maps Bottom
-      roi_rectangle[3] <- roi_rectangle_pre[1] #Bottom  maps Left
+      roi_rectangle[1] <- roi_rectangle_pre[3] - 1 #Left maps Bottom
+      roi_rectangle[2] <- roi_rectangle_pre[4] #Rigth maps Top
+      roi_rectangle[3] <- roi_rectangle_pre[1] - 1 #Bottom  maps Left
       roi_rectangle[4] <- roi_rectangle_pre[2] #Top maps Right
     }
 
-    zoom_roi[1] <- rasterRGB@extent@ymax - zoom_roi_pre[4] #Left maps Top
-    zoom_roi[2] <- rasterRGB@extent@ymax - zoom_roi_pre[3] #Rigth maps Bottom
-    zoom_roi[3] <- zoom_roi_pre[1] #Bottom  maps Left
-    zoom_roi[4] <- zoom_roi_pre[2] #Top maps Right
+
     rasterRGB <- raster::flip(raster::t(rasterRGB), direction = "y") #90º rotation
   }
   if( rotation == 270 )
   {
     if(!is.null(roi_rectangle))
     {
-      roi_rectangle[1] <- roi_rectangle_pre[3] #Left maps Bottom
-      roi_rectangle[2] <- roi_rectangle_pre[4] #Rigth maps Top
-      roi_rectangle[3] <- rasterRGB@extent@xmax - roi_rectangle_pre[2] #Bottom  maps Right
-      roi_rectangle[4] <- rasterRGB@extent@xmax - roi_rectangle_pre[1] #Top maps Left
+      roi_rectangle[1] <- img_Ymax - roi_rectangle_pre[4] #Left maps top
+      roi_rectangle[2] <- img_Ymax - roi_rectangle_pre[3] + 1 #Rigth maps bottom
+      roi_rectangle[3] <- img_Xmax - roi_rectangle_pre[2] #Bottom  maps Right
+      roi_rectangle[4] <- img_Xmax - roi_rectangle_pre[1] + 1 #Top maps Left
     }
-    zoom_roi[1] <- zoom_roi_pre[3] #Left maps Bottom
-    zoom_roi[2] <- zoom_roi_pre[4] #Rigth maps Top
-    zoom_roi[3] <- rasterRGB@extent@xmax - zoom_roi_pre[2] #Bottom  maps Right
-    zoom_roi[4] <- rasterRGB@extent@xmax - zoom_roi_pre[1] #Top maps Left
+
     rasterRGB <- raster::flip(raster::t(rasterRGB), direction = "x") #270º rotation
   }
   if( rotation == 180 )
   {
     if(!is.null(roi_rectangle))
     {
-      roi_rectangle[1] <- rasterRGB@extent@xmax - roi_rectangle_pre[2] #Left maps Right
-      roi_rectangle[2] <- rasterRGB@extent@xmax - roi_rectangle_pre[1] #Rigth maps Left
-      roi_rectangle[3] <- rasterRGB@extent@ymax - roi_rectangle_pre[4] #Bottom  maps Top
-      roi_rectangle[4] <- rasterRGB@extent@ymax - roi_rectangle_pre[3] #Top maps Bottom
+      roi_rectangle[1] <- img_Xmax - roi_rectangle_pre[2] #Left maps Right
+      roi_rectangle[2] <- img_Xmax - roi_rectangle_pre[1] + 1 #Rigth maps Left
+      roi_rectangle[3] <- roi_rectangle_pre[3] -1 #Bottom  maps Top
+      roi_rectangle[4] <- roi_rectangle_pre[4] #Top maps Bottom
     }
 
-    zoom_roi[1] <- rasterRGB@extent@xmax - zoom_roi_pre[2] #Left maps Right
-    zoom_roi[2] <- rasterRGB@extent@xmax - zoom_roi_pre[1] #Rigth maps Left
-    zoom_roi[3] <- rasterRGB@extent@ymax - zoom_roi_pre[4] #Bottom  maps Top
-    zoom_roi[4] <- rasterRGB@extent@ymax - zoom_roi_pre[3] #Top maps Bottom
     rasterRGB <- raster::flip(raster::flip(rasterRGB, direction = "y"), direction = "x")#180º rotation
   }
 
-  raster::plotRGB(rasterRGB, axes = T, asp = 1, interpolate = T )
+  raster::plotRGB(rasterRGB, axes = T, asp = 1, interpolate = F ) ##TODO testing interpolation
 
   if(display_axes)
   {
@@ -263,7 +274,7 @@
     text ( x = P_Y[1], y = P_Y[2], labels = " Y", col = "white", adj = Txt_Adj, cex = 0.8)
   }
 
-  if(!is.null(roi_rectangle))
+  if(!is.null(roi_rectangle) && !zoom)
   {
     #roi_rectangle  is c(left, rigth, top, bottom)
     rect( xleft = roi_rectangle[1], xright = roi_rectangle[2], ytop = roi_rectangle[4], ybottom = roi_rectangle[3], border = "red", lwd = 2 )
@@ -351,20 +362,22 @@
 #' @param show_axes if true axis will be plotted. Otherwise a um scale and xy arrows  are drawn.
 #' @param scale_to_global_intensity scale the image intensity to fit into the global intensity (only for RGB).
 #' @param vlight the lighting of the plotted image.
+#' @param crop_area the region of image to show in a vector formated as c(left, right, bottom, top) if null the whole image is plot.
+#' @param intensity_limit limit the all pixels intensities to a given value. If null no limiting is used.
 #'
 #' Plots a mass image. If only one mass ion are used a rainbow color code image is generated. If more ions are used each mass will
 #' be encoded in an RGB color channel.
 #'
 #' @export
 #'
-plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, NormalizationCoefs = NULL, rotation = 0, show_axes = F, scale_to_global_intensity = F, vlight = 3, crop_area = c(0, img$size["x"], 0,  img$size["y"]))
+plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, NormalizationCoefs = NULL, rotation = 0, show_axes = F, scale_to_global_intensity = F, vlight = 3, crop_area = NULL, intensity_limit = NULL)
 {
   numberOfChannels <- 1
 
   if(length(mass.peak) == 1 )
   {
     #Single Ion image
-    im_sgn<-.buildImageByPeak(img, mass.peak, tolerance, NormalizationCoefs)
+    im_sgn<-.buildImageByPeak(img, mass.peak, tolerance, NormalizationCoefs, limit_intensity = intensity_limit)
     if(scale_to_global_intensity)
     {
       if(class(img$mean) == "MassSpectrum")
@@ -390,8 +403,8 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
       tolerance[2] <- tolerance[1]
     }
 
-    im_R<-.buildImageByPeak(img, mass.peak[1], tolerance[1], NormalizationCoefs)
-    im_G<-.buildImageByPeak(img, mass.peak[2], tolerance[2], NormalizationCoefs)
+    im_R<-.buildImageByPeak(img, mass.peak[1], tolerance[1], NormalizationCoefs, limit_intensity = intensity_limit)
+    im_G<-.buildImageByPeak(img, mass.peak[2], tolerance[2], NormalizationCoefs, limit_intensity = intensity_limit)
     numberOfChannels <- 2
 
     if( length(mass.peak) == 2 )
@@ -406,7 +419,7 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
       {
         tolerance[3] <- tolerance[1]
       }
-      im_B<-.buildImageByPeak(img, mass.peak[3], tolerance[3], NormalizationCoefs)
+      im_B<-.buildImageByPeak(img, mass.peak[3], tolerance[3], NormalizationCoefs, limit_intensity = intensity_limit)
       numberOfChannels <- 3
     }
 
@@ -430,5 +443,5 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
     .plotIntensityScale(im_R, "R" )
   }
 
-  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = show_axes, zoom_roi = crop_area)
+  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = show_axes, roi_rectangle = crop_area, zoom = !is.null(crop_area))
 }
