@@ -90,10 +90,10 @@ MSIWindow<-function(img)
   }
 
   #GUI builder
-  window <- gwindow ( "MSI Reconstruction" , visible = F )
-  Grp_Top <- gpanedgroup(horizontal = F, container = window)
+  window <- gWidgets2::gwindow ( "MSI Reconstruction" , visible = F )
+  Grp_Top <- gWidgets2::gpanedgroup(horizontal = F, container = window)
   msiWidget <- .MSImagePlotWidget(in_img = img , parent_widget = Grp_Top, AddSpectra_function = this$AddSpectra)
-  spectraFrame<-gframe("Average Spectra", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
+  spectraFrame<-gWidgets2::gframe("Average Spectra", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
   spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F)
 
   visible(window)<-TRUE
@@ -130,4 +130,29 @@ MSIWindow<-function(img)
   #Restore warnings level
   options(warn = oldWarning)
   rm(oldWarning)
+}
+
+#Global method to set checkbox text whit colors, font size and weight
+.setCheckBoxText <- function(checkbox, text, background = NULL, foreground = NULL, font_size = NULL, font_weight = NULL)
+{
+  pango_str <- "<span"
+  if(!is.null(foreground))
+  {
+    pango_str <- paste(pango_str, " foreground=\"", foreground,"\"", sep = "" )
+  }
+  if(!is.null(background))
+  {
+    pango_str <- paste(pango_str, " background=\"", background,"\"", sep = "" )
+  }
+  if(!is.null(font_size))
+  {
+    pango_str <- paste(pango_str, " size=\"",font_size, "\"", sep = "" )
+  }
+  if(!is.null(font_weight))
+  {
+    pango_str <- paste(pango_str, " weight=\"", font_weight, "\"", sep = "" )
+  }
+  pango_str <- paste(pango_str, ">", text, "</span>", sep = "" )
+
+  RGtk2::gtkLabelSetMarkup(gWidgets2::getToolkitWidget(checkbox)[[1]],pango_str)
 }

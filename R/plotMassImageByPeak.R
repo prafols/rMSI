@@ -6,7 +6,7 @@
 #         mass.peak
 #         tolerance
 # El resultat d'aquest metode es guardara en la classe MSImagePlotWidget en una llista de capes R,G,B
-.buildImageByPeak<-function(img, mass.peak, tolerance=0.25, NormCoefs = NULL, limit_intensity = NULL )
+.buildImageByPeak<-function(img, mass.peak, tolerance=0.25, NormCoefs = NULL)
 {
   #Grab only MassPeaks Lists
   if(typeof(img) != "list")
@@ -16,10 +16,6 @@
 
   #Get the image slice
   img_slice<-builRasterImageFromMass( img, mass.peak, tolerance, "max", NormCoefs) #TODO implement more methods
-  if(!is.null(limit_intensity))
-  {
-    img_slice$pixels[ img_slice$pixels > limit_intensity ] <- limit_intensity
-  }
 
   #Create the raster
   my_raster <- raster::raster( nrow = ncol(img_slice$pixels), ncol = nrow(img_slice$pixels), xmn= 0, xmx= nrow(img_slice$pixels), ymn= 0, ymx= ncol(img_slice$pixels))
@@ -377,7 +373,14 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
   if(length(mass.peak) == 1 )
   {
     #Single Ion image
-    im_sgn<-.buildImageByPeak(img, mass.peak, tolerance, NormalizationCoefs, limit_intensity = intensity_limit)
+    im_sgn<-.buildImageByPeak(img, mass.peak, tolerance, NormalizationCoefs)
+
+    #Apply limit intensity to raster object
+    if(!is.null(intensity_limit) && !is.na(intensity_limit[1]) )
+    {
+      raster::values(im_sgn$raster)[ raster::values(im_sgn$raster) > intensity_limit ] <- intensity_limit[1]
+    }
+
     if(scale_to_global_intensity)
     {
       if(class(img$mean) == "MassSpectrum")
@@ -403,8 +406,22 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
       tolerance[2] <- tolerance[1]
     }
 
-    im_R<-.buildImageByPeak(img, mass.peak[1], tolerance[1], NormalizationCoefs, limit_intensity = intensity_limit)
-    im_G<-.buildImageByPeak(img, mass.peak[2], tolerance[2], NormalizationCoefs, limit_intensity = intensity_limit)
+    im_R<-.buildImageByPeak(img, mass.peak[1], tolerance[1], NormalizationCoefs)
+    im_G<-.buildImageByPeak(img, mass.peak[2], tolerance[2], NormalizationCoefs)
+
+    #Apply limit intensity to raster objects R and G
+    if(!is.null(intensity_limit))
+    {
+      if(!is.na(intensity_limit[1]))
+      {
+        raster::values(im_R$raster)[ raster::values(im_R$raster) > intensity_limit ] <- intensity_limit[1]
+      }
+      if(!is.na(intensity_limit[2]))
+      {
+        raster::values(im_G$raster)[ raster::values(im_G$raster) > intensity_limit ] <- intensity_limit[2]
+      }
+    }
+
     numberOfChannels <- 2
 
     if( length(mass.peak) == 2 )
@@ -419,7 +436,17 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
       {
         tolerance[3] <- tolerance[1]
       }
-      im_B<-.buildImageByPeak(img, mass.peak[3], tolerance[3], NormalizationCoefs, limit_intensity = intensity_limit)
+      im_B<-.buildImageByPeak(img, mass.peak[3], tolerance[3], NormalizationCoefs)
+
+      #Apply limit intensity to raster object B
+      if(!is.null(intensity_limit))
+      {
+        if(!is.na(intensity_limit[3]))
+        {
+          raster::values(im_B$raster)[ raster::values(im_B$raster) > intensity_limit ] <- intensity_limit[3]
+        }
+      }
+
       numberOfChannels <- 3
     }
 

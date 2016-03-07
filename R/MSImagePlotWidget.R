@@ -29,6 +29,8 @@
   plotting_raster <- NULL #Current plotted MS image object
   ROI <- NULL #Current used ROI on image, NULL means no ROI
   ZOOM_win <- NULL #Current zoom windows
+  IntLimit_ROI <- NULL #Intensity limiting ROI
+  IntLimits <- NULL #A vector of intensity limits for each channel
   AddSpectra_ptr <- AddSpectra_function #Pointer to a AddSpectra method of a spectraWidget to be able of ploting directly
   rm(AddSpectra_function)
 
@@ -42,44 +44,43 @@
   {
     this$mz_tolerance[channel] <- tol
     this$mz_selected[channel] <- mass
+    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL) #TODO some day I can use this to include various normalizations
 
-
-    if(svalue(this$Btn_RoiIntLimited))
+    #Apply intensity limitation directly to the raster object
+    if( !is.null(this$IntLimit_ROI))
     {
-      #Limit max intensity to max intensity in ROI
-      cord_list <-c()
-      for(ix in this$ROI[1]:this$ROI[2])
-      {
-        for(iy in this$ROI[3]:this$ROI[4])
-        {
-          cord_list <- c(cord_list, complex(real = ix, imaginary = iy))
-        }
-      }
-      dm <- loadImageSliceFromMass(this$img, mass, tol )
-      Zpos<-complex(real = this$img$pos[,"x"], imaginary = this$img$pos[,"y"])
-      roi_dmrows<-unlist(lapply( cord_list, function(x){ which( Zpos == x ) } ))
-      Int_Limit<-max(getPixelValuesFromImageSlice(dm$data[roi_dmrows,], max)) ###TODO si canvies de metode de plot aki seguiras tenin un MAX!!
+      this$IntLimits[channel] <- max(raster::as.matrix(img_new$raster)[ (this$IntLimit_ROI[3]:this$IntLimit_ROI[4]), (this$IntLimit_ROI[1]:this$IntLimit_ROI[2])])
+      raster::values(img_new$raster)[ raster::values(img_new$raster) > this$IntLimits[channel] ] <- this$IntLimits[channel]
     }
     else
     {
-      #Disable intensity limitation
-      Int_Limit <- NULL
+      this$IntLimits[channel] <- NA
     }
 
-
-    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL, limit_intensity = Int_Limit) #TODO some day I can use this to include various normalizations
+    mz_str <- this$mz_selected[channel]
+    if(mz_str < 1000)
+    {
+      mz_str <- paste( round(mz_str, digits = 3), "Da" )
+    }
+    else
+    {
+      mz_str <- paste( round(mz_str/1000, digits = 3), "kDa" )
+    }
 
     if( channel == 1)
     {
       this$Rlayer_raster<-img_new
+      svalue(this$Lbl_RedMz) <- mz_str
     }
     else if (channel == 2)
     {
       this$Glayer_raster<-img_new
+      svalue(this$Lbl_GreenMz) <- mz_str
     }
     else if (channel == 3)
     {
       this$Blayer_raster<-img_new
+      svalue(this$Lbl_BlueMz) <- mz_str
     }
 
     #Return del buildImage
@@ -108,32 +109,38 @@
     ch_count <- 0
     if( svalue(this$Btn_RedEnable))
     {
+      .setCheckBoxText(this$Btn_RedEnable, " ON ", background = "red", foreground = "white", font_size = "large", font_weight = "heavy")
       red_layer <- this$Rlayer_raster
       unique_layer <- red_layer
       ch_count <- ch_count + 1
     }
     else
     {
+      .setCheckBoxText(this$Btn_RedEnable, " ON ", background = "darkred", foreground = "grey", font_size = "large", font_weight = "heavy")
       red_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
     }
     if( svalue(this$Btn_GreenEnable))
     {
+      .setCheckBoxText(this$Btn_GreenEnable, " ON ", background = "green", foreground = "white", font_size = "large", font_weight = "heavy")
       green_layer <- this$Glayer_raster
       unique_layer <- green_layer
       ch_count <- ch_count + 1
     }
     else
     {
+      .setCheckBoxText(this$Btn_GreenEnable, " ON ", background = "darkgreen", foreground = "grey", font_size = "large", font_weight = "heavy")
       green_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
     }
     if( svalue(this$Btn_BlueEnable))
     {
+      .setCheckBoxText(this$Btn_BlueEnable, " ON ", background = "blue", foreground = "white", font_size = "large", font_weight = "heavy")
       blue_layer <- this$Blayer_raster
       unique_layer <- blue_layer
       ch_count <- ch_count + 1
     }
     else
     {
+      .setCheckBoxText(this$Btn_BlueEnable, " ON ", background = "darkblue", foreground = "grey", font_size = "large", font_weight = "heavy")
       blue_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
     }
 
@@ -376,6 +383,8 @@
     this$Spin_Ymax$add_handler_changed(this$SpinImageRangeChanged)
 
     this$RedrawMSImage()
+    gWidgets2::enabled(this$Btn_RoiZoom) <- T
+    gWidgets2::enabled(this$Frame_RoiCtl) <- T
   }
 
   #==================================================================================================
@@ -405,7 +414,7 @@
     }
 
 
-    fname<-gfile("Save current MSI plot to png file", type="save", multi = F, filter =  c("tiff"="tiff", "svg"="svg"), initial.dir = path.expand(getwd()))
+    fname<-gWidgets2::gfile("Save current MSI plot to png file", type="save", multi = F, filter =  c("tiff"="tiff", "svg"="svg"), initial.dir = path.expand(getwd()))
     if(length(fname) == 0)
     {
       return ()
@@ -426,9 +435,13 @@
       tiff( filename = fname , width = 1200, height = 500, compression = "none", res = 160)
     }
 
-    #New implementation
-    plotMassImageByPeak(this$img,  mass.peak = mass_sel, tolerance = tol_sel, XResLevel = 3, rotation = this$Rotation, vlight= svalue(this$Scale_light))
+    plotMassImageByPeak(this$img,  mass.peak = mass_sel, tolerance = tol_sel,
+                        XResLevel = switch(svalue(this$Combo_Xres), x1 = 1, x2 = 2, x3 = 3, x4 = 4, x5 = 5),
+                        rotation = this$Rotation, vlight= svalue(this$Scale_light),
+                        crop_area = ZOOM_win, intensity_limit = this$IntLimits)
     dev.off()
+
+    gWidgets2::gmessage(paste("Image saved at:", fname), icon = "info")
   }
 
   #==================================================================================================
@@ -508,6 +521,11 @@
 
     this$ROI <- NULL
     this$RedrawMSImage()
+    gWidgets2::enabled(this$Frame_RoiCtl) <- F
+    if(is.null(this$ZOOM_win))
+    {
+      gWidgets2::enabled(this$Btn_RoiZoom) <- F
+    }
   }
 
   #==================================================================================================
@@ -515,6 +533,21 @@
   {
     this$ZOOM_win <- switch(svalue(this$Btn_RoiZoom) , this$ROI)
     this$RedrawMSImage()
+
+    if( is.null(this$ZOOM_win) )
+    {
+      this$Btn_RoiZoom[] <-"Zoom in ROI"
+    }
+    else
+    {
+      this$Btn_RoiZoom[] <-"Zoom Out"
+    }
+
+    #No roi defined and zoom out
+    if(is.null(this$ZOOM_win) && is.null(this$ROI))
+    {
+      gWidgets2::enabled(this$Btn_RoiZoom) <- F
+    }
   }
 
   #==================================================================================================
@@ -585,12 +618,49 @@
   #==================================================================================================
   ROI_IntensityLimit <- function( ... )
   {
+    if( is.null(this$ROI))
+    {
+      gWidgets2::gmessage("To apply intensity limitation you must define a ROI ", icon = "info")
+      return()
+    }
+    else
+    {
+      this$IntLimit_ROI <- this$ROI
+      #Limit Roi to image range
+      this$IntLimit_ROI[1] <- max( c(this$IntLimit_ROI[1], 1 ) )
+      this$IntLimit_ROI[2] <- min( c(this$IntLimit_ROI[2], this$img$size["x"] ) )
+      this$IntLimit_ROI[3] <- max( c(this$IntLimit_ROI[3], 1 ) )
+      this$IntLimit_ROI[4] <- min( c(this$IntLimit_ROI[4], this$img$size["y"] ) )
+    }
+
     #Re-Build the raster with the new intensity limit
     for( ich in 1:length(this$mz_selected))
     {
       this$ImgBuildFun(ich, this$mz_selected[ich], this$mz_tolerance[ich] )
     }
     this$PlotMassImageRGB()
+
+    gWidgets2::enabled(this$Btn_RoiIntUnLimit) <- T
+    gWidgets2::svalue(this$Btn_RoiIntUnLimit)<- "Remove Intensity Limit"
+    this$Btn_RoiIntUnLimit$add_handler_changed(this$ROI_IntensityUnLimit)
+  }
+
+  #==================================================================================================
+  ROI_IntensityUnLimit <- function( ... )
+  {
+    #Disable intensity limitation
+    this$IntLimit_ROI <- NULL
+
+    #Re-Build the raster with the new intensity limit
+    for( ich in 1:length(this$mz_selected))
+    {
+      this$ImgBuildFun(ich, this$mz_selected[ich], this$mz_tolerance[ich] )
+    }
+    this$PlotMassImageRGB()
+
+    this$Btn_RoiIntUnLimit$remove_handlers()
+    gWidgets2::enabled(this$Btn_RoiIntUnLimit) <- F
+    gWidgets2::svalue(this$Btn_RoiIntUnLimit)<- "No Intensity Limit"
   }
 
   #Build the GUI
@@ -599,7 +669,7 @@
   lbl_title <- gWidgets2::glabel( paste("  Image:",img$name) , container = Top_captionGrp)
   font(lbl_title)<-list(weight = "bold", size = 9)
   gWidgets2::addSpring(Top_captionGrp)
-  Btn_plot2file<- gWidgets2::gbutton("Save to jpeg", container = Top_captionGrp, handler = this$SaveImg2Png)
+  Btn_plot2file<- gWidgets2::gbutton("Save in image file", container = Top_captionGrp, handler = this$SaveImg2Png)
   Panel_Img<- gWidgets2::gpanedgroup(horizontal = T, container = Top_grp,  expand=TRUE )
   spectraListFrame<-gWidgets2::gframe("Spectra List", container = Panel_Img,  fill = T, spacing = 5 )
   Grp_Tbl <- gWidgets2::ggroup(horizontal = F, container = spectraListFrame,  expand=TRUE, fill = TRUE)
@@ -646,45 +716,61 @@
   gWidgets2::addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
   gWidgets2::add(obj = Grp_ImgTop, child = imaging_dev,  fill = T, expand = T)
 
+  Grp_ScalesV <- gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
+  Grp_ScalesH <- gWidgets2::ggroup( horizontal = T, container =  Grp_ScalesV,  fill = T, expand = T)
+  Btn_RoiIntUnLimit<-gWidgets2::gbutton("No Intensity Limit", container = Grp_ScalesV)
+
   #Red Color Scale
-  Grp_RedScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ImgTop)
+  Grp_RedScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleRed_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( scaleRed_dev )<- c(120, 300)
   gWidgets2::add(obj = Grp_RedScale, child = scaleRed_dev,  fill = T, expand = T)
-  Lbl_RedMz <- gWidgets2::glabel("R M/Z", container = Grp_RedScale)
-  Btn_RedEnable<-gWidgets2::gcheckbox("On", container = Grp_RedScale, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
+  Grp_RedCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_RedScale)
+  Btn_RedEnable<-gWidgets2::gcheckbox("On", container = Grp_RedCtl, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
+  Lbl_RedMz <- gWidgets2::glabel("", container = Grp_RedCtl)
+
 
   #Green Color scale
-  Grp_GreenScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ImgTop)
+  Grp_GreenScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleGreen_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( scaleGreen_dev )<- c(120, 300)
   gWidgets2::add(obj = Grp_GreenScale, child = scaleGreen_dev,  fill = T, expand = T)
-  Lbl_GreenMz <- gWidgets2::glabel("G M/Z", container = Grp_GreenScale)
-  Btn_GreenEnable<-gWidgets2::gcheckbox("On", container = Grp_GreenScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
+  Grp_GreenCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_GreenScale)
+  Btn_GreenEnable<-gWidgets2::gcheckbox("On", container = Grp_GreenCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
+  Lbl_GreenMz <- gWidgets2::glabel("", container = Grp_GreenCtl)
 
   #Blue Color scale
-  Grp_BlueScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ImgTop)
+  Grp_BlueScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleBlue_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( scaleBlue_dev )<- c(120, 300)
   gWidgets2::add(obj = Grp_BlueScale, child = scaleBlue_dev,  fill = T, expand = T)
-  Lbl_BlueMz <- gWidgets2::glabel("B M/Z", container = Grp_BlueScale)
-  Btn_BlueEnable<-gWidgets2::gcheckbox("On", container = Grp_BlueScale, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")
+  Grp_BlueCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_BlueScale)
+  Btn_BlueEnable<-gWidgets2::gcheckbox("On", container = Grp_BlueCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")
+  Lbl_BlueMz <- gWidgets2::glabel("", container = Grp_BlueCtl)
+
+  #Modify Red, Green, Blue buttons labels to add colors
+  .setCheckBoxText(Btn_RedEnable, " ON ", background = "red", foreground = "white", font_size = "large", font_weight = "heavy")
+  .setCheckBoxText(Btn_GreenEnable, " ON ", background = "darkgreen", foreground = "grey", font_size = "large", font_weight = "heavy")
+  .setCheckBoxText(Btn_BlueEnable, " ON ", background = "darkblue", foreground = "grey", font_size = "large", font_weight = "heavy")
 
   #ROI CTL
-  Frame_RoiCtl<-gWidgets2::gframe("ROI Controls", container = Grp_TopImg )
+  Grp_RoiAndZoom<-gWidgets2::ggroup(horizontal = T, container = Grp_TopImg)
+  Frame_RoiCtl<-gWidgets2::gframe("ROI Controls", container = Grp_RoiAndZoom )
   Grp_RoiCtl<-gWidgets2::ggroup(horizontal = T, container = Frame_RoiCtl)
   Btn_RoiDelete<-gWidgets2::gbutton("Delete", container = Grp_RoiCtl, handler = this$ROI_Deleted)
-  Btn_RoiZoom<-gWidgets2::gcheckbox("Zoom In", checked = F, use.togglebutton = T, container = Grp_RoiCtl, handler = this$ROI_Zoom)
   Btn_RoiGetSpectra<-gWidgets2::gbutton("Get Spectra", container = Grp_RoiCtl, handler = this$ROI_GetSpectra)
-  Btn_RoiIntLimited<-gWidgets2::gcheckbox("Intensity Limit", checked = F, use.togglebutton = T, container = Grp_RoiCtl, handler = this$ROI_IntensityLimit)
-  Lbl_RoiIntLimited<-gWidgets2::glabel("Intensity Limit label TODO###", container = Grp_RoiCtl)
-  gWidgets2::addSpring(Grp_RoiCtl)
   Lbl_XImgRange<- gWidgets2::glabel(text = "X range:", container = Grp_RoiCtl)
   Spin_Xmin<- gWidgets2::gspinbutton(from = 1, to =  img$size["x"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
   Spin_Xmax<- gWidgets2::gspinbutton(from = 1, to = img$size["x"], digest = 0, by = 1 , value = img$size["x"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
   Lbl_YImgRange<- gWidgets2::glabel(text = "Y range:", container = Grp_RoiCtl)
   Spin_Ymin<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
   Spin_Ymax<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = img$size["y"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
+  gWidgets2::addSpring(Grp_RoiCtl)
+  Btn_RoiIntLimit<-gWidgets2::gbutton("Apply Intensity Limit", container = Grp_RoiCtl, handler = this$ROI_IntensityLimit)
+  Btn_RoiZoom<-gWidgets2::gcheckbox("Zoom in ROI", checked = F, use.togglebutton = T, container = Grp_RoiAndZoom, handler = this$ROI_Zoom)
+  gWidgets2::enabled(Btn_RoiZoom) <- F
+  gWidgets2::enabled(Frame_RoiCtl) <- F
+  gWidgets2::enabled(Btn_RoiIntUnLimit) <- F
 
   ## Set the name for the class
   class(this) <- append(class(this),"MSImagePlotWidget")
