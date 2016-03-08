@@ -31,6 +31,7 @@
   ZOOM_win <- NULL #Current zoom windows
   IntLimit_ROI <- NULL #Intensity limiting ROI
   IntLimits <- NULL #A vector of intensity limits for each channel
+  SidePanel_position <- 0 #Storing side panel position of spectra list in order to resotre it when it is hide/show
   AddSpectra_ptr <- AddSpectra_function #Pointer to a AddSpectra method of a spectraWidget to be able of ploting directly
   rm(AddSpectra_function)
 
@@ -663,16 +664,30 @@
     gWidgets2::svalue(this$Btn_RoiIntUnLimit)<- "No Intensity Limit"
   }
 
+  #===================================================================================================
+  ShowSpectraList <- function ( ... )
+  {
+    gWidgets2::add(this$Grp_SidePanel, this$spectraListFrame, expand=TRUE, fill = TRUE)
+    gWidgets2::svalue(this$Panel_Img) <- this$SidePanel_position
+    RGtk2::gtkWidgetHide(gWidgets2::getToolkitWidget(this$Btn_Show))
+  }
+
+  #===================================================================================================
+  HideSpectraList <- function ( ... )
+  {
+    gWidgets2::delete(this$Grp_SidePanel, this$spectraListFrame)
+    this$SidePanel_position <- gWidgets2::svalue(this$Panel_Img)
+    gWidgets2::svalue(this$Panel_Img) <- 0
+    RGtk2::gtkWidgetShow(gWidgets2::getToolkitWidget(this$Btn_Show))
+  }
+
   #Build the GUI
-  Top_grp <- gWidgets2::ggroup(horizontal = F, container = parent)
-  Top_captionGrp <- gWidgets2::ggroup(horizontal = T, container = Top_grp)
-  lbl_title <- gWidgets2::glabel( paste("  Image:",img$name) , container = Top_captionGrp)
-  font(lbl_title)<-list(weight = "bold", size = 9)
-  gWidgets2::addSpring(Top_captionGrp)
-  Btn_plot2file<- gWidgets2::gbutton("Save in image file", container = Top_captionGrp, handler = this$SaveImg2Png)
-  Panel_Img<- gWidgets2::gpanedgroup(horizontal = T, container = Top_grp,  expand=TRUE )
-  spectraListFrame<-gWidgets2::gframe("Spectra List", container = Panel_Img,  fill = T, spacing = 5 )
+  Top_frm <- gWidgets2::gframe( text =  paste("Image:",img$name), container = parent, spacing = 5 )
+  Panel_Img<- gWidgets2::gpanedgroup(horizontal = T, container = Top_frm,  expand=TRUE )
+  Grp_SidePanel<- gWidgets2::ggroup(container = Panel_Img, expand=TRUE, fill = TRUE)
+  spectraListFrame<-gWidgets2::gframe("Spectra List", container = Grp_SidePanel,  fill = T, spacing = 5, expand = T )
   Grp_Tbl <- gWidgets2::ggroup(horizontal = F, container = spectraListFrame,  expand=TRUE, fill = TRUE)
+  Btn_Hide <- gWidgets2::gbutton("<<< Hide", container = Grp_Tbl, handler = this$HideSpectraList )
   ID<-0
   X<-0
   Y<-0
@@ -695,10 +710,12 @@
   Grp_BtmTbl <-gWidgets2::ggroup(horizontal = F, container =Grp_Tbl)
   Btn_PlotSelSpotList<-gWidgets2::gbutton("Plot", container= Grp_BtmTbl,  handler = this$SpectraListSelChange)
   Btn_ClearSpotList<-gWidgets2::gbutton("Clear", container= Grp_BtmTbl,  handler = this$BtnClearSpotList)
-  Btn_ExportSpotList<-gWidgets2::gbutton("Export", container= Grp_BtmTbl,  handler = this$BtnExportSpotList)
+  Btn_ExportSpotList<-gWidgets2::gbutton("Export", container= Grp_BtmTbl,  handler = this$ShowExportSpotList)
 
   Grp_TopImg <- gWidgets2::ggroup(horizontal = F, container = Panel_Img, expand = T)
   Grp_Buttons <- gWidgets2::ggroup(horizontal = T, container = Grp_TopImg)
+  Btn_Show <- gWidgets2::gbutton(">>>Spectra List", container = Grp_Buttons, handler = this$ShowSpectraList )
+  RGtk2::gtkWidgetHide(gWidgets2::getToolkitWidget(this$Btn_Show))
   Lbl_Rotation<- gWidgets2::glabel(text = "Rotation: 0", container = Grp_Buttons)
   Btn_rotate_CCW <- gWidgets2::gbutton("", container = Grp_Buttons, handler = this$BtnRotateCCW)
   RGtk2::gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CCW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CCW.png") )
@@ -706,19 +723,23 @@
   RGtk2::gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CW.png") )
   Lbl_Xres<- gWidgets2::glabel(text = "Interpolation:", container = Grp_Buttons)
   Combo_Xres <- gWidgets2::gcombobox( items = c("x1","x2","x3","x4","x5"), selected = 2, container = Grp_Buttons, handler = this$ComboBox_XRes_Changed)
-  gWidgets2::addSpring(Grp_Buttons)
   gWidgets2::glabel("Light:", container = Grp_Buttons)
   Scale_light <- gWidgets2::gslider( from = 0.6, to = 10, by = 0.2, value = 3, horizontal = T, handler = this$SliderLightChanged, container =  Grp_Buttons)
+  gWidgets2::addSpring(Grp_Buttons)
+  Btn_plot2file<- gWidgets2::gbutton("Save in image file", container = Grp_Buttons, handler = this$SaveImg2Png)
 
   Grp_ImgTop<-gWidgets2::ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
+  Grp_ImgRoi<-gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
   imaging_dev <- gWidgets2::ggraphics(spacing = 5 )
   size( imaging_dev )<- c(650, 340)
   gWidgets2::addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
-  gWidgets2::add(obj = Grp_ImgTop, child = imaging_dev,  fill = T, expand = T)
+  gWidgets2::add(obj = Grp_ImgRoi, child = imaging_dev,  fill = T, expand = T)
 
-  Grp_ScalesV <- gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
+  Grp_ScalesV <- gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = F)
   Grp_ScalesH <- gWidgets2::ggroup( horizontal = T, container =  Grp_ScalesV,  fill = T, expand = T)
-  Btn_RoiIntUnLimit<-gWidgets2::gbutton("No Intensity Limit", container = Grp_ScalesV)
+  Grp_ZoomLimit<-gWidgets2::ggroup(horizontal = T, container = Grp_ScalesV)
+  Btn_RoiZoom<-gWidgets2::gcheckbox("Zoom in ROI", checked = F, use.togglebutton = T, container = Grp_ZoomLimit, handler = this$ROI_Zoom)
+  Btn_RoiIntUnLimit<-gWidgets2::gbutton("No Intensity Limit", container = Grp_ZoomLimit)
 
   #Red Color Scale
   Grp_RedScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
@@ -728,7 +749,6 @@
   Grp_RedCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_RedScale)
   Btn_RedEnable<-gWidgets2::gcheckbox("On", container = Grp_RedCtl, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
   Lbl_RedMz <- gWidgets2::glabel("", container = Grp_RedCtl)
-
 
   #Green Color scale
   Grp_GreenScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
@@ -754,8 +774,7 @@
   .setCheckBoxText(Btn_BlueEnable, " ON ", background = "darkblue", foreground = "grey", font_size = "large", font_weight = "heavy")
 
   #ROI CTL
-  Grp_RoiAndZoom<-gWidgets2::ggroup(horizontal = T, container = Grp_TopImg)
-  Frame_RoiCtl<-gWidgets2::gframe("ROI Controls", container = Grp_RoiAndZoom )
+  Frame_RoiCtl<-gWidgets2::gframe("ROI Controls", container = Grp_ImgRoi )
   Grp_RoiCtl<-gWidgets2::ggroup(horizontal = T, container = Frame_RoiCtl)
   Btn_RoiDelete<-gWidgets2::gbutton("Delete", container = Grp_RoiCtl, handler = this$ROI_Deleted)
   Btn_RoiGetSpectra<-gWidgets2::gbutton("Get Spectra", container = Grp_RoiCtl, handler = this$ROI_GetSpectra)
@@ -767,7 +786,6 @@
   Spin_Ymax<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = img$size["y"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
   gWidgets2::addSpring(Grp_RoiCtl)
   Btn_RoiIntLimit<-gWidgets2::gbutton("Apply Intensity Limit", container = Grp_RoiCtl, handler = this$ROI_IntensityLimit)
-  Btn_RoiZoom<-gWidgets2::gcheckbox("Zoom in ROI", checked = F, use.togglebutton = T, container = Grp_RoiAndZoom, handler = this$ROI_Zoom)
   gWidgets2::enabled(Btn_RoiZoom) <- F
   gWidgets2::enabled(Frame_RoiCtl) <- F
   gWidgets2::enabled(Btn_RoiIntUnLimit) <- F

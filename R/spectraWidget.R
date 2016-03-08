@@ -182,10 +182,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
 
     #Visible before plot() forces the target divice for ploting
     visible(this$plot_device)<-TRUE
-    par(mar = c(3.1, 3.1, 0.5, 0.5), cex = 0.7, xaxs = "i", yaxs = "i")
+    par(mar = c(3.1, 5.1, 0.5, 0.5), cex = 0.7, xaxs = "i", yaxs = "i")
 
     #Init Plot
-    plot(x=0, xlim = this$mz_lim, ylim = this$in_lim, type = "n", xlab = "", ylab ="")
+    i_axt<-pretty(this$in_lim[1]:this$in_lim[2], n = 5)
+    plot(x=0, xlim = this$mz_lim, ylim = this$in_lim, type = "n", xlab = "", ylab ="", yaxt ="n")
+    axis(2, at = i_axt, labels = sprintf("%.1e",i_axt), las = 1)
 
     #Draw ref masses as vertical lines
     if(!is.null(this$ref_mass))
