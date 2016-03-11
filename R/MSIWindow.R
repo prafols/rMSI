@@ -12,38 +12,24 @@
 #' @export
 OpenMSI<-function()
 {
-  fname<-gfile("Select an MSI file to open", type="open", multi = F, filter =  c("tar"="tar"), initial.dir = path.expand("~/"))
-  if(length(fname) == 0)
+  #Load data using GUI
+  MSI_obj<-LoadTwoMsImages()
+
+  #Display the MSIWindow
+  if( !is.null(MSI_obj$img1_obj) && is.null(MSI_obj$img2_obj) )
   {
-    return ()
+    MSIWindow(img1 = MSI_obj$img1_obj)
+  }
+  if( is.null(MSI_obj$img1_obj) && !is.null(MSI_obj$img2_obj) )
+  {
+    MSIWindow(img1 = MSI_obj$img2_obj)
+  }
+  if( !is.null(MSI_obj$img1_obj) && !is.null(MSI_obj$img2_obj) )
+  {
+    MSIWindow(img1 = MSI_obj$img1_obj, img2 = MSI_obj$img2_obj)
   }
 
-  #Create a progress bar
-  mPBar<-.ProgressBarDialog("Loading data please wait...")
-
-  #Preloading 2 speedup
-  raw<-LoadMsiData(data_file = fname, restore_path = file.path(dirname(fname), paste("ramdisk",basename(fname), sep = "_")), fun_progress = mPBar$setValue)
-
-  if(is.null(raw))
-  {
-    #Process Aborted By User, return
-    unlink( file.path(dirname(fname), paste("ramdisk",basename(fname), sep = "_")), recursive = T)
-    return()
-  }
-
-  #Close the progressBar when data is loaded
-  mPBar$close()
-
-  #Test for errors...
-  if(exists("raw"))
-  {
-    MSIWindow(img = raw)
-    return(raw)
-  }
-  else
-  {
-    gmessage("Error: The selected file is not valid.", icon = "error", title = "Load error")
-  }
+  return(list(img1 = MSI_obj$img1_obj, img2 = MSI_obj$img2_obj ))
 }
 
 
@@ -51,10 +37,11 @@ OpenMSI<-function()
 #'
 #' @param img a rMSI data object
 #'
-#'  Open the GUI to explore the MS image provided as parameter.
+#'  Open the GUI to explore the MS image. A MS image can be provided as a parameter.
+#'  Up to two images can be displayed at once using multiple arguments.
 #'
 #' @export
-MSIWindow<-function(img)
+MSIWindow<-function(img1, img2 = NULL)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -65,24 +52,30 @@ MSIWindow<-function(img)
   this <- environment()
 
   ##Class data members
-  spectraWidget <- 0
-  msiWidget <- 0 #TODO currently only one but must be a vector to allow multiple images loaded
+  spectraWidget <- NULL
+  msiWidget1 <- NULL
+  msiWidget2 <- NULL
 
   #A click on mass spectra widgets drives here. From here image recostruction will be called for various widgets
   SpectrumClicked <- function( channel, mass, tol )
   {
-    ##TODO addapt for various widgets
-    ret<-this$msiWidget$ImgBuildFun(channel, mass, tol)
-    this$msiWidget$PlotMassImageRGB()
-    return(ret)
+    ret1<-this$msiWidget1$ImgBuildFun(channel, mass, tol)
+    this$msiWidget1$PlotMassImageRGB()
+    if(!is.null(this$msiWidget2))
+    {
+      ret2<-this$msiWidget2$ImgBuildFun(channel, mass, tol)
+      this$msiWidget2$PlotMassImageRGB()
+    }
+    else
+    {
+      ret2 <- ret1
+    }
+    return(list(selMz = mean(c(ret1$selMz, ret2$selMz)), selTol = mean(c(ret1$selTol, ret2$selTol))))
   }
 
   #A connector between spectraWidget and msiWidgets because them can not be joined directly
   AddSpectra <- function ( mass_axis, intensity_list, color_list)
   {
-    ##TODO ill need to rework that for multiple image display
-    this$spectraWidget$ClearSpectra()
-
     for( i in 1:length(intensity_list))
     {
       this$spectraWidget$AddSpectra(mass_axis, intensity_list[[i]], col = color_list[[i]])
@@ -92,36 +85,53 @@ MSIWindow<-function(img)
   #GUI builder
   window <- gWidgets2::gwindow ( "MSI Reconstruction" , visible = F )
   Grp_Top <- gWidgets2::gpanedgroup(horizontal = F, container = window)
-  msiWidget <- .MSImagePlotWidget(in_img = img , parent_widget = Grp_Top, AddSpectra_function = this$AddSpectra)
+  Grp_Ims <- gWidgets2::gpanedgroup(horizontal = T, container = Grp_Top)
+  msiWidget1 <- .MSImagePlotWidget(in_img = img1 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, meanSpectrumColor = "red")
+  if( !is.null(img2))
+  {
+    msiWidget2 <- .MSImagePlotWidget(in_img = img2 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, meanSpectrumColor = "blue")
+  }
   spectraFrame<-gWidgets2::gframe("Average Spectra", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
   spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F)
 
   visible(window)<-TRUE
 
-  ##TODO revisar aixo quan tinguis multiples plots com ho faras???
-  if( class( img$mean) == "MassSpectrum")
+  if( class( img1$mean) == "MassSpectrum")
   {
     #Old mean MALDIquant handling
-    spectraWidget$AddSpectra(  img$mass, img$mean@intensity, col = "red")
+    spectraWidget$AddSpectra(  img1$mass, img1$mean@intensity, col = "red")
   }
   else
   {
-    spectraWidget$AddSpectra(  img$mass, img$mean, col = "red")
+    spectraWidget$AddSpectra(  img1$mass, img1$mean, col = "red")
   }
+
+  if(!is.null(img2))
+  {
+    if( class( img2$mean) == "MassSpectrum")
+    {
+      #Old mean MALDIquant handling
+      spectraWidget$AddSpectra(  img2$mass, img2$mean@intensity, col = "blue")
+    }
+    else
+    {
+      spectraWidget$AddSpectra(  img2$mass, img2$mean, col = "blue")
+    }
+  }
+
   spectraWidget$ZoomResetClicked()
 
   #Plot a initial image which is the maximum peak in mean spectrum with a tolereance of 100 ppm of the mass range
-  if( class( img$mean) == "MassSpectrum")
+  if( class( img1$mean) == "MassSpectrum")
   {
-    SpectrumClicked( channel = 1, mass = img$mass[which.max(img$mean@intensity)], tol = 100/1e6*(max(img$mass)-min(img$mass)))
+    SpectrumClicked( channel = 1, mass = img1$mass[which.max(img1$mean@intensity)], tol = 100/1e6*(max(img1$mass)-min(img1$mass)))
   }
   else
   {
-    SpectrumClicked( channel = 1, mass = img$mass[which.max(img$mean)], tol = 100/1e6*(max(img$mass)-min(img$mass)))
+    SpectrumClicked( channel = 1, mass = img1$mass[which.max(img1$mean)], tol = 100/1e6*(max(img1$mass)-min(img1$mass)))
   }
 
-
-  window$widget$present() ##Tot i forzzar aki un raise-up del top widget en RStudio no deixa!
+  window$widget$present()
 
   ## Set the name for the class
   class(this) <- append(class(this),"MsiWindows")

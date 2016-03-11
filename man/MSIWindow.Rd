@@ -4,12 +4,13 @@
 \alias{MSIWindow}
 \title{Open the GUI to explore a MS image}
 \usage{
-MSIWindow(img)
+MSIWindow(img1, img2 = NULL)
 }
 \arguments{
 \item{img}{a rMSI data object
 
- Open the GUI to explore the MS image provided as parameter.}
+ Open the GUI to explore the MS image. A MS image can be provided as a parameter.
+ Up to two images can be displayed at once using multiple arguments.}
 }
 \description{
 Open the GUI to explore a MS image

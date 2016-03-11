@@ -1,10 +1,7 @@
 ###A GUI to display a progress bar dialog
 
-.ProgressBarDialog <- function( Title )
+.ProgressBarDialog <- function( Title="", parent = NULL )
 {
-  require(gWidgets2)
-  require(gWidgets2RGtk2)
-
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
   options(warn = -1)
@@ -18,13 +15,21 @@
   sTitle <- Title
   rm(Title)
 
-    #Progress Bar update method
+  #Progress Bar update method
   setValue<-function(progress)
   {
-    svalue(this$pbar)<-progress
+    gWidgets2::svalue(this$pbar)<-progress
     this$lbl$set_value(paste( sTitle, "-", round(progress, digits = 2),"%") )
     Sys.sleep(0.1) #This forces a redraw on progressbar
     return(this$bKeepLoading)
+  }
+
+  #Set title
+  setTitle<-function(Title)
+  {
+    this$sTitle <- Title
+    this$lbl$set_value(paste( sTitle, "-", round(gWidgets2::svalue(this$pbar), digits = 2),"%") )
+    Sys.sleep(0.1) #This forces a redraw on progressbar
   }
 
   #Close method
@@ -33,7 +38,7 @@
     if( this$bKeepLoading )
     {
       this$bKeepLoading<-F
-      dispose(this$pwin)
+      gWidgets2::dispose(this$pwin)
     }
   }
 
@@ -42,18 +47,28 @@
   {
     if( this$bKeepLoading )
     {
-      gmessage("The prosess has been aborted by the user. ", icon = "info", title = "User aborted")
+      gWidgets2::gmessage("The loading process has been aborted by the user. ", icon = "info", title = "User aborted")
       this$bKeepLoading<-F
     }
   }
 
   #Build GUI
-  pwin<-gwindow("Working...", width = 400, height = 50, visible = F, parent=c(500, 500))
-  addHandlerDestroy(pwin, handler = ProgressBar_Closed)
-  grp_lay<-ggroup(horizontal = F, container = pwin)
-  lbl<-glabel(paste( sTitle, "- 0.00 %") , container = grp_lay)
-  pbar<-gprogressbar(value = 0, container = grp_lay)
-  visible(pwin)<-T
+  if(is.null(parent))
+  {
+    pwin<-gWidgets2::gwindow("Working...", width = 400, height = 50, visible = F, parent=c(500, 500))
+    gWidgets2::addHandlerDestroy(pwin, handler = ProgressBar_Closed)
+  }
+  else
+  {
+    pwin <- parent
+  }
+  grp_lay<-gWidgets2::ggroup(horizontal = F, container = pwin, expand = T, fill = T)
+  lbl<-gWidgets2::glabel(paste( sTitle, "- 0.00 %") , container = grp_lay)
+  pbar<-gWidgets2::gprogressbar(value = 0, container = grp_lay, expand = T, fill = T)
+  if(is.null(parent))
+  {
+    gWidgets2::visible(pwin)<-T
+  }
   Sys.sleep(0.1) #This forces a redraw on progressbar
 
   ## Set the name for the class

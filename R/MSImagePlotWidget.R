@@ -1,6 +1,6 @@
 ###A GUI to display MS images from some ions/features
 
-.MSImagePlotWidget <- function( in_img, parent_widget=gwindow ( "Default MSImagePlotWidget" , visible = FALSE ), AddSpectra_function = NULL)
+.MSImagePlotWidget <- function( in_img, parent_widget=gwindow ( "Default MSImagePlotWidget" , visible = FALSE ), AddSpectra_function = NULL, meanSpectrumColor = "red")
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -691,8 +691,7 @@
   ID<-0
   X<-0
   Y<-0
-  Colour<-"red" #default colour for mean spectra
-  Tbl_spotList<-gWidgets2::gtable( data.frame(ID,X,Y,Colour), container = Grp_Tbl, multiple = T, chosen.col = 1)
+  Tbl_spotList<-gWidgets2::gtable( data.frame(ID,X,Y, Colour = meanSpectrumColor), container = Grp_Tbl, multiple = T, chosen.col = 1)
   size( Tbl_spotList )<- c(120, -1)
   ##Set table style using colors
   RGtk2::gtkTreeViewSetGridLines(getToolkitWidget(Tbl_spotList), 3)
@@ -731,7 +730,7 @@
   Grp_ImgTop<-gWidgets2::ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
   Grp_ImgRoi<-gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
   imaging_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( imaging_dev )<- c(650, 340)
+  size( imaging_dev )<- c(400, 340)
   gWidgets2::addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
   gWidgets2::add(obj = Grp_ImgRoi, child = imaging_dev,  fill = T, expand = T)
 
@@ -775,17 +774,21 @@
 
   #ROI CTL
   Frame_RoiCtl<-gWidgets2::gframe("ROI Controls", container = Grp_ImgRoi )
-  Grp_RoiCtl<-gWidgets2::ggroup(horizontal = T, container = Frame_RoiCtl)
-  Btn_RoiDelete<-gWidgets2::gbutton("Delete", container = Grp_RoiCtl, handler = this$ROI_Deleted)
-  Btn_RoiGetSpectra<-gWidgets2::gbutton("Get Spectra", container = Grp_RoiCtl, handler = this$ROI_GetSpectra)
-  Lbl_XImgRange<- gWidgets2::glabel(text = "X range:", container = Grp_RoiCtl)
-  Spin_Xmin<- gWidgets2::gspinbutton(from = 1, to =  img$size["x"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
-  Spin_Xmax<- gWidgets2::gspinbutton(from = 1, to = img$size["x"], digest = 0, by = 1 , value = img$size["x"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
-  Lbl_YImgRange<- gWidgets2::glabel(text = "Y range:", container = Grp_RoiCtl)
-  Spin_Ymin<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
-  Spin_Ymax<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = img$size["y"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl)
-  gWidgets2::addSpring(Grp_RoiCtl)
-  Btn_RoiIntLimit<-gWidgets2::gbutton("Apply Intensity Limit", container = Grp_RoiCtl, handler = this$ROI_IntensityLimit)
+  Grp_RoiCtl<-gWidgets2::ggroup(horizontal = F, container = Frame_RoiCtl)
+  Grp_RoiCtl_1stRow<-gWidgets2::ggroup(horizontal = T, container = Grp_RoiCtl)
+  Grp_RoiCtl_2ndRow<-gWidgets2::ggroup(horizontal = T, container = Grp_RoiCtl)
+  Btn_RoiDelete<-gWidgets2::gbutton("Delete", container = Grp_RoiCtl_1stRow, handler = this$ROI_Deleted)
+  Btn_RoiGetSpectra<-gWidgets2::gbutton("Get Spectra", container = Grp_RoiCtl_1stRow, handler = this$ROI_GetSpectra)
+  gWidgets2::addSpring(Grp_RoiCtl_1stRow)
+  Lbl_XImgRange<- gWidgets2::glabel(text = "X range:", container = Grp_RoiCtl_1stRow)
+  Spin_Xmin<- gWidgets2::gspinbutton(from = 1, to =  img$size["x"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl_1stRow)
+  Spin_Xmax<- gWidgets2::gspinbutton(from = 1, to = img$size["x"], digest = 0, by = 1 , value = img$size["x"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl_1stRow)
+  Btn_RoiIntLimit<-gWidgets2::gbutton("Apply Intensity Limit", container = Grp_RoiCtl_2ndRow, handler = this$ROI_IntensityLimit)
+  gWidgets2::addSpring(Grp_RoiCtl_2ndRow)
+  Lbl_YImgRange<- gWidgets2::glabel(text = "Y range:", container = Grp_RoiCtl_2ndRow)
+  Spin_Ymin<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = 1, handler = this$SpinImageRangeChanged, container = Grp_RoiCtl_2ndRow)
+  Spin_Ymax<- gWidgets2::gspinbutton(from = 1, to =  img$size["y"], digest = 0, by = 1 , value = img$size["y"], handler = this$SpinImageRangeChanged, container = Grp_RoiCtl_2ndRow)
+
   gWidgets2::enabled(Btn_RoiZoom) <- F
   gWidgets2::enabled(Frame_RoiCtl) <- F
   gWidgets2::enabled(Btn_RoiIntUnLimit) <- F
