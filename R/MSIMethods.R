@@ -30,11 +30,14 @@ ObtainCalibrationFunction<-function(img, ref, snr = 10, Tolerance = 0.01, Method
 }
 
 
-#Apply a new mass axis to a complete image
-#img - A image in ff data format
-#new_mass - The new mass axis
-#output_fname - full path to store the output image
-#Return - Nothing! New image is stored in hdd at spesified path
+#' Apply a new mass axis to a complete image.
+#'
+#' @param A image in rMSI data format .
+#' @param The new mass axis.
+#' @param full path to store the output image.
+#'
+#' @export
+#'
 CalibrateImage<-function(img, new_mass, output_fname)
 {
   #Copy the img objet
@@ -42,8 +45,12 @@ CalibrateImage<-function(img, new_mass, output_fname)
 
   #Replace mass axis
   calImg$mass <- new_mass
-  calImg$mean@mass <- new_mass
+
+  if( class( calImg$mean) == "MassSpectrum")
+  {
+    calImg$mean@mass <- new_mass
+  }
 
   #Store
-  SaveMsiData(output_fname, calImg, calImg$mean)
+  SaveMsiData(calImg, output_fname)
 }
