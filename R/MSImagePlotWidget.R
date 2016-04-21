@@ -730,7 +730,7 @@
   Grp_ImgTop<-gWidgets2::ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
   Grp_ImgRoi<-gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
   imaging_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( imaging_dev )<- c(400, 340)
+  size( imaging_dev )<- c(400, 280)
   gWidgets2::addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
   gWidgets2::add(obj = Grp_ImgRoi, child = imaging_dev,  fill = T, expand = T)
 
@@ -743,7 +743,7 @@
   #Red Color Scale
   Grp_RedScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleRed_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleRed_dev )<- c(120, 300)
+  size( scaleRed_dev )<- c(120, 250)
   gWidgets2::add(obj = Grp_RedScale, child = scaleRed_dev,  fill = T, expand = T)
   Grp_RedCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_RedScale)
   Btn_RedEnable<-gWidgets2::gcheckbox("On", container = Grp_RedCtl, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
@@ -752,7 +752,7 @@
   #Green Color scale
   Grp_GreenScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleGreen_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleGreen_dev )<- c(120, 300)
+  size( scaleGreen_dev )<- c(120, 250)
   gWidgets2::add(obj = Grp_GreenScale, child = scaleGreen_dev,  fill = T, expand = T)
   Grp_GreenCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_GreenScale)
   Btn_GreenEnable<-gWidgets2::gcheckbox("On", container = Grp_GreenCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
@@ -761,7 +761,7 @@
   #Blue Color scale
   Grp_BlueScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleBlue_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleBlue_dev )<- c(120, 300)
+  size( scaleBlue_dev )<- c(120, 250)
   gWidgets2::add(obj = Grp_BlueScale, child = scaleBlue_dev,  fill = T, expand = T)
   Grp_BlueCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_BlueScale)
   Btn_BlueEnable<-gWidgets2::gcheckbox("On", container = Grp_BlueCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")

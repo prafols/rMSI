@@ -132,6 +132,7 @@ MSIWindow<-function(img1, img2 = NULL)
   }
 
   window$widget$present()
+  RGtk2::gtkWindowMaximize(gWidgets2::getToolkitWidget(window)) #Start maximized
 
   ## Set the name for the class
   class(this) <- append(class(this),"MsiWindows")

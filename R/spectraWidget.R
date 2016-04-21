@@ -22,9 +22,9 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
     ###TODO: Add a left-list showing all loaded spectra. The list will also allow to disable one of them, deleting, coloring...
     ###TODO: Yes the list will be added here because MSIWindows has its own list. So I don't want to modify spectraWidget
     #Spectra plot windows does not exists, create it
-    window_spectra <- gwindow ( "Spectra Plot" , visible = F , width = 750, height = 440)
+    window_spectra <- gWidgets2::gwindow ( "Spectra Plot" , visible = F , width = 750, height = 440)
     .SpectraWidget<<-.SpectraPlotWidget( parent_widget = window_spectra )
-    addHandlerDestroy( obj = window_spectra, handler = .plotSpectraWindow_Disposed )
+    gWidgets2::addHandlerDestroy( obj = window_spectra, handler = .plotSpectraWindow_Disposed )
 
     #window_spectra$widget$present()
     gWidgets2::visible(window_spectra) <- T
@@ -563,7 +563,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   rm(showOpenFileButton)
 
   this$plot_device <- gWidgets2::ggraphics(  )
-  size( this$plot_device )<- c(-1, 220)
+  size( this$plot_device )<- c(-1, 170)
   gWidgets2::add(obj = Grp_Top, child = this$plot_device, expand = T, fill = T)
 
   Grp_BottomLabel<-gWidgets2::ggroup(horizontal = T, container = Grp_Top)

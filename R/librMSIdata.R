@@ -28,13 +28,17 @@ SaveMsiData<-function(imgData, data_file)
   ffDataNames <- paste(names(imgData$data), "_ffzip", sep = "")
   save(ffDataNames, file = file.path(data_dir, "ffnames.ImgR")) #Save ff filenames Object
 
-  #Save the ff object
+  ##New approach to avoid long and recursive path issues
   pb<-txtProgressBar(min = 0, max = length(ffDataNames), style = 3 )
   for(i in 1:length(ffDataNames))
   {
     setTxtProgressBar(pb, i)
-    ffObj<-imgData$data[[i]] #The ff::ffsave can only handle ff objects directly, not in lists!
+    dm<-imgData$data[[i]][,]
+    ffObj<-ff::ff(vmode = "integer", dim = c(nrow(dm), ncol(dm)), filename =  file.path(data_dir, ffDataNames[i]))
+    ffObj[,]<-dm
     ff::ffsave(ffObj , file =  file.path(data_dir, ffDataNames[i]))
+    ff::delete(ffObj)
+    rm(ffObj)
   }
 
   tar(tarfile =  file.path(getwd(), basename(data_file)), files = "ImgData")
