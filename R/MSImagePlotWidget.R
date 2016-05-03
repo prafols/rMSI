@@ -256,7 +256,7 @@
   {
     indexes<-as.vector(data.frame(this$Tbl_spotList$get_items())$ID)
     indexes<-indexes[indexes > 0] #Remove zero!
-    store_paths<-gfile("Save current spots to txt files", type="selectdir", multi = F, initial.dir = path.expand("~/"))
+    store_paths<-gWidgets2::gfile("Save current spots to txt files", type="selectdir", multi = F, initial.dir = path.expand("~/"))
     if(length(store_paths) == 0)
     {
       return ()
@@ -266,7 +266,7 @@
     bExportData <- T
     if( length(indexes) > 25)
     {
-      bExportData<-gconfirm(paste("You are exporting a lot of data. (", length(indexes) ,"mass spectrums )\nThis may take a long time and expend a lot of memory.\nDo you want to store spectra as TXT?"), title = "Warning: Large data export!", icon = "warning")
+      bExportData<-gWidgets2::gconfirm(paste("You are exporting a lot of data. (", length(indexes) ,"mass spectrums )\nThis may take a long time and expend a lot of memory.\nDo you want to store spectra as TXT?"), title = "Warning: Large data export!", icon = "warning")
     }
 
     mPbar<-.ProgressBarDialog("Exporting spectra to txt...")
@@ -308,7 +308,7 @@
           if( !mPbar$setValue( 100* i/length(indexes) ))
           {
             #Aborted by user
-            rm(dataChunk)
+            rm(dataChunck)
             unlink( store_paths, recursive = T )
             gc()
             return()
@@ -319,7 +319,7 @@
 
     mPbar$close()
 
-    rm(dataChunk)
+    rm(dataChunck)
     gc()
     #Show a message of export completed
     smsg<- paste("Export complete!\nYour data is stored at:\n\t", store_paths , sep = "")
@@ -339,7 +339,7 @@
     {
       smsg <- paste(smsg, "\nLarge data export disabled. Ony average spectrum and ID list exported.")
     }
-    gmessage(smsg, title = "Export complete!", icon = "info")
+    gWidgets2::gmessage(smsg, title = "Export complete!", icon = "info")
 
   }
 
@@ -709,7 +709,7 @@
   Grp_BtmTbl <-gWidgets2::ggroup(horizontal = F, container =Grp_Tbl)
   Btn_PlotSelSpotList<-gWidgets2::gbutton("Plot", container= Grp_BtmTbl,  handler = this$SpectraListSelChange)
   Btn_ClearSpotList<-gWidgets2::gbutton("Clear", container= Grp_BtmTbl,  handler = this$BtnClearSpotList)
-  Btn_ExportSpotList<-gWidgets2::gbutton("Export", container= Grp_BtmTbl,  handler = this$ShowExportSpotList)
+  Btn_ExportSpotList<-gWidgets2::gbutton("Export", container= Grp_BtmTbl,  handler = this$BtnExportSpotList)
 
   Grp_TopImg <- gWidgets2::ggroup(horizontal = F, container = Panel_Img, expand = T)
   Grp_Buttons <- gWidgets2::ggroup(horizontal = T, container = Grp_TopImg)

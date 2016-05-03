@@ -4,10 +4,26 @@
 \alias{CreateEmptyImage}
 \title{Create an empty rMSI object with defined mass axis and size.}
 \usage{
-CreateEmptyImage(x_size, y_size, mass_axis, pixel_resolution,
-  ramdisk_folder = getwd())
+CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
+  img_name = "New empty image", ramdisk_folder = getwd())
+
+CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
+  img_name = "New empty image", ramdisk_folder = getwd())
 }
 \arguments{
+\item{num_of_pixels}{Total number of spectrums/pixels.}
+
+\item{mass_axis}{the mass axis.}
+
+\item{pixel_resolution}{defined pixel size in um.}
+
+\item{img_name}{the name for the image.}
+
+\item{ramdisk_folder}{where ramdisk will be stored.
+
+Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
+and synthetic datasets to test and develop processing methods and tools.}
+
 \item{x_size}{the number of pixel in X direction.}
 
 \item{y_size}{the number of pixel in Y direction.}
@@ -16,15 +32,22 @@ CreateEmptyImage(x_size, y_size, mass_axis, pixel_resolution,
 
 \item{pixel_resolution}{defined pixel size in um.}
 
+\item{img_name}{the name for the image.}
+
 \item{ramdisk_folder}{where ramdisk will be stored.
 
 Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
-and synthetic datasets to test and develops processing methods and tools.}
+and synthetic datasets to test and develop processing methods and tools.
+img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.}
 }
 \value{
+the created rMSI object
+
 the created rMSI object
 }
 \description{
 Create an empty rMSI object with defined mass axis and size.
+
+Create an empty rMSI object with defined mass axis and total number of pixels.
 }
 

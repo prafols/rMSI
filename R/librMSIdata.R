@@ -222,18 +222,19 @@ DeleteRamdisk<-function(img)
 #' @param y_size the number of pixel in Y direction.
 #' @param mass_axis the mass axis.
 #' @param pixel_resolution defined pixel size in um.
+#' @param img_name the name for the image.
 #' @param ramdisk_folder where ramdisk will be stored.
 #'
 #' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
-#' and synthetic datasets to test and develops processing methods and tools.
+#' and synthetic datasets to test and develop processing methods and tools.
 #'
 #' @return the created rMSI object
 #' @export
 #'
-CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, ramdisk_folder = getwd())
+CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd())
 {
   img<-list()
-
+  img$name <- img_name
   img$mass <- mass_axis
   img$size <- c( x_size, y_size )
   names(img$size) <- c("x", "y")
@@ -250,6 +251,42 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, ramdisk_
       i<-i+1
     }
   }
+
+  img$pixel_size_um <-  pixel_resolution
+  img$mean <- rep(0, length(mass_axis))
+
+  #Prepare an empty datacube
+  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder)
+
+  return(img)
+}
+
+#' Create an empty rMSI object with defined mass axis and total number of pixels.
+#'
+#' @param num_of_pixels Total number of spectrums/pixels.
+#' @param mass_axis the mass axis.
+#' @param pixel_resolution defined pixel size in um.
+#' @param img_name the name for the image.
+#' @param ramdisk_folder where ramdisk will be stored.
+#'
+#' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
+#' and synthetic datasets to test and develop processing methods and tools.
+#' img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.
+#'
+#' @return the created rMSI object
+#' @export
+#'
+CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd())
+{
+  img<-list()
+  img$name <- img_name
+  img$mass <- mass_axis
+  img$size <- c( NA, NA )
+  names(img$size) <- c("x", "y")
+
+  #Prepare the pos matrix
+  img$pos <- matrix( NA, ncol = 2, nrow = num_of_pixels )
+  colnames(img$pos)<- c("x", "y")
 
   img$pixel_size_um <-  pixel_resolution
   img$mean <- rep(0, length(mass_axis))
