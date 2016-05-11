@@ -15,5 +15,6 @@ Imports:
     cairoDevice (>= 2.22),
     gWidgets2RGtk2 (>= 1.0),
     ff (>= 2.2),
-    raster (>= 2.4)
+    raster (>= 2.4),
+    zoo (>= 1.7)
 RoxygenNote: 5.0.1

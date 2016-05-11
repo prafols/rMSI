@@ -4,8 +4,8 @@
 \alias{plotSpectra}
 \title{Plot Mass Spectra in a interactive way.}
 \usage{
-plotSpectra(mass = NULL, intensity = NULL, peaks_mass = 0,
-  peaks_intensity = 0, ref_mass = NULL, col = "")
+plotSpectra(mass = NULL, intensity = NULL, peaks_mass = NULL,
+  peaks_intensity = NULL, ref_mass = NULL, col = "")
 }
 \arguments{
 \item{mass}{the mass axis of spectrum}

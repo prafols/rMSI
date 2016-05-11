@@ -2,18 +2,18 @@
 % Please edit documentation in R/MSIMethods.R
 \name{CalibrateImage}
 \alias{CalibrateImage}
-\title{Apply a new mass axis to a complete image.}
+\title{Apply a new mass axis to a complete image.
+A GUI to calibrate the mean spectrum will be shown.}
 \usage{
-CalibrateImage(img, new_mass, output_fname)
+CalibrateImage(img, output_fname)
 }
 \arguments{
 \item{A}{image in rMSI data format .}
-
-\item{The}{new mass axis.}
 
 \item{full}{path to store the output image.}
 }
 \description{
 Apply a new mass axis to a complete image.
+A GUI to calibrate the mean spectrum will be shown.
 }
 

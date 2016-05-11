@@ -1,6 +1,6 @@
 ###A GUI to display MS images from some ions/features
 
-.MSImagePlotWidget <- function( in_img, parent_widget=gwindow ( "Default MSImagePlotWidget" , visible = FALSE ), AddSpectra_function = NULL, meanSpectrumColor = "red")
+.MSImagePlotWidget <- function( in_img, parent_widget=gwindow ( "Default MSImagePlotWidget" , visible = FALSE ), AddSpectra_function = NULL, meanSpectrumColor = "red", widget_name = "")
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -34,6 +34,7 @@
   SidePanel_position <- 0 #Storing side panel position of spectra list in order to resotre it when it is hide/show
   AddSpectra_ptr <- AddSpectra_function #Pointer to a AddSpectra method of a spectraWidget to be able of ploting directly
   rm(AddSpectra_function)
+  myName <- widget_name
 
   #Current image RGB layers
   Rlayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
@@ -212,12 +213,13 @@
   #==================================================================================================
   SpectraListSelChange <- function( ... )
   {
-    selected <- svalue(this$Tbl_spotList)
+    selected <- gWidgets2::svalue(this$Tbl_spotList)
     df<-data.frame(this$Tbl_spotList$get_items())  #get data frame...
     max_nrow<-nrow(this$img$data[[1]])
 
     intensity_list<-list()
     color_list<-list()
+    id_list<-list()
 
     for( i in selected)
     {
@@ -241,14 +243,14 @@
         intensity_list[[length(intensity_list) + 1]] <- this$img$data[[icube]][ irow ,]
       }
       color_list[[length(color_list) + 1]] <- as.character(selDf$Colour)
+      id_list[[length(id_list) + 1]] <- i
     }
 
     #Add spectra to plot
     if(!is.null(this$AddSpectra_ptr) && length(intensity_list) > 0 && length(color_list) > 0)
     {
-      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list)
+      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list, id_list, this$myName)
     }
-
   }
 
   #==================================================================================================

@@ -311,3 +311,22 @@ AverageSpectrum <- function(img)
 
   return(avgI)
 }
+
+#' calMzAxis.
+#'
+#' @param avgSpc_mz  The mass axis to calibrate
+#' @param ref_mz a vector of reference masses (for exaple the theorical gold peaks)
+#' @param target_mz manually slected masses to be fittet to ref_masses (must be the same length than ref_mz)
+#'
+#' @return the calibrated mass axis
+#' @export
+#'
+calMzAxis <- function(avgSpc_mz, ref_mz, target_mz)
+{
+  real_idx <- unlist( lapply(target_mz, function(x){ which.min(abs(x - avgSpc_mz)) }))
+  new_mz <- rep(NA, length(avgSpc_mz))
+  new_mz[real_idx] <- ref_mz
+  error <- new_mz - avgSpc_mz
+  error <- zoo::na.spline( error )
+  return(avgSpc_mz + error)
+}

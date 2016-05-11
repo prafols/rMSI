@@ -14,9 +14,8 @@
 #'
 #' @export
 #'
-plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_intensity = 0, ref_mass = NULL, col = "" )
+plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_intensity = NULL, ref_mass = NULL, col = "" )
 {
-  bFirstRun <- F
   if( !exists( x = ".SpectraWidget", mode = "environment") )
   {
     ###TODO: Add a left-list showing all loaded spectra. The list will also allow to disable one of them, deleting, coloring...
@@ -29,18 +28,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
     #window_spectra$widget$present()
     gWidgets2::visible(window_spectra) <- T
 
-    bFirstRun <- T
   }
 
   if( !is.null(mass) && !is.null(intensity) )
   {
     .SpectraWidget$AddSpectra( mass_data = mass, intensity_data = intensity,
                              mass_peaks = peaks_mass, intensity_peaks = peaks_intensity, col = col )
-
-    if(bFirstRun)
-    {
-      .SpectraWidget$ZoomResetClicked()
-    }
   }
 
   if( !is.null(ref_mass) )
@@ -55,7 +48,8 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   gc()
 }
 
-.SpectraPlotWidget <- function( parent_widget=gwindow ( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T)
+.SpectraPlotWidget <- function( parent_widget=gwindow ( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T,
+                                display_sel_red = F, display_sel_green = F, display_sel_blue = F, max_spectra_limit = 50)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -88,12 +82,8 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   lbl_in_coords <- 0
   LABEL_LENGTH <- 10
   MouseWheelFunction <- 0
-  spectra_mass <- list() #mz_list,
-  spectra_intensity <- list() #in_list,
-  peak_mass <- list()
-  peak_intensity <- list()
+  spectra_data <- list() #Data structure controlled by functions
   ref_mass <- NULL
-  colour <- c()
   mz_lim <- c(0, 1)
   in_lim <- c(0, 1)
   data_mass_range <- c() #c(min(mass_data),max(mass_data)),
@@ -104,37 +94,122 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   SelIon_tol_G <- NA
   SelIon_mz_B <- NA
   SelIon_tol_B <- NA
+  CurrentSelTool <- "Zoom" #Stores the curren state of the sel tool, can be: Zoom, Red, Green and Blue
+  MAX_SPECTRA_LIMIT <- max_spectra_limit #Maximum number of spectra that can be added
+
+  #Create spectrum object
+  #A spectrum is created with a defined mass and intensity. This two params are not modifiable.
+  #The original color must be also specified, but this param can be changed after.
+  #A spectrum can also provide peaks. This can be added/modified latter.
+  CreateSpectrumObj <- function (mass, intensity, color, mass_peaks = NULL, intensity_peaks = NULL, active = T )
+  {
+    return(list(mass = mass, intensity = intensity, color = color, mass_peaks = mass_peaks, intensity_peaks = intensity_peaks, enabled = active ))
+  }
+
+  #Set spectrum color
+  SetSpectrumColors <- function(spcObj, color)
+  {
+    spcObj$color <- color
+    return(spcObj)
+  }
+
+  #Set spectrum peaks
+  SetSpectrumPeaks <- function(spcObj, mass_peaks, intensity_peaks )
+  {
+    spcObj$mass_peaks <- mass_peaks
+    spcObj$intensity_peaks <- intensity_peaks
+    return(spcObj)
+  }
+
+  #Set new color to the internal data list of spectra
+  ChangeSpectrumColor <- function(name, color )
+  {
+    if( is.null(this$spectra_data[[as.character(name)]]$mass))
+    {
+      cat(paste("No spectrum with the provided name:", name, "\n"))
+      return()
+    }
+
+    this$spectra_data[[as.character(name)]]<-this$SetSpectrumColors(this$spectra_data[[as.character(name)]], color)
+    this$ReDraw()
+  }
+
+  #Set new peaks to the internal data list of spectra
+  ChangeSpectrumPeaks <- function(name, peaks_mass, peaks_intensity )
+  {
+    if( is.null(this$spectra_data[[as.character(name)]]$mass))
+    {
+      cat(paste("No spectrum with the provided name:", name, "\n"))
+      return()
+    }
+
+    this$spectra_data[[as.character(name)]]<-this$SetSpectrumPeaks(this$spectra_data[[as.character(name)]], peaks_mass, peaks_intensity)
+    this$ReDraw()
+  }
+
+  #Set enabled state of a spectrum, if enabled then it is visble
+  SetSpectrumEnabled <- function(name, enabled)
+  {
+    if( is.null(this$spectra_data[[as.character(name)]]$mass))
+    {
+      cat(paste("No spectrum with the provided name:", name, "\n"))
+      return()
+    }
+
+    this$spectra_data[[as.character(name)]]$enabled <- enabled
+    this$ReDraw()
+  }
+
+  #Return the spectrum enabled state from a given name
+  GetSpectrumEnabled <- function(name)
+  {
+    if( is.null(this$spectra_data[[as.character(name)]]$mass))
+    {
+      cat(paste("No spectrum with the provided name:", name, "\n"))
+      return()
+    }
+
+    return(his$spectra_data[[as.character(name)]]$enabled)
+  }
+
+  #Return all names of the current spectra list
+  GetSpectraNames <- function()
+  {
+    return(names(this$spectra_data))
+  }
 
   #Add spectrum data================================================================================
-  AddSpectra <- function( mass_data, intensity_data, mass_peaks = 0, intensity_peaks = 0, col = "" )
+  AddSpectra <- function( mass_data, intensity_data, mass_peaks = NULL, intensity_peaks = NULL, col = "", name = "", add_enabled = T )
   {
-    this$spectra_mass[[length(this$spectra_mass) + 1]]<-mass_data
-    this$spectra_intensity[[length(this$spectra_intensity) + 1]]<-intensity_data
-
-    if(col == "")
+    if( length(this$spectra_data) >= this$MAX_SPECTRA_LIMIT)
     {
-      this$colour<-c(this$colour,sample(colors(), 1))
-    }
-    else
-    {
-      this$colour<-c(this$colour, col)
+      gWidgets2::gmessage(paste("The limit number of spectra (",this$MAX_SPECTRA_LIMIT , ") has been reached. Remove some spectrum to add a new one.", sep =""), icon = "error")
+      return()
     }
 
-    #Recompute mz_limits, data_mass range to scale acording the added spectra
-    #this$mz_lim <- c(min(sapply(this$spectra_mass, min)),max(sapply(this$spectra_mass, max)))
-    #this$in_lim <- c(0 ,max(sapply(this$spectra_intensity, max))*1.1)
-    #this$data_mass_range <- this$mz_lim
+    if(col == "") #Set a default color if color is not provided
+    {
+      col<-as.character(sample(rainbow(100), 1))
+    }
+    if(name == "" ) #Provide a unique name if name is not specified
+    {
+      while(name == "")
+      {
+        name <- as.character(sample(1:1e3, 1))
+        if( length(which( names(this$spectra_data) == name)))
+        {
+          name <- ""
+        }
+      }
+    }
+    this$spectra_data[[as.character(name)]]<-this$CreateSpectrumObj(mass_data, intensity_data, col, mass_peaks, intensity_peaks, add_enabled)
 
+    this$data_mass_range <- c(min(sapply(this$spectra_data, function(x){ return( x$mass[1] ) })),max(sapply(this$spectra_data, function(x){ return( x$mass[length(x$mass)] ) })))
+    if(length(this$spectra_data) == 1) #First spectrum added, so zoom properly
+    {
+      this$mz_lim <- this$data_mass_range
+    }
     this$AutoZoomIntensity()
-    this$data_mass_range <- c(min(sapply(this$spectra_mass, min)),max(sapply(this$spectra_mass, max)))
-
-    #Add peaklist
-    if(mass_peaks != 0 && intensity_peaks != 0)
-    {
-      this$peak_mass[[length(this$peak_mass) + 1]]<-mass_peaks
-      this$peak_intensity[[length(this$peak_intensity) + 1]]<-intensity_peaks
-    }
-
     this$ReDraw()
   }
 
@@ -146,32 +221,24 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   }
 
   #Remove spectrum data==============================================================================
-  RmSpectra <- function( index )
+  RmSpectra <- function( name )
   {
-    this$spectra_mass[[index]]<-NULL
-    this$spectra_intensity[[index]]<-NULL
-    this$colour<-this$colour[-index]
-    this$peak_mass[[index]]<-NULL
-    this$peak_intensity[[index]]<-NULL
+    this$spectra_data<- this$spectra_data[[-which(names(this$spectra_data) == as.character(name))]]
 
     #Recompute mz_limits, data_mass range to scale acording the removed spectra
-    if(length(this$spectra_mass) > 0)
+    if(length(this$spectra_data) > 0)
     {
-      this$mz_lim <- c(min(sapply(this$spectra_mass, min)),max(sapply(this$spectra_mass, max)))
-      this$in_lim <- c(0 ,max(sapply(this$spectra_intensity, max))*1.1)
+      this$mz_lim <- c(min(sapply(this$spectra_data, function(x){ return( x$mass[1] ) })),max(sapply(this$spectra_data, function(x){ return( x$mass[length(x$mass)] ) })))
+      this$in_lim <- c(0 ,max(sapply(this$spectra_data, function(x){ return( max(x$intensity)) }))*1.1)
       this$data_mass_range <- this$mz_lim
-      this$ReDraw()
     }
+    this$ReDraw()
   }
 
   #Clear all spectrum data===========================================================================
   ClearSpectra <- function( )
   {
-    this$spectra_mass<-list()
-    this$spectra_intensity<-list()
-    this$colour<-this$colour<-c()
-    this$peak_mass<-list()
-    this$peak_intensity<-list()
+    this$spectra_data<-list()
     this$ReDraw()
   }
 
@@ -181,7 +248,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   {
     #Reduce spectra data size to speed-up ploting
     mass_range <- this$mz_lim
-    npoints <- 2*size(this$plot_device)["width"]
+    npoints <- 2*gWidgets2::size(this$plot_device)["width"]
 
     #Visible before plot() forces the target divice for ploting
     visible(this$plot_device)<-TRUE
@@ -216,77 +283,70 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
       rect(xleft = this$SelIon_mz_B - this$SelIon_tol_B, xright = this$SelIon_mz_B + this$SelIon_tol_B, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightblue", border = "blue3")
     }
 
-    if(length(this$spectra_mass) > 0)
+    if(length(this$spectra_data) > 0)
     {
-      for(li in 1:length(this$spectra_mass))
+      for(li in 1:length(this$spectra_data))
       {
-
-        #Work with a copy which is much more fastter than accesing a pointer trought R.oo package
-        mz_copy<-this$spectra_mass[[li]]
-        int_copy <- this$spectra_intensity[[li]]
-
-        imin<-which(mz_copy <=  mass_range[1], arr.ind = T)
-        imax<-which(mz_copy >=  mass_range[2], arr.ind = T)
-
-        #Limiting to real mass range
-        if(length(imin) == 0)
+        if( this$spectra_data[[li]]$enabled)
         {
-          imin<-1
-        }
-        if(length(imax) == 0)
-        {
-          imax<-length(mz_copy)
-        }
-        imin<-imin[length(imin)]
-        imax<-imax[1]
+          #Work with a copy which is much more fastter than accesing a pointer trought R.oo package
+          mz_copy<-this$spectra_data[[li]]$mass
+          int_copy <- this$spectra_data[[li]]$intensity
 
-        #Interpolation
-        if(imax - imin +1 > npoints)
-        {
-          new_axes<-approx(imin:imax, mz_copy[imin:imax], n = npoints) #mz axes interpolation
-          mzData<-new_axes$y
-          dst.vect<-(new_axes$x[-1] - new_axes$x[-length(new_axes$x)])/2
-          dst.vect<-c(0, dst.vect, 0) #Add sides
-          inData<-c()
+          imin<-which(mz_copy <=  mass_range[1], arr.ind = T)
+          imax<-which(mz_copy >=  mass_range[2], arr.ind = T)
 
-          for(i in 1:length(mzData))
+          #Limiting to real mass range
+          if(length(imin) == 0)
           {
-            inMax<-max(int_copy[ceiling(new_axes$x[i] - dst.vect[i]):floor(new_axes$x[i] + dst.vect[i+1])])
-            inData<-c(inData, inMax)
+            imin<-1
+          }
+          if(length(imax) == 0)
+          {
+            imax<-length(mz_copy)
+          }
+          imin<-imin[length(imin)]
+          imax<-imax[1]
+
+          #Interpolation
+          if(imax - imin +1 > npoints)
+          {
+            new_axes<-approx(imin:imax, mz_copy[imin:imax], n = npoints) #mz axes interpolation
+            mzData<-new_axes$y
+            dst.vect<-(new_axes$x[-1] - new_axes$x[-length(new_axes$x)])/2
+            dst.vect<-c(0, dst.vect, 0) #Add sides
+            inData<-c()
+
+            for(i in 1:length(mzData))
+            {
+              inMax<-max(int_copy[ceiling(new_axes$x[i] - dst.vect[i]):floor(new_axes$x[i] + dst.vect[i+1])])
+              inData<-c(inData, inMax)
+            }
+          }
+          else
+          {
+            mzData<-mz_copy[imin:imax]
+            inData<-int_copy[imin:imax]
+          }
+
+          lines(x = mzData, y = inData, col= this$spectra_data[[li]]$color)
+
+          #Plot labels
+          if( !is.null(this$spectra_data[[li]]$mass_peaks) && !is.null(this$spectra_data[[li]]$intensity_peaks) )
+          {
+            cat(paste("Mz peaks:", this$spectra_data[[li]]$mass_peaks, "int peaks:", this$spectra_data[[li]]$intensity_peaks, "\n"))
+            pk_lbl <- sprintf("%.4f", this$spectra_data[[li]]$mass_peaks) #4 decimals
+            text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = pk_lbl, pos = 3, cex = 0.8, offset = 1.1)
+            un_lbl<-sapply(pk_lbl, function(x) { paste(rep("_", nchar(x)), collapse = "") })
+            text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = un_lbl, pos = 3, cex = 0.8, offset = 1.1)
+            text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = rep("|", length(pk_lbl)), pos = 3, cex = 0.8)
           }
         }
-        else
-        {
-          mzData<-mz_copy[imin:imax]
-          inData<-int_copy[imin:imax]
-        }
-
-        #     if(li == 1)
-        #     {
-        #       plot(x = mzData, y = inData, xlim = this$mz_lim, ylim = this$in_lim, col= this$colour[[li]], type = "l", xlab = "", ylab ="")
-        #     }
-        #     else
-        #     {
-        lines(x = mzData, y = inData, col= this$colour[[li]])
-        #    }
-      }
-    }
-
-    #Plot labels
-    if(length(this$peak_mass) > 0)
-    {
-      for(i in 1:length(this$peak_mass))
-      {
-        pk_lbl <- sprintf("%.4f", this$peak_mass[[i]]) #4 decimals
-        text(x = this$peak_mass[[i]], y = this$peak_intensity[[i]], labels = pk_lbl, pos = 3, cex = 0.8, offset = 1.1)
-        un_lbl<-sapply(pk_lbl, function(x) { paste(rep("_", nchar(x)), collapse = "") })
-        text(x = this$peak_mass[[i]], y = this$peak_intensity[[i]], labels = un_lbl, pos = 3, cex = 0.8, offset = 1.1)
-        text(x = this$peak_mass[[i]], y = this$peak_intensity[[i]], labels = rep("|", length(pk_lbl)), pos = 3, cex = 0.8)
       }
     }
 
     #Update cursor
-    this$CheckBox_Changed( )
+    this$SetStateAccordingSelTool()
   }
 
   #OpenTXT==========================================================================================
@@ -294,84 +354,66 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   {
     fname<-file.choose()
     spect<-read.table(fname, header = F, sep = " ")
-    this$AddSpectra( spect[,1], spect[,2])
+    this$AddSpectra( spect[,1], spect[,2], name = basename(fname))
     this$ReDraw()
   }
 
   #Reset Zoom button clicked========================================================================
   ZoomResetClicked <- function( evt, ... )
   {
-    if(length(this$spectra_mass) == 0) return()
-    this$mz_lim = this$data_mass_range
-    this$in_lim <- c(0 ,max(sapply(this$spectra_intensity, max))*1.1)
+    if(length(this$spectra_data) == 0) return()
+    this$mz_lim <- this$data_mass_range
+    this$in_lim <- c(0 ,max(sapply(this$spectra_data, function(x){ return( max(x$intensity)) }))*1.1)
     this$ReDraw()
   }
 
   #Auto Zoomin Mz axis==============================================================================
   ZoomMzClicked <- function( evt, ... )
   {
-    if(length(this$spectra_mass) == 0) return()
-    this$mz_lim = this$data_mass_range
+    if(length(this$spectra_data) == 0) return()
+    this$mz_lim <- this$data_mass_range
     this$ReDraw()
   }
 
   #Auto Zomming Intensity Axis======================================================================
   ZoomInClicked <- function( evt, ... )
   {
-    if(length(this$spectra_mass) == 0) return()
+    if(length(this$spectra_data) == 0) return()
     this$AutoZoomIntensity()
     this$ReDraw()
-  }
-
-  #Auto Change cursor==============================================================================
-  CheckBox_Changed <- function( evt, ... )
-  {
-    if (svalue(this$radio_buttons) == "Zoom")
-    {
-      c=gdkCursorNew("GDK_SIZING")
-    }
-    else
-    {
-      c=gdkCursorNew("GDK_BASED_ARROW_DOWN")
-    }
-    getToolkitWidget(this$plot_device)$getWindow()$setCursor(c)
   }
 
   #Intensity auto-zoom==============================================================================
   AutoZoomIntensity <- function( )
   {
-    if(length(this$spectra_mass) == 0) return(TRUE)
-    max_in<-lapply(this$spectra_mass, function(x){which(x >= this$mz_lim[1] & x <= this$mz_lim[2], arr.ind = T)})
-    my_max<-0
-    for(i in 1:length(max_in))
-    {
-      my_max<-max(my_max, this$spectra_intensity[[i]][max_in[[i]]])
-    }
+    if(length(this$spectra_data) == 0) return()
+    this$in_lim <- c(0 ,max(unlist(lapply(this$spectra_data, function(x){ max(x$intensity[ which( x$mass >= this$mz_lim[1] & x$mass <= this$mz_lim[2], arr.ind = T ) ]) })))*1.1)
+  }
 
-    this$in_lim<-c(0, my_max*1.1)
+  #Mz zoom in a defined range with autoscaling intensity
+  ZoomMzRange <- function(mzLow, mzHigh)
+  {
+    #Mz zooming
+    mzLow<-max(mzLow, this$data_mass_range[1])
+    mzHigh<-min(mzHigh, this$data_mass_range[2])
+    this$mz_lim<- c(mzLow, mzHigh)
+
+    #Intensity zoom
+    this$AutoZoomIntensity()
+
+    this$ReDraw()
   }
 
   #Grab Mouse Selection Changes on plot=============================================================
   OnSelection <- function( evt, ... )
   {
-    if(length(this$spectra_mass) == 0) return(TRUE)
-    if(svalue(this$radio_buttons) == "Zoom")
+    if(length(this$spectra_data) == 0) return()
+    if(this$CurrentSelTool == "Zoom")
     {
       if(abs(evt$x[1] - evt$x[2]) > 1)
       {
         #Mz zooming
-        mz_min<-this$data_mass_range[1]
-        mz_max<-this$data_mass_range[2]
-        top_left <- min(evt$x)
-        top_right <- max(evt$x)
-        top_left<-max(top_left, mz_min)
-        top_right<-min(top_right, mz_max)
-        this$mz_lim<- c(top_left, top_right)
-
-        #Intensity zoom
-        this$AutoZoomIntensity()
-
-        this$ReDraw()
+        this$ZoomMzRange(min(evt$x), max(evt$x))
       }
     }
     else
@@ -384,19 +426,19 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
       mz_sel<-round(mz_sel, digits = 2)
       mz_tol<-max(mz_tol, 0)
 
-      if(svalue(this$radio_buttons) == "Sel Red" && !is.null(this$clicFun))
+      if(this$CurrentSelTool == "Red" && !is.null(this$clicFun))
       {
         ret <- this$clicFun(1, mz_sel, mz_tol)
         this$SelIon_mz_R = ret$selMz
         this$SelIon_tol_R = ret$selTol
       }
-      else if ( svalue(this$radio_buttons) == "Sel Green" && !is.null(this$clicFun))
+      else if ( this$CurrentSelTool == "Green" && !is.null(this$clicFun))
       {
         ret <- this$clicFun(2, mz_sel, mz_tol)
         this$SelIon_mz_G = ret$selMz
         this$SelIon_tol_G = ret$selTol
       }
-      else if ( svalue(this$radio_buttons) == "Sel Blue" && !is.null(this$clicFun))
+      else if ( this$CurrentSelTool == "Blue" && !is.null(this$clicFun))
       {
         ret <- this$clicFun(3, mz_sel, mz_tol)
         this$SelIon_mz_B = ret$selMz
@@ -412,7 +454,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   #Grab mouse cursor on plot=======================================================================
   OnMouseMotion <- function( evt, ... )
   {
-    if(length(this$spectra_mass) == 0) return(TRUE)
+    if(length(this$spectra_data) == 0) return()
 
     #Update pointer
     this$PointerCoords<-c(evt$x, evt$y)
@@ -438,8 +480,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   #Zoom on spectra plot handler====================================================================
   ScrollEventOnSpectra <- function( obj, evt, ... )
   {
-
-    if(length(this$spectra_mass) == 0) return(TRUE)
+    if(length(this$spectra_data) == 0) return()
 
     dir<- as.double(evt$direction)
     dir<-dir*(-2) + 1 # 1 is up, -1 is down
@@ -547,6 +588,199 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
     this$ClearSpectra()
   }
 
+  #Zoom tool has been selected
+  ZoomToolSel <- function( ... )
+  {
+    if( gWidgets2::svalue(this$Btn_ZoomTool))
+    {
+      this$CurrentSelTool <- "Zoom"
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        gWidgets2::svalue(this$Btn_SelRedTool) <- F
+      }
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        gWidgets2::svalue(this$Btn_SelGreenTool) <- F
+      }
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        gWidgets2::svalue(this$Btn_SelBlueTool) <- F
+      }
+    }
+    else #Check if all ara false and avoid such situation
+    {
+      bTest <- F
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelRedTool) | bTest
+      }
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelGreenTool) | bTest
+      }
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelBlueTool) | bTest
+      }
+      if( bTest == F)
+      {
+        gWidgets2::svalue(this$Btn_ZoomTool) <- T
+      }
+    }
+    this$SetStateAccordingSelTool()
+  }
+
+  #Red tool selected
+  RedToolSel <- function( ... )
+  {
+    if( gWidgets2::svalue(this$Btn_SelRedTool))
+    {
+      this$CurrentSelTool <- "Red"
+      gWidgets2::svalue(this$Btn_ZoomTool) <- F
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        gWidgets2::svalue(this$Btn_SelGreenTool) <- F
+      }
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        gWidgets2::svalue(this$Btn_SelBlueTool) <- F
+      }
+    }
+    else #Check if all ara false and avoid such situation
+    {
+      bTest <- F
+      bTest <- gWidgets2::svalue(this$Btn_ZoomTool) | bTest
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelGreenTool) | bTest
+      }
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelBlueTool) | bTest
+      }
+      if( bTest == F)
+      {
+        gWidgets2::svalue(this$Btn_SelRedTool) <- T
+      }
+    }
+    this$SetStateAccordingSelTool()
+  }
+
+  #Green tool selected
+  GreenToolSel <- function( ... )
+  {
+    if( gWidgets2::svalue(this$Btn_SelGreenTool))
+    {
+      this$CurrentSelTool <- "Green"
+      gWidgets2::svalue(this$Btn_ZoomTool) <- F
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        gWidgets2::svalue(this$Btn_SelRedTool) <- F
+      }
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        gWidgets2::svalue(this$Btn_SelBlueTool) <- F
+      }
+    }
+    else #Check if all ara false and avoid such situation
+    {
+      bTest <- F
+      bTest <- gWidgets2::svalue(this$Btn_ZoomTool) | bTest
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelRedTool) | bTest
+      }
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelBlueTool) | bTest
+      }
+      if( bTest == F)
+      {
+        gWidgets2::svalue(this$Btn_SelGreenTool) <- T
+      }
+    }
+    this$SetStateAccordingSelTool()
+  }
+
+  #Blue tool selected
+  BlueToolSel <- function( ... )
+  {
+    if( gWidgets2::svalue(this$Btn_SelBlueTool))
+    {
+      this$CurrentSelTool <- "Blue"
+      gWidgets2::svalue(this$Btn_ZoomTool) <- F
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        gWidgets2::svalue(this$Btn_SelRedTool) <- F
+      }
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        gWidgets2::svalue(this$Btn_SelGreenTool) <- F
+      }
+    }
+    else #Check if all ara false and avoid such situation
+    {
+      bTest <- F
+      bTest <- gWidgets2::svalue(this$Btn_ZoomTool) | bTest
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelRedTool) | bTest
+      }
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        bTest <- gWidgets2::svalue(this$Btn_SelGreenTool) | bTest
+      }
+      if( bTest == F)
+      {
+        gWidgets2::svalue(this$Btn_SelBlueTool) <- T
+      }
+    }
+    this$SetStateAccordingSelTool()
+  }
+
+  SetStateAccordingSelTool <- function ()
+  {
+    if (this$CurrentSelTool == "Zoom")
+    {
+      c=gdkCursorNew("GDK_SIZING")
+    }
+    else
+    {
+      c=gdkCursorNew("GDK_BASED_ARROW_DOWN")
+    }
+    getToolkitWidget(this$plot_device)$getWindow()$setCursor(c)
+  }
+
+  #Set the tool to use externally, can be: Zoom, Red, Green or Blue
+  SetActiveTool <- function (tool)
+  {
+    if( tool == "Zoom")
+    {
+      gWidgets2::svalue(this$Btn_ZoomTool) <- T
+    }
+    else if( tool == "Red")
+    {
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        gWidgets2::svalue(this$Btn_SelRedTool) <- T
+      }
+    }
+    else if( tool == "Green")
+    {
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        gWidgets2::svalue(this$Btn_SelGreenTool) <- T
+      }
+    }
+    else if( tool == "Blue")
+    {
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        gWidgets2::svalue(this$Btn_SelBlueTool) <- T
+      }
+    }
+  }
+
   #Build GUI======================================================================================
   Grp_Top <- gWidgets2::ggroup(horizontal = F, container = this$parent, fill = T, expand = T)
   Grp_Buttons<- gWidgets2::ggroup(horizontal = T, container = Grp_Top, fill = F, expand = F)
@@ -554,8 +788,39 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   Btn_auto_zoom_mz<- gWidgets2::gbutton(text = "Auto Zoom m/z", handler = this$ZoomMzClicked, action = this, container = Grp_Buttons)
   Btn_auto_zoom_in<- gWidgets2::gbutton(text = "Auto Zoom Intensity", handler = this$ZoomInClicked, action = this, container = Grp_Buttons)
   Btn_RemoveSpectra<- gWidgets2::gbutton(text = "Clear all spectra", handler = this$ClearSpectraClicked, action = this, container = Grp_Buttons)
+  Btn_ZoomTool <- gWidgets2::gcheckbox("Zoom", checked = T, handler = this$ZoomToolSel, container = Grp_Buttons, use.togglebutton = F)
+
+  if( display_sel_red )
+  {
+    Btn_SelRedTool <- gWidgets2::gcheckbox("SelRed", checked = F, handler = this$RedToolSel, container = Grp_Buttons, use.togglebutton = F)
+    .setCheckBoxText(Btn_SelRedTool, "Sel. Red", background = NULL, foreground = "darkred", font_size = NULL, font_weight = "heavy")
+  }
+  else
+  {
+    Btn_SelRedTool <- NULL
+  }
+
+  if( display_sel_green )
+  {
+    Btn_SelGreenTool <- gWidgets2::gcheckbox("GreenRed", checked = F, handler = this$GreenToolSel, container = Grp_Buttons, use.togglebutton = F)
+    .setCheckBoxText(Btn_SelGreenTool, "Sel. Green", background = NULL, foreground = "darkgreen", font_size = NULL, font_weight = "heavy")
+  }
+  else
+  {
+    Btn_SelGreenTool <- NULL
+  }
+
+  if( display_sel_blue )
+  {
+    Btn_SelBlueTool <- gWidgets2::gcheckbox("SelBlue", checked = F, handler = this$BlueToolSel, container = Grp_Buttons, use.togglebutton = F)
+    .setCheckBoxText(Btn_SelBlueTool, "Sel. Blue", background = NULL, foreground = "darkblue", font_size = NULL, font_weight = "heavy")
+  }
+  else
+  {
+    Btn_SelBlueTool <- NULL
+  }
+
   gWidgets2::addSpring(Grp_Buttons)
-  this$radio_buttons <- gWidgets2::gradio( c("Zoom","Sel Red", "Sel Green", "Sel Blue"), selected = 1, horizontal = T, handler = this$CheckBox_Changed, action = this, container = Grp_Buttons)
   if(showOpenFileButton)
   {
     Btn_file_open<-gWidgets2::gbutton(text = "Open spectra TXT", handler = this$OpenTXT, action = this, container = Grp_Buttons)
@@ -563,7 +828,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = 0, peaks_inte
   rm(showOpenFileButton)
 
   this$plot_device <- gWidgets2::ggraphics(  )
-  size( this$plot_device )<- c(-1, 170)
+  gWidgets2::size( this$plot_device )<- c(-1, 170)
   gWidgets2::add(obj = Grp_Top, child = this$plot_device, expand = T, fill = T)
 
   Grp_BottomLabel<-gWidgets2::ggroup(horizontal = T, container = Grp_Top)

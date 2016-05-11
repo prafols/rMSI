@@ -31,19 +31,53 @@ ObtainCalibrationFunction<-function(img, ref, snr = 10, Tolerance = 0.01, Method
 
 
 #' Apply a new mass axis to a complete image.
+#' A GUI to calibrate the mean spectrum will be shown.
 #'
 #' @param A image in rMSI data format .
-#' @param The new mass axis.
 #' @param full path to store the output image.
 #'
 #' @export
 #'
-CalibrateImage<-function(img, new_mass, output_fname)
+CalibrateImage<-function(img, output_fname)
 {
   #Copy the img objet
   calImg <- img
 
-  #Replace mass axis
+  #Replace mass axis using GUI calibration
+  if( class( calImg$mean) == "MassSpectrum")
+  {
+    #Old mean MALDIquant handling
+    mIntensity <- calImg$mean@intensity
+  }
+  else
+  {
+    mIntensity <- calImg$mean
+  }
+  new_mass <- CalibrationWindow( calImg$mass, mIntensity )
+
+  if(is.null(new_mass))
+  {
+    cat("Calibration process aborted by user\n")
+    return()
+  }
+
+  #Ask for confirmation
+  resp <- ""
+  while(resp != "y" && resp != "n" && resp != "Y" && resp != "N")
+  {
+    resp <- readline(prompt = "Proced with calibration of the whole MS image? (this may thake some time) [y, n]:")
+    if(resp != "y" && resp != "n" && resp != "Y" && resp != "N")
+    {
+      cat("Invalid response, valid responses are: y, n, Y and N. Try again.\n")
+    }
+  }
+
+  if( resp == "n" || resp =="N")
+  {
+    cat("Calibration process aborted by user\n")
+    return()
+  }
+
   calImg$mass <- new_mass
 
   if( class( calImg$mean) == "MassSpectrum")

@@ -74,11 +74,11 @@ MSIWindow<-function(img1, img2 = NULL)
   }
 
   #A connector between spectraWidget and msiWidgets because them can not be joined directly
-  AddSpectra <- function ( mass_axis, intensity_list, color_list)
+  AddSpectra <- function ( mass_axis, intensity_list, color_list, id_list, calling_image_string)
   {
     for( i in 1:length(intensity_list))
     {
-      this$spectraWidget$AddSpectra(mass_axis, intensity_list[[i]], col = color_list[[i]])
+      this$spectraWidget$AddSpectra(mass_axis, intensity_list[[i]], col = color_list[[i]], name = paste(calling_image_string,"_ID",as.character(id_list[[i]], sep = "")))
     }
   }
 
@@ -86,13 +86,13 @@ MSIWindow<-function(img1, img2 = NULL)
   window <- gWidgets2::gwindow ( "MSI Reconstruction" , visible = F )
   Grp_Top <- gWidgets2::gpanedgroup(horizontal = F, container = window)
   Grp_Ims <- gWidgets2::gpanedgroup(horizontal = T, container = Grp_Top)
-  msiWidget1 <- .MSImagePlotWidget(in_img = img1 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, meanSpectrumColor = "red")
+  msiWidget1 <- .MSImagePlotWidget(in_img = img1 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, meanSpectrumColor = "red", widget_name = "imgLeft")
   if( !is.null(img2))
   {
-    msiWidget2 <- .MSImagePlotWidget(in_img = img2 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, meanSpectrumColor = "blue")
+    msiWidget2 <- .MSImagePlotWidget(in_img = img2 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, meanSpectrumColor = "blue", widget_name = "imgRight")
   }
   spectraFrame<-gWidgets2::gframe("Average Spectra", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
-  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F)
+  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F,  display_sel_red = T, display_sel_green = T, display_sel_blue = T)
 
   visible(window)<-TRUE
 
