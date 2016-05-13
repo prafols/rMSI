@@ -16,5 +16,6 @@ Imports:
     gWidgets2RGtk2 (>= 1.0),
     ff (>= 2.2),
     raster (>= 2.4),
-    zoo (>= 1.7)
+    zoo (>= 1.7),
+    MALDIquant (>= 1.14)
 RoxygenNote: 5.0.1

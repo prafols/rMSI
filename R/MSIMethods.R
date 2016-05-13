@@ -65,7 +65,7 @@ CalibrateImage<-function(img, output_fname)
   resp <- ""
   while(resp != "y" && resp != "n" && resp != "Y" && resp != "N")
   {
-    resp <- readline(prompt = "Proced with calibration of the whole MS image? (this may thake some time) [y, n]:")
+    resp <- readline(prompt = "Proced with calibration of the whole MS image? (this may take some time) [y, n]:")
     if(resp != "y" && resp != "n" && resp != "Y" && resp != "N")
     {
       cat("Invalid response, valid responses are: y, n, Y and N. Try again.\n")

@@ -2,7 +2,7 @@
 #Deprectaed but may introduce some nice ideas.
 
 #Convert MyImg Object to jpeg compressed mz-sliced image list (this could be a great trick to dramatically reduce dataset size yet keep relevant data)
-CompressMyImg2JpegSlices<-function(img_data, compression_quality = 0.9)
+.CompressMyImg2JpegSlices<-function(img_data, compression_quality = 0.9)
 {
   #Generate all image slices
   dataCube<-list()
@@ -24,7 +24,7 @@ CompressMyImg2JpegSlices<-function(img_data, compression_quality = 0.9)
 }
 
 #Convert MyImg Object to MALDIquant MassSpectrum object
-ConvertMyImg2MassSpectrum<-function(img_data){
+.ConvertMyImg2MassSpectrum<-function(img_data){
   dataCube<-list()
 
   #Generate img in MALDIquant format
@@ -40,7 +40,7 @@ ConvertMyImg2MassSpectrum<-function(img_data){
 }
 
 #Convert MassSpectrum object to MyImg Object
-ConvertMassSpectrum2MyImg<-function(img_data)
+.ConvertMassSpectrum2MyImg<-function(img_data)
 {
   dataCube<-list()
   for(i in 1:length(img_data))

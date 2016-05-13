@@ -323,10 +323,20 @@ AverageSpectrum <- function(img)
 #'
 calMzAxis <- function(avgSpc_mz, ref_mz, target_mz)
 {
-  real_idx <- unlist( lapply(target_mz, function(x){ which.min(abs(x - avgSpc_mz)) }))
-  new_mz <- rep(NA, length(avgSpc_mz))
-  new_mz[real_idx] <- ref_mz
-  error <- new_mz - avgSpc_mz
-  error <- zoo::na.spline( error )
-  return(avgSpc_mz + error)
+  # real_idx <- unlist( lapply(target_mz, function(x){ which.min(abs(x - avgSpc_mz)) }))
+  # new_mz <- rep(NA, length(avgSpc_mz))
+  # new_mz[real_idx] <- ref_mz
+  # error <- new_mz - avgSpc_mz
+  # error <- zoo::na.spline( error )
+  # return(avgSpc_mz + error)
+
+  ##Testing new method
+  ## TODO if this new method works better than zoo interpolation, don't forget to set depedencies correctly in DESCRIPTION file
+
+  MQrefPeaks <- MALDIquant::createMassPeaks(ref_mz, rep(1, length(ref_mz)))
+  MQtargetPeaks <- MALDIquant::createMassPeaks(target_mz, rep(1, length(target_mz)))
+  MQwarp <- MALDIquant::determineWarpingFunctions(list(MQtargetPeaks), reference = MQrefPeaks, tolerance = 0.002, method = "cubic")
+  MQSpectra <- MALDIquant::createMassSpectrum(mass = avgSpc_mz, intensity = rep(0, length(avgSpc_mz)))
+  MQcalibrated <- MALDIquant::warpMassSpectra(list(MQSpectra), MQwarp)
+  return(MQcalibrated[[1]]@mass)
 }
