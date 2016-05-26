@@ -5,12 +5,14 @@
 \title{Apply a new mass axis to a complete image.
 A GUI to calibrate the mean spectrum will be shown.}
 \usage{
-CalibrateImage(img, output_fname)
+CalibrateImage(img, output_fname, newMzAxis = NULL)
 }
 \arguments{
-\item{A}{image in rMSI data format .}
+\item{img}{A image in rMSI data format .}
 
-\item{full}{path to store the output image.}
+\item{output_fname}{full path to store the output image.}
+
+\item{newMzAxis}{if a new mz axis specified it is used for the calibration window}
 }
 \description{
 Apply a new mass axis to a complete image.

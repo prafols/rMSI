@@ -33,12 +33,13 @@ ObtainCalibrationFunction<-function(img, ref, snr = 10, Tolerance = 0.01, Method
 #' Apply a new mass axis to a complete image.
 #' A GUI to calibrate the mean spectrum will be shown.
 #'
-#' @param A image in rMSI data format .
-#' @param full path to store the output image.
+#' @param img A image in rMSI data format .
+#' @param output_fname full path to store the output image.
+#' @param newMzAxis if a new mz axis specified it is used for the calibration window
 #'
 #' @export
 #'
-CalibrateImage<-function(img, output_fname)
+CalibrateImage<-function(img, output_fname, newMzAxis = NULL)
 {
   #Copy the img objet
   calImg <- img
@@ -53,6 +54,22 @@ CalibrateImage<-function(img, output_fname)
   {
     mIntensity <- calImg$mean
   }
+
+  if(!is.null(newMzAxis))
+  {
+    if(length(newMzAxis) != length(calImg$mass))
+    {
+      stop("Eror: Mass axis length is different than intensity legnth!")
+    }
+
+    calImg$mass <- newMzAxis
+
+    if( class( calImg$mean) == "MassSpectrum")
+    {
+      calImg$mean@mass <- newMzAxis
+    }
+  }
+
   new_mass <- CalibrationWindow( calImg$mass, mIntensity )
 
   if(is.null(new_mass))
