@@ -337,7 +337,7 @@ calMzAxis <- function(avgSpc_mz, ref_mz, target_mz, use_zoo = F )
   {
     MQrefPeaks <- MALDIquant::createMassPeaks(ref_mz, rep(1, length(ref_mz)))
     MQtargetPeaks <- MALDIquant::createMassPeaks(target_mz, rep(1, length(target_mz)))
-    MQwarp <- MALDIquant::determineWarpingFunctions(list(MQtargetPeaks), reference = MQrefPeaks, tolerance = 0.002, method = "lowess")
+    MQwarp <- MALDIquant::determineWarpingFunctions(list(MQtargetPeaks), reference = MQrefPeaks, tolerance = 0.005, method = "lowess")
     MQSpectra <- MALDIquant::createMassSpectrum(mass = avgSpc_mz, intensity = rep(0, length(avgSpc_mz)))
     MQcalibrated <- MALDIquant::warpMassSpectra(list(MQSpectra), MQwarp)
     return(MQcalibrated[[1]]@mass)

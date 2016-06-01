@@ -2,11 +2,12 @@
 #'
 #' @param mass The mass vector of spectrum to calibrate.
 #' @param intensity The intensity vector of spectrum to calibrate.
+#' @param use_zoo if the zoo package interpolation must be used
 #'
 #' @return a the calibrated mass axis.
 #' @export
 #'
-CalibrationWindow<-function( mass, intensity)
+CalibrationWindow<-function( mass, intensity, use_zoo = F)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -127,7 +128,7 @@ CalibrationWindow<-function( mass, intensity)
     valid_rows <- which( this$Table_Ctl[, this$Tbl_ColNames$active] )
     refMz <- this$Table_Ctl[valid_rows, this$Tbl_ColNames$ref]
     targetMz <- this$Table_Ctl[valid_rows, this$Tbl_ColNames$sel]
-    this$dMassCalibrated <- calMzAxis(this$dMass, refMz, targetMz)
+    this$dMassCalibrated <- calMzAxis(this$dMass, refMz, targetMz, use_zoo)
     gWidgets2::enabled(Chk_ShowCal) <-T
 
     this$spectraWidget$AddSpectra(  this$dMassCalibrated, dIntensity, col = "darkgreen", name = "cal")

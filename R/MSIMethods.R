@@ -36,10 +36,11 @@ ObtainCalibrationFunction<-function(img, ref, snr = 10, Tolerance = 0.01, Method
 #' @param img A image in rMSI data format .
 #' @param output_fname full path to store the output image.
 #' @param newMzAxis if a new mz axis specified it is used for the calibration window
+#' @param useZoo if zoo interpolation must be used (caution this may introduce m/z error if large compensations are made)
 #'
 #' @export
 #'
-CalibrateImage<-function(img, output_fname, newMzAxis = NULL)
+CalibrateImage<-function(img, output_fname, newMzAxis = NULL, useZoo = F)
 {
   #Copy the img objet
   calImg <- img
@@ -70,7 +71,7 @@ CalibrateImage<-function(img, output_fname, newMzAxis = NULL)
     }
   }
 
-  new_mass <- CalibrationWindow( calImg$mass, mIntensity )
+  new_mass <- CalibrationWindow( calImg$mass, mIntensity, useZoo )
 
   if(is.null(new_mass))
   {

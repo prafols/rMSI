@@ -5,7 +5,7 @@
 \title{Apply a new mass axis to a complete image.
 A GUI to calibrate the mean spectrum will be shown.}
 \usage{
-CalibrateImage(img, output_fname, newMzAxis = NULL)
+CalibrateImage(img, output_fname, newMzAxis = NULL, useZoo = F)
 }
 \arguments{
 \item{img}{A image in rMSI data format .}
@@ -13,6 +13,8 @@ CalibrateImage(img, output_fname, newMzAxis = NULL)
 \item{output_fname}{full path to store the output image.}
 
 \item{newMzAxis}{if a new mz axis specified it is used for the calibration window}
+
+\item{useZoo}{if zoo interpolation must be used (caution this may introduce m/z error if large compensations are made)}
 }
 \description{
 Apply a new mass axis to a complete image.

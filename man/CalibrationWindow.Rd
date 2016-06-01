@@ -4,12 +4,14 @@
 \alias{CalibrationWindow}
 \title{CalibrationWindow.}
 \usage{
-CalibrationWindow(mass, intensity)
+CalibrationWindow(mass, intensity, use_zoo = F)
 }
 \arguments{
 \item{mass}{The mass vector of spectrum to calibrate.}
 
 \item{intensity}{The intensity vector of spectrum to calibrate.}
+
+\item{use_zoo}{if the zoo package interpolation must be used}
 }
 \value{
 a the calibrated mass axis.
