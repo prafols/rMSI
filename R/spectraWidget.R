@@ -334,7 +334,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
           #Plot labels
           if( !is.null(this$spectra_data[[li]]$mass_peaks) && !is.null(this$spectra_data[[li]]$intensity_peaks) )
           {
-            cat(paste("Mz peaks:", this$spectra_data[[li]]$mass_peaks, "int peaks:", this$spectra_data[[li]]$intensity_peaks, "\n"))
+            #cat(paste("Mz peaks:", this$spectra_data[[li]]$mass_peaks, "int peaks:", this$spectra_data[[li]]$intensity_peaks, "\n"))
             pk_lbl <- sprintf("%.4f", this$spectra_data[[li]]$mass_peaks) #4 decimals
             text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = pk_lbl, pos = 3, cex = 0.8, offset = 1.1)
             un_lbl<-sapply(pk_lbl, function(x) { paste(rep("_", nchar(x)), collapse = "") })

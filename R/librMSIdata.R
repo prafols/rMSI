@@ -343,3 +343,135 @@ calMzAxis <- function(avgSpc_mz, ref_mz, target_mz, use_zoo = F )
     return(MQcalibrated[[1]]@mass)
   }
 }
+
+#' ConvertrMSIimg2Bin.
+#'
+#' @param img a rMSI image object to be converted.
+#' @param out_data_dir the resulting output data directory.
+#'
+#' @return nothing.
+#' @export
+#'
+ConvertrMSIimg2Bin <- function( img, out_data_dir)
+{
+
+  dir.create(out_data_dir)
+
+  #Export global m/z axis to txt
+  write(img$mass, file.path(out_data_dir, "mz.txt" ), ncolumns = 1)
+
+  #Export metadata as a plain ascii file:
+  img_name_char <- paste("Original image name:\t", img$name, "\n", sep = "")
+  img_size_charX <- paste("Image size in X:\t", img$size["x"], "\n", sep = "")
+  img_size_charY <- paste("Image size in Y:\t", img$size["y"], "\n", sep = "")
+  pixel_size_char <- paste("Pixel size (um):\t", img$pixel_size_um, "\n", sep = "")
+  write( paste(img_name_char, img_size_charX, img_size_charY, pixel_size_char, sep =""), file= file.path(out_data_dir, "metadata.txt")  )
+
+  #Export spectra intensity data
+  spc_id <- 1
+  subdir <- 1
+  dir.create(file.path(out_data_dir, subdir))
+  spc_in_subdir_count <- 0
+  for( ic in 1:length(img$data))
+  {
+    cat(paste("Processing cube", ic, "of", length(img$data), "\n"))
+    cube <- loadImgCunckFromCube(img, ic)
+
+    for( i in 1:nrow(cube))
+    {
+      if(spc_in_subdir_count >= 1e4)
+      {
+        subdir <- subdir + 1
+        dir.create(file.path(out_data_dir, subdir))
+        spc_in_subdir_count <- 0
+      }
+
+      fname <- paste ("ID",spc_id, "_X", img$pos[spc_id, "x"] , "_Y", img$pos[spc_id, "y"], ".bin", sep = "")
+      spc_id <- spc_id + 1
+      spc <- cube[i, ]
+      writeBin(spc, file.path(out_data_dir, subdir, fname ), size = 4, endian="little")
+      spc_in_subdir_count <- spc_in_subdir_count + 1
+    }
+
+  }
+}
+
+#' ConvertBin2rMSIimg.
+#'
+#' @param in_data_dir data dir where the bin image is located.
+#' @param out_img_tar_file if not NULL the imported image will be also stored as a tar file.
+#'
+#' @return the rMSI image object.
+#' @export
+#'
+ConvertBin2rMSIimg <- function( in_data_dir, out_img_tar_file = NULL )
+{
+  #Get the metadata
+  mz_axis <- as.numeric(read.table(file.path(in_data_dir, "mz.txt"))[,1])
+  metadata <- read.table(file.path(in_data_dir, "metadata.txt"), sep = "\t", colClasses = "character")
+  imgName <- as.character(metadata[1,2])
+  xSize <- as.numeric(metadata[2,2])
+  ySize <- as.numeric(metadata[3,2])
+  resolution <- as.numeric(metadata[4,2])
+
+  #List bin files
+  bin_files<-list.files(path=in_data_dir, include.dirs = F, recursive = T, pattern = "*.bin", full.names = T)
+
+  #Fill image fields
+  img <-CreateEmptyImage( num_of_pixels = length(bin_files) , pixel_resolution = resolution, img_name =  imgName, mass_axis = mz_axis )
+  img$size["x"] <- xSize
+  img$size["y"] <- ySize
+
+  #Prepare a dataframe with each bin file info
+  print("Parsing bin file names...")
+  pb<-txtProgressBar(min = 0, max = length(bin_files), style = 3 )
+  pb_i <- 0
+  ID <- c()
+
+  for( bin_file in bin_files)
+  {
+    pb_i <- pb_i + 1
+    setTxtProgressBar(pb, pb_i)
+    pixel_fields <- strsplit(as.character(strsplit(basename(bin_file), split = "\\.")[[1]])[1], split = "_")[[1]]
+    id <- as.numeric(strsplit(pixel_fields[1], split = "ID")[[1]])[2]
+    X_cord <- as.numeric(strsplit(pixel_fields[2], split = "X")[[1]])[2]
+    Y_cord <- as.numeric(strsplit(pixel_fields[3], split = "Y")[[1]])[2]
+    img$pos[id, "x"] <- X_cord
+    img$pos[id, "y"] <- Y_cord
+    ID <- c(ID, id)
+  }
+  data_inf <- data.frame( ID, bin_files )
+  data_inf <- data_inf[order(ID), ] #Sort by ID's (faster datacubes writing)
+  close(pb)
+
+  #Extract bin files
+  print("Extracting spectra from bin files...")
+  pb<-txtProgressBar(min = 0, max = nrow(data_inf), style = 3 )
+  dm <- matrix(nrow = 100, ncol = length( mz_axis )) #Read HDD in chunks of 100 spectra
+  partial_ids <- c()
+  dm_irow <- 1
+  for( i in 1:nrow(data_inf))
+  {
+    setTxtProgressBar(pb, i)
+    dm[dm_irow, ] <- as.integer(readBin(as.character(data_inf[i, "bin_files"]), integer(),n=length(mz_axis) ,size = 4, signed=T, endian="little" ))
+    partial_ids <- c(partial_ids, data_inf[i, "ID"])
+    dm_irow <- dm_irow + 1
+
+    if( dm_irow > nrow(dm) || i == nrow(data_inf))
+    {
+      saveImgCunckAtIds( img,  partial_ids, dm[1:length(partial_ids), ] )
+      partial_ids <- c()
+      dm_irow <- 1
+    }
+  }
+  close(pb)
+
+  print("Calculating average spectrum...")
+  img$mean <- AverageSpectrum(img)
+
+  if(!is.null(out_img_tar_file))
+  {
+    SaveMsiData(img, out_img_tar_file)
+  }
+  return(img)
+}
