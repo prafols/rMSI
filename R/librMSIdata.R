@@ -22,7 +22,11 @@ SaveMsiData<-function(imgData, data_file)
   save(meanSpcData, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
   resolutionObj<-imgData$pixel_size_um
   save(resolutionObj, file = file.path(data_dir, "pixel_size_um.ImgR")) #Save pixel size um Object
-
+  if(!is.null(imgData$normalizations))
+  {
+    normalizationsObj <- imgData$normalizations
+    save(normalizationsObj, file = file.path(data_dir, "normalizations.ImgR")) #Save normalizations Object
+  }
 
   #Store also a vector of names of ff data in order to be able to restore it
   ffDataNames <- paste(names(imgData$data), "_ffzip", sep = "")
@@ -120,6 +124,15 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
     print("Warning: Old image without resolution object. It is set to 9999 um by default!")
     resolutionObj <- 9999
   }
+  if(file.exists(file.path(img_path, "normalizations.ImgR")))
+  {
+    load(file.path(img_path, "normalizations.ImgR"))
+  }
+  else
+  {
+    normalizationsObj <- NULL
+  }
+
 
   spectra<-list()
   ppStep<-100/length(ffDataNames)
@@ -144,6 +157,11 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
 
   lapply(spectra, ff::open.ff)
   datacube<-list(name = basename(data_file), mass = massObj,  size = sizeObj,  pos = posObj, pixel_size_um = resolutionObj, mean = meanSpcData, data = spectra)
+  if(!is.null(normalizationsObj))
+  {
+    datacube$normalizations <- normalizationsObj
+  }
+
   unlink("ImgData", recursive = T)
 
   save(datacube, file = file.path(restore_path, "datacube.RImg"))
@@ -312,14 +330,170 @@ AverageSpectrum <- function(img)
   return(avgI)
 }
 
+
+#' NormalizeTIC: Calculates the TIC normalizatin of each pixel as the sum of all intensities.
+#'
+#' @param img the rMSI image object.
+#'
+#' @return  a rMSI image containing the normalizations$TIC field.
+#' @export
+#'
+NormalizeTIC <- function(img)
+{
+  pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
+  setTxtProgressBar(pb, 0)
+  TICs <- c()
+  for( i in 1:length(img$data))
+  {
+    TICs <- c(TICs, rowSums(img$data[[i]][,]))
+    setTxtProgressBar(pb, i)
+  }
+  close(pb)
+
+  img <- AppendNormalizationCoefs(img, "TIC", TICs)
+  return(img)
+}
+
+#' NormalizeByAcqusitionDegradation: Normalizes an rMSI image to compensate ionization source degradation.
+#'
+#' @param img  the rMSI object to normalize.
+#' @param winSize the window size use for smoothing (0 to 1).
+#'
+#' @return a rMSI image containing the normalizations$AcqTic field.
+#' @export
+#'
+NormalizeByAcqusitionDegradation <- function( img, winSize = 0.1 )
+{
+  #Calc all tics
+  pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
+  setTxtProgressBar(pb, 0)
+  TICs <- c()
+  for( i in 1:length(img$data))
+  {
+    TICs <- c(TICs, rowSums(img$data[[i]][,]))
+    setTxtProgressBar(pb, i)
+  }
+  close(pb)
+
+  #Sort TICs according acquisition
+  idxArray <- matrix( c(1:nrow(img$pos), img$pos[,"x"], img$pos[,"y"]), nrow = nrow(img$pos), ncol = 3, byrow = F )
+  colnames(idxArray) <- c("id", "x", "y")
+  idxArray <- idxArray[order(idxArray[,"y"], idxArray[,"x"]), ]
+  TICs <- matrix( c( idxArray[,"id"], TICs[idxArray[,"id"]]), ncol = 2)
+  colnames(TICs) <- c("id", "TIC")
+
+  smTICs <- TICs
+  winLen <- floor(0.5*nrow(TICs) * winSize)
+  for( i in 1:nrow(TICs))
+  {
+    iStart <- i - winLen
+    iStop <- i + winLen
+    if( iStart < 1)
+    {
+      iStop <- iStop + (1 - iStart)
+      iStart <- 1
+    }
+    if( iStop > nrow(TICs))
+    {
+      iStart <- iStart + (nrow(TICs) - iStop)
+      iStop <- nrow(TICs)
+    }
+
+    discardLows <- mean(TICs[iStart:iStop, "TIC"]) - sd(TICs[iStart:iStop, "TIC"])
+    dWind <- TICs[iStart:iStop, "TIC"]
+    dWind <- dWind[which(dWind > discardLows)]
+    smTICs[i, "TIC"] <- mean(dWind)
+    #TODO pensar que fer si es NAN
+  }
+
+  #Order smTICs according Id's and append it to image normalization
+  smTICs <- smTICs[order(smTICs[,"id"]), ]
+  img <- AppendNormalizationCoefs(img, "AcqTic", smTICs[,"TIC"])
+  return(img)
+}
+
+#' AppendNormalizationCoefs: Appends a new normalization coefinients to rMSI object.
+#'
+#' @param img the rMSI object to append normalization coeficients.
+#' @param normName the given name of the normalization.
+#' @param normCoefs the normalizations coeficients.
+#'
+#' @return  a rMSI image containing the new normalization field.
+#' @export
+#'
+AppendNormalizationCoefs <- function(img, normName, normCoefs)
+{
+  if(is.null(img$normalizations))
+  {
+    img$normalizations <- list()
+  }
+
+  img$normalizations[[normName]] <- normCoefs
+
+  return(img)
+}
+
+#' SortIDsByAcquisition: Order the rMSI pixel IDs according the acqusition sequence (first acquired pixel is the first one).
+#'
+#' @param img a rMSI image.
+#'
+#' @return a vector of ID's ordered acording acquisiton.
+#' @export
+#'
+SortIDsByAcquisition <- function(img)
+{
+  idxArray <- matrix( c(1:nrow(img$pos), img$pos[,"x"], img$pos[,"y"]), nrow = nrow(img$pos), ncol = 3, byrow = F )
+  colnames(idxArray) <- c("id", "x", "y")
+  idxArray <- idxArray[order(idxArray[,"y"], idxArray[,"x"]), ]
+  return(idxArray[,"id"])
+}
+
+#' PlotTICImage.
+#'
+#' @param img an rMSI object.
+#' @param TICs a vector of TIC values ordered acording pos array in img object.
+#'
+#' @export
+#'
+PlotTICImage <- function(img, TICs = NULL, rotate = 0)
+{
+  #Calculate TICs
+  if(is.null(TICs))
+  {
+    TICs <- CalcImgTICs(img)
+  }
+
+  #Prepare image matrix
+  zplots<-matrix(0, nrow=img$size["x"], ncol=img$size["y"]) #Now I'm using a zero instead of NA to display a completely black background
+  for( i in 1:nrow(img$pos))
+  {
+    zplots[img$pos[ i , "x" ], img$pos[ i , "y" ]] <- TICs[i]
+  }
+
+  #Create the raster
+  my_raster <- raster::raster( nrow = ncol(zplots), ncol = nrow(zplots), xmn= 0, xmx= nrow(zplots), ymn= 0, ymx= ncol(zplots))
+  raster::values(my_raster) <- as.vector(zplots)
+  rm(zplots)
+
+  #Put zplots matrix and some metadata in a list
+  img_sgn <- list(raster = my_raster, mass = "TIC", tolerance = 0, cal_resolution = img$pixel_size_um)
+  rm(my_raster)
+
+  raster_RGB<-.BuildSingleIonRGBImage(img_sgn, XResLevel = 3, light = 5)
+
+  layout( matrix( 2:1, ncol = 2, nrow = 1, byrow = TRUE ), widths = c(7, rep(1, 2)) )
+  .plotIntensityScale(img_sgn, light =  5)
+  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F)
+}
+
 #' calMzAxis.
 #'
-#' @param avgSpc_mz  The mass axis to calibrate
-#' @param ref_mz a vector of reference masses (for exaple the theorical gold peaks)
-#' @param target_mz manually slected masses to be fittet to ref_masses (must be the same length than ref_mz)
-#' @param use_zoo if true zoo package is used for mass error interpolation, it is much more tolerant to large mass errors. Use it carefuly!
+#' @param avgSpc_mz  The mass axis to calibrate.
+#' @param ref_mz a vector of reference masses (for exaple the theorical gold peaks).
+#' @param target_mz manually slected masses to be fittet to ref_masses (must be the same length than ref_mz).
+#' @param use_zoo if true zoo package is used for mass error interpolation, it is much more tolerant to large mass errors. Use it carefuly!.
 #'
-#' @return the calibrated mass axis
+#' @return the calibrated mass axis.
 #' @export
 #'
 calMzAxis <- function(avgSpc_mz, ref_mz, target_mz, use_zoo = F )
@@ -474,4 +648,22 @@ ConvertBin2rMSIimg <- function( in_data_dir, out_img_tar_file = NULL )
     SaveMsiData(img, out_img_tar_file)
   }
   return(img)
+}
+
+#' plotParamAcqOrdered.
+#'
+#' @param img rMSI object from wich data must be ploted.
+#' @param Param a vector of elements to plot.
+#' @param yAxisLabel.
+#'
+#' Param will be ploted ordered according the order of pixels in MALDI acqusition.
+#'
+#' @export
+#'
+plotParamAcqOrdered <- function( img, Param, yAxisLabel = "Param" )
+{
+  idxArray <- matrix( c(1:nrow(img$pos), img$pos[,"x"], img$pos[,"y"]), nrow = nrow(img$pos), ncol = 3, byrow = F )
+  colnames(idxArray) <- c("id", "x", "y")
+  idxArray <- idxArray[order(idxArray[,"y"], idxArray[,"x"]), ]
+  plot(Param[idxArray[,"id"]], type="l", col ="red", ylab = yAxisLabel, xlab = "Pixel" )
 }

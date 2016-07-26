@@ -1,6 +1,6 @@
 ###A GUI to display MS images from some ions/features
 
-.MSImagePlotWidget <- function( in_img, parent_widget=gwindow ( "Default MSImagePlotWidget" , visible = FALSE ), AddSpectra_function = NULL, meanSpectrumColor = "red", widget_name = "")
+.MSImagePlotWidget <- function( in_img, parent_widget=gwindow ( "Default MSImagePlotWidget" , visible = FALSE ), AddSpectra_function = NULL, GetSpectraInfo_function = NULL, ClearSpectraPlot_function = NULL, meanSpectrumColor = "red", widget_name = "")
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -34,7 +34,12 @@
   SidePanel_position <- 0 #Storing side panel position of spectra list in order to resotre it when it is hide/show
   AddSpectra_ptr <- AddSpectra_function #Pointer to a AddSpectra method of a spectraWidget to be able of ploting directly
   rm(AddSpectra_function)
+  GetSpectraInfo_ptr <- GetSpectraInfo_function #Pointer to a GetSpectra method of a spectraWidget to be able to get current ploted spectra directly
+  rm(GetSpectraInfo_function)
+  ClearSpectraPlot_ptr <- ClearSpectraPlot_function #Pointer to a RmSpectra method of a spectraWidget to be able to clear ploted spectra directly
+  rm(ClearSpectraPlot_function)
   myName <- widget_name
+  NormalizationCoefs <- rep(1, nrow(img$pos))
 
   #Current image RGB layers
   Rlayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
@@ -46,7 +51,7 @@
   {
     this$mz_tolerance[channel] <- tol
     this$mz_selected[channel] <- mass
-    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = NULL) #TODO some day I can use this to include various normalizations
+    img_new<-.buildImageByPeak(this$img, mass.peak = mass, tolerance = tol, NormCoefs = this$NormalizationCoefs)
 
     #Apply intensity limitation directly to the raster object
     if( !is.null(this$IntLimit_ROI))
@@ -109,7 +114,7 @@
   PlotMassImageRGB <- function()
   {
     ch_count <- 0
-    if( svalue(this$Btn_RedEnable))
+    if( gWidgets2::svalue(this$Btn_RedEnable))
     {
       .setCheckBoxText(this$Btn_RedEnable, " ON ", background = "red", foreground = "white", font_size = "large", font_weight = "heavy")
       red_layer <- this$Rlayer_raster
@@ -121,7 +126,7 @@
       .setCheckBoxText(this$Btn_RedEnable, " ON ", background = "darkred", foreground = "grey", font_size = "large", font_weight = "heavy")
       red_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
     }
-    if( svalue(this$Btn_GreenEnable))
+    if( gWidgets2::svalue(this$Btn_GreenEnable))
     {
       .setCheckBoxText(this$Btn_GreenEnable, " ON ", background = "green", foreground = "white", font_size = "large", font_weight = "heavy")
       green_layer <- this$Glayer_raster
@@ -133,7 +138,7 @@
       .setCheckBoxText(this$Btn_GreenEnable, " ON ", background = "darkgreen", foreground = "grey", font_size = "large", font_weight = "heavy")
       green_layer <-.InitRGBEmptyRaster( this$img$size["x"], this$img$size["y"] )
     }
-    if( svalue(this$Btn_BlueEnable))
+    if( gWidgets2::svalue(this$Btn_BlueEnable))
     {
       .setCheckBoxText(this$Btn_BlueEnable, " ON ", background = "blue", foreground = "white", font_size = "large", font_weight = "heavy")
       blue_layer <- this$Blayer_raster
@@ -164,7 +169,7 @@
 
     this$RedrawMSImage()
 
-    visible(this$scaleRed_dev)<-TRUE
+    gWidgets2::visible(this$scaleRed_dev)<-TRUE
     if(ch_count == 1)
     {
       .plotIntensityScale(red_layer, light = svalue(this$Scale_light))
@@ -174,7 +179,7 @@
       .plotIntensityScale(red_layer, "R", light = svalue(this$Scale_light) )
     }
 
-    visible(this$scaleGreen_dev)<-TRUE
+    gWidgets2::visible(this$scaleGreen_dev)<-TRUE
     if(ch_count == 1)
     {
       .plotIntensityScale(green_layer, light = svalue(this$Scale_light))
@@ -185,7 +190,7 @@
     }
 
 
-    visible(this$scaleBlue_dev)<-TRUE
+    gWidgets2::visible(this$scaleBlue_dev)<-TRUE
     if(ch_count == 1)
     {
       .plotIntensityScale(blue_layer, light = svalue(this$Scale_light))
@@ -249,7 +254,8 @@
     #Add spectra to plot
     if(!is.null(this$AddSpectra_ptr) && length(intensity_list) > 0 && length(color_list) > 0)
     {
-      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list, id_list, this$myName)
+      #TODO error, si ha de plotar espectre mig faltara un coef normalitzacio i no quadara amb el id list
+      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list, id_list, this$myName, this$NormalizationCoefs[unlist(id_list)])
     }
   }
 
@@ -286,7 +292,7 @@
     }
     else
     {
-      spc <- matrix(data= c(this$mass, this$img$mean), ncol = 2, byrow = F)
+      spc <- matrix(data= c(this$img$mass, this$img$mean), ncol = 2, byrow = F)
     }
     write( x = t(spc), file = file.path( store_paths, "average.txt" ), ncolumns = 2  )
 
@@ -439,9 +445,9 @@
     }
 
     plotMassImageByPeak(this$img,  mass.peak = mass_sel, tolerance = tol_sel,
-                        XResLevel = switch(svalue(this$Combo_Xres), x1 = 1, x2 = 2, x3 = 3, x4 = 4, x5 = 5),
-                        rotation = this$Rotation, vlight= svalue(this$Scale_light),
-                        crop_area = ZOOM_win, intensity_limit = this$IntLimits)
+                        XResLevel = switch(gWidgets2::svalue(this$Combo_Xres), x1 = 1, x2 = 2, x3 = 3, x4 = 4, x5 = 5),
+                        rotation = this$Rotation, vlight= gWidgets2::svalue(this$Scale_light),
+                        crop_area = ZOOM_win, intensity_limit = this$IntLimits, NormalizationCoefs = this$NormalizationCoefs)
     dev.off()
 
     gWidgets2::gmessage(paste("Image saved at:", fname), icon = "info")
@@ -503,6 +509,40 @@
   ComboBox_XRes_Changed <- function( ... )
   {
     this$PlotMassImageRGB()
+  }
+
+  #==================================================================================================
+  ComboBox_Norm_Changed <- function( ... )
+  {
+    if(gWidgets2::svalue(this$Combo_Norm) == "RAW")
+    {
+      this$NormalizationCoefs <- rep(1, nrow(this$img$pos))
+    }
+    else
+    {
+      this$NormalizationCoefs <- this$img$normalization[[gWidgets2::svalue(this$Combo_Norm)]]
+    }
+
+    #Re-Build the raster with the new Normalization factor
+    for( ich in 1:length(this$mz_selected))
+    {
+      this$ImgBuildFun(ich, this$mz_selected[ich], this$mz_tolerance[ich] )
+    }
+    this$PlotMassImageRGB()
+
+    ##TODO recompute avegare spectrum  NormFactor here!
+
+    #Re-Plot spectra using norm factors
+    if(!is.null(this$GetSpectraInfo_ptr))
+    {
+      plotted_ids <- this$GetSpectraInfo_ptr(this$myName)
+
+      if(!is.null(this$ClearSpectraPlot_ptr))
+      {
+        this$ClearSpectraPlot_ptr(plotted_ids, this$myName)
+        this$SpectraListSelChange() #Replot spectra with normalization
+      }
+    }
   }
 
   #==================================================================================================
@@ -724,6 +764,9 @@
   RGtk2::gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CW.png") )
   Lbl_Xres<- gWidgets2::glabel(text = "Interpolation:", container = Grp_Buttons)
   Combo_Xres <- gWidgets2::gcombobox( items = c("x1","x2","x3","x4","x5"), selected = 2, container = Grp_Buttons, handler = this$ComboBox_XRes_Changed)
+  Lbl_Normalitzation <- gWidgets2::glabel(text = "Normalization:", container = Grp_Buttons)
+  Combo_Norm <- gWidgets2::gcombobox( items = c("RAW", names(img$normalizations)), selected = 1, container = Grp_Buttons, handler = this$ComboBox_Norm_Changed)
+  gWidgets2::size(Combo_Norm) <- c(100, -1)
   gWidgets2::glabel("Light:", container = Grp_Buttons)
   Scale_light <- gWidgets2::gslider( from = 0.6, to = 10, by = 0.2, value = 3, horizontal = T, handler = this$SliderLightChanged, container =  Grp_Buttons)
   gWidgets2::addSpring(Grp_Buttons)

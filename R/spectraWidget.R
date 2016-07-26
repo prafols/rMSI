@@ -223,7 +223,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   #Remove spectrum data==============================================================================
   RmSpectra <- function( name )
   {
-    this$spectra_data<- this$spectra_data[[-which(names(this$spectra_data) == as.character(name))]]
+    this$spectra_data<- this$spectra_data[-(which(names(this$spectra_data) == as.character(name)))]
 
     #Recompute mz_limits, data_mass range to scale acording the removed spectra
     if(length(this$spectra_data) > 0)

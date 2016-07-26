@@ -189,6 +189,19 @@ getIdsFromCoords<-function(Img, Coords)
   return(Ids)
 }
 
+#' getCoordsFromIds Obtain images coords from a set of Ids.
+#'
+#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Ids from which coords will be obtained.
+#'
+#' @return a matrix containing the coords.
+#' @export
+#'
+getCoordsFromIds<-function(Img, Ids)
+{
+  return( Img$pos[Ids, ] )
+}
+
 #' Load a image slice from a specified datacube columns.
 #'
 #' Loads a slice of an rMSI object into RAM. The slice is determined by the columns specified in Cols parameter.
@@ -357,7 +370,7 @@ builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NU
 
   for( i in 1:nrow(Img$pos))
   {
-    zplots[Img$pos[ i , "x" ], Img$pos[ i , "y" ]] <- pixel_values[i] * Normalization[i]
+    zplots[Img$pos[ i , "x" ], Img$pos[ i , "y" ]] <- pixel_values[i] / Normalization[i]
   }
 
   return( zplots )

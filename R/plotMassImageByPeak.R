@@ -15,7 +15,7 @@
   }
 
   #Get the image slice
-  img_slice<-builRasterImageFromMass( img, mass.peak, tolerance, "max", NormCoefs) #TODO implement more methods
+  img_slice<-builRasterImageFromMass( img, mass.peak, tolerance, "max", NormCoefs)
 
   #Create the raster
   my_raster <- raster::raster( nrow = ncol(img_slice$pixels), ncol = nrow(img_slice$pixels), xmn= 0, xmx= nrow(img_slice$pixels), ymn= 0, ymx= ncol(img_slice$pixels))
@@ -341,7 +341,14 @@
   }
   else
   {
-    mtext(sprintf("m/z: %0.3f+/-%0.2f Da", img$mass, img$tolerance), side = 2, line = -1, cex = 0.8, adj = 0.5  )
+    if(is.character(img$mass))
+    {
+      mtext(img$mass, side = 2, line = -1, cex = 0.8, adj = 0.5  )
+    }
+    else
+    {
+      mtext(sprintf("m/z: %0.3f+/-%0.2f Da", img$mass, img$tolerance), side = 2, line = -1, cex = 0.8, adj = 0.5  )
+    }
   }
 }
 

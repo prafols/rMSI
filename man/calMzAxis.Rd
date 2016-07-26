@@ -7,16 +7,16 @@
 calMzAxis(avgSpc_mz, ref_mz, target_mz, use_zoo = F)
 }
 \arguments{
-\item{avgSpc_mz}{The mass axis to calibrate}
+\item{avgSpc_mz}{The mass axis to calibrate.}
 
-\item{ref_mz}{a vector of reference masses (for exaple the theorical gold peaks)}
+\item{ref_mz}{a vector of reference masses (for exaple the theorical gold peaks).}
 
-\item{target_mz}{manually slected masses to be fittet to ref_masses (must be the same length than ref_mz)}
+\item{target_mz}{manually slected masses to be fittet to ref_masses (must be the same length than ref_mz).}
 
-\item{use_zoo}{if true zoo package is used for mass error interpolation, it is much more tolerant to large mass errors. Use it carefuly!}
+\item{use_zoo}{if true zoo package is used for mass error interpolation, it is much more tolerant to large mass errors. Use it carefuly!.}
 }
 \value{
-the calibrated mass axis
+the calibrated mass axis.
 }
 \description{
 calMzAxis.
