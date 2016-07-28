@@ -220,42 +220,63 @@
   {
     selected <- gWidgets2::svalue(this$Tbl_spotList)
     df<-data.frame(this$Tbl_spotList$get_items())  #get data frame...
-    max_nrow<-nrow(this$img$data[[1]])
-
-    intensity_list<-list()
-    color_list<-list()
-    id_list<-list()
+    color_list<-c()
+    id_list<-c()
 
     for( i in selected)
     {
       selDf<-df[ df$ID == i,] #Get the correct data row
-      if(i == 0)
-      {
-        if(class(this$img$mean) == "MassSpectrum")
-        {
-          #Addap to old data mean spectrum using MALDIquant object
-          intensity_list[[length(intensity_list) + 1]] <- this$img$mean@intensity
-        }
-        else
-        {
-          intensity_list[[length(intensity_list) + 1]] <- this$img$mean
-        }
-      }
-      else
-      {
-        icube<-(1+((i-1) %/% max_nrow))
-        irow<- (i - (icube -1) * max_nrow)
-        intensity_list[[length(intensity_list) + 1]] <- this$img$data[[icube]][ irow ,]
-      }
-      color_list[[length(color_list) + 1]] <- as.character(selDf$Colour)
-      id_list[[length(id_list) + 1]] <- i
+      color_list <- c(color_list, as.character(selDf$Colour))
+      id_list <- c( id_list, i)
     }
 
     #Add spectra to plot
-    if(!is.null(this$AddSpectra_ptr) && length(intensity_list) > 0 && length(color_list) > 0)
+    plotSpectra( id_list, color_list)
+  }
+
+  #Plot spectra using parent plot function including normalization ==================================================
+  plotSpectra <- function( id, colors)
+  {
+    intensity_list <- list()
+    color_list <- list()
+    id_list <- list()
+    norm_vect <- c()
+
+    id0_pos <- which(id == 0)
+    if(length(id0_pos > 0))
     {
-      #TODO error, si ha de plotar espectre mig faltara un coef normalitzacio i no quadara amb el id list
-      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list, id_list, this$myName, this$NormalizationCoefs[unlist(id_list)])
+      #There is a mean spectrum
+      if(class(this$img$mean) == "MassSpectrum")
+      {
+        #Addap to old data mean spectrum using MALDIquant object
+        intensity_list[[length(intensity_list) + 1]] <- this$img$mean@intensity
+      }
+      else
+      {
+        intensity_list[[length(intensity_list) + 1]] <- this$img$mean
+      }
+      color_list[[length(color_list) + 1 ]] <- colors[id0_pos]
+      norm_vect <- c(norm_vect, mean(this$NormalizationCoefs))
+      id_list[[length(id_list) + 1]] <-  0
+    }
+
+    #Data
+    id_fil_pos <- which(id > 0)
+    if(length(id_fil_pos) > 0)
+    {
+      intensity_data <- loadImgCunckFromIds(this$img, id[id_fil_pos])
+      for( i in 1:length(id_fil_pos))
+      {
+        intensity_list[[length(intensity_list) + 1]] <- intensity_data[i, ]
+        color_list[[length(color_list) + 1 ]] <- colors[id_fil_pos[i]]
+        norm_vect <- c(norm_vect, this$NormalizationCoefs[id[id_fil_pos[i]]])
+        id_list[[length(id_list) + 1]] <-  id[id_fil_pos[i]]
+      }
+    }
+
+    if(!is.null(this$AddSpectra_ptr))
+    {
+      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list, id_list, this$myName, norm_vect)
     }
   }
 
@@ -530,17 +551,15 @@
     }
     this$PlotMassImageRGB()
 
-    ##TODO recompute avegare spectrum  NormFactor here!
-
-    #Re-Plot spectra using norm factors
+      #Re-Plot spectra using norm factors
     if(!is.null(this$GetSpectraInfo_ptr))
     {
-      plotted_ids <- this$GetSpectraInfo_ptr(this$myName)
+      plotted_data <- this$GetSpectraInfo_ptr(this$myName)
 
       if(!is.null(this$ClearSpectraPlot_ptr))
       {
-        this$ClearSpectraPlot_ptr(plotted_ids, this$myName)
-        this$SpectraListSelChange() #Replot spectra with normalization
+        this$ClearSpectraPlot_ptr(plotted_data$ID, this$myName)
+        this$plotSpectra(plotted_data$ID, plotted_data$color)
       }
     }
   }

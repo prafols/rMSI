@@ -330,15 +330,15 @@ AverageSpectrum <- function(img)
   return(avgI)
 }
 
-
 #' NormalizeTIC: Calculates the TIC normalizatin of each pixel as the sum of all intensities.
 #'
 #' @param img the rMSI image object.
+#' @param remove_empty_pixels boolean detailing if pixels detected to not contain data must be removed from normalization (smaller than mean-*sd).
 #'
-#' @return  a rMSI image containing the normalizations$TIC field.
+#' @return  a rMSI image containing the normalizations$TIC field or TICne if remove_empty_pixels is true.
 #' @export
 #'
-NormalizeTIC <- function(img)
+NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
 {
   pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
   setTxtProgressBar(pb, 0)
@@ -350,7 +350,49 @@ NormalizeTIC <- function(img)
   }
   close(pb)
 
-  img <- AppendNormalizationCoefs(img, "TIC", TICs)
+  if(remove_empty_pixels)
+  {
+    minallowedTIC <- mean(TICs) - sd(TICs)
+    TICs[which(TICs < minallowedTIC)] <- Inf #Remove pixels divinding them by infinite
+    img <- AppendNormalizationCoefs(img, "TICne", TICs)
+  }
+  else
+  {
+    img <- AppendNormalizationCoefs(img, "TIC", TICs)
+  }
+  return(img)
+}
+
+#' NormalizeMAX: Calculates the MAX normalizatin of each pixel as the maximum of all intensities.
+#'
+#' @param img the rMSI image object.
+#' @param remove_empty_pixels boolean detailing if pixels detected to not contain data must be removed from normalization (smaller than mean-*sd).
+#'
+#' @return  a rMSI image containing the normalizations$MAX field or MAXne if remove_empty_pixels is true..
+#' @export
+#'
+NormalizeMAX <- function(img, remove_empty_pixels = FALSE)
+{
+  pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
+  setTxtProgressBar(pb, 0)
+  MAXs <- c()
+  for( i in 1:length(img$data))
+  {
+    MAXs <- c(MAXs, apply(img$data[[i]][,], 1, max))
+    setTxtProgressBar(pb, i)
+  }
+  close(pb)
+
+  if(remove_empty_pixels)
+  {
+    minallowedMAX <- mean(MAXs) - sd(MAXs)
+    MAXs[which(MAXs < minallowedMAX)] <- Inf #Remove pixels divinding them by infinite
+    img <- AppendNormalizationCoefs(img, "MAXne", MAXs)
+  }
+  else
+  {
+    img <- AppendNormalizationCoefs(img, "MAX", MAXs)
+  }
   return(img)
 }
 
@@ -460,8 +502,19 @@ PlotTICImage <- function(img, TICs = NULL, rotate = 0)
   #Calculate TICs
   if(is.null(TICs))
   {
-    TICs <- CalcImgTICs(img)
+    pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
+    setTxtProgressBar(pb, 0)
+    TICs <- c()
+    for( i in 1:length(img$data))
+    {
+      TICs <- c(TICs, rowSums(img$data[[i]][,]))
+      setTxtProgressBar(pb, i)
+    }
+    close(pb)
   }
+
+  #Do not plot infinites
+  TICs[which(is.infinite(TICs))] <- 0
 
   #Prepare image matrix
   zplots<-matrix(0, nrow=img$size["x"], ncol=img$size["y"]) #Now I'm using a zero instead of NA to display a completely black background

@@ -173,9 +173,15 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   }
 
   #Return all names of the current spectra list
-  GetSpectraNames <- function()
+  GetSpectraInfo <- function()
   {
-    return(names(this$spectra_data))
+    spcNames <- names(this$spectra_data)
+    spcColors <- c()
+    for( i in 1:length(spcNames))
+    {
+      spcColors <- c(spcColors, this$spectra_data[[as.character(spcNames[i])]]$color)
+    }
+    return(data.frame( names = spcNames, colors = spcColors))
   }
 
   #Add spectrum data================================================================================
@@ -255,9 +261,17 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     par(mar = c(3.1, 5.1, 0.5, 0.5), cex = 0.7, xaxs = "i", yaxs = "i")
 
     #Init Plot
-    i_axt<-pretty(this$in_lim[1]:this$in_lim[2], n = 5)
+    #i_axt<-pretty(this$in_lim[1]:this$in_lim[2], n = 5)
+    i_axt<-seq(from = this$in_lim[1], to = this$in_lim[2], length.out = 5)
     plot(x=0, xlim = this$mz_lim, ylim = this$in_lim, type = "n", xlab = "", ylab ="", yaxt ="n")
-    axis(2, at = i_axt, labels = sprintf("%.1e",i_axt), las = 1)
+    if((this$in_lim[2] - this$in_lim[1]) > 10 )
+    {
+      axis(2, at = i_axt, labels = sprintf("%.1e",i_axt), las = 1)
+    }
+    else
+    {
+      axis(2, at = i_axt, labels = sprintf("%.3f",i_axt), las = 1)
+    }
 
     #Draw ref masses as vertical lines
     if(!is.null(this$ref_mass))

@@ -4,13 +4,15 @@
 \alias{NormalizeTIC}
 \title{NormalizeTIC: Calculates the TIC normalizatin of each pixel as the sum of all intensities.}
 \usage{
-NormalizeTIC(img)
+NormalizeTIC(img, remove_empty_pixels = FALSE)
 }
 \arguments{
 \item{img}{the rMSI image object.}
+
+\item{remove_empty_pixels}{boolean detailing if pixels detected to not contain data must be removed from normalization (smaller than mean-*sd).}
 }
 \value{
-a rMSI image containing the normalizations$TIC field.
+a rMSI image containing the normalizations$TIC field or TICne if remove_empty_pixels is true.
 }
 \description{
 NormalizeTIC: Calculates the TIC normalizatin of each pixel as the sum of all intensities.

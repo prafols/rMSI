@@ -94,20 +94,22 @@ MSIWindow<-function(img1, img2 = NULL)
   #A connector between spectraWidget and msiWidgets because them can not be joined directly
   GetPlotedSpectraInfo <- function( strImgName )
   {
-    SpcData <-this$spectraWidget$GetSpectraNames()
-    myImgIds <- c()
-    for( i in 1:length(SpcData))
+    SpcData <-this$spectraWidget$GetSpectraInfo()
+    myImgIds <- c ()
+    myImgColors <- c()
+    for( i in 1:nrow(SpcData))
     {
-      name_id <- unlist(strsplit(SpcData[i], "_ID"))
+      name_id <- unlist(strsplit(as.character(SpcData[i, "names"]), "_ID"))
       if(length(name_id) == 2)
       {
         if( name_id[1] == strImgName )
         {
           myImgIds <- c(myImgIds, as.numeric(name_id[2]) )
+          myImgColors <- c(myImgColors, as.character(SpcData[i, "colors"]))
         }
       }
     }
-    return(myImgIds)
+    return(list(ID=myImgIds, color =  myImgColors))
   }
 
   #GUI builder
