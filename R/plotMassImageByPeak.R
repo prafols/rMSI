@@ -69,11 +69,21 @@
 #Remap a intensity vector to HSV coloring in a rainbow function
 .ReMappingIntensity2HSV<-function(single_channel_raster, maxN = max(raster::values(single_channel_raster)), value_multiplier = 3)
 {
-  #Normalize to 1
-  if(maxN > 0)
+  auxVals <- raster::values(single_channel_raster) #Keep for vMApped
+
+  #Normalize to a range 0 -> 1
+  minRas <- min(raster::values(single_channel_raster))
+  if(( maxN - minRas ) == 0)
   {
-    raster::values(single_channel_raster) <- raster::values(single_channel_raster) / maxN
+    m <- 0
+    m_V <- 0
   }
+  else
+  {
+    m <- 1/( maxN - minRas )
+    m_V <- 1/( max(c( abs(minRas), abs(maxN) ) ) )
+  }
+  raster::values(single_channel_raster) <- raster::values(single_channel_raster) * m - m*minRas
 
   #Remapping hue space
   hue_top <- 0.7
@@ -83,7 +93,8 @@
   hMapped[ over_one ] <- hMapped[over_one] -1
 
   #Remapping value space
-  vMapped <- raster::values(single_channel_raster) *value_multiplier
+  vMapped <- abs(auxVals*m_V)
+  vMapped <- vMapped  * value_multiplier
   vMapped[ vMapped > 1] <- 1
 
   #Creating HSV image
@@ -280,11 +291,12 @@
 .plotIntensityScale<-function(img, color = NULL, light=3)
 {
   max_int<-max(raster::values(img$raster))
+  min_int<-min(raster::values(img$raster))
 
   #Create the raster
   ncols_scale <- 10
   scale_raster <- raster::raster( nrow = 255, ncol = ncols_scale, xmn= 0, xmx= ncols_scale, ymn= 0, ymx= 255)
-  raster::values(scale_raster) <- as.vector(matrix(seq(from=max_int, to=0, length.out = 255), nrow = ncols_scale, ncol = 255, byrow = T))
+  raster::values(scale_raster) <- as.vector(matrix(seq(from=max_int, to=min_int, length.out = 255), nrow = ncols_scale, ncol = 255, byrow = T))
 
   #Check RGB channels
   if( is.null(color))
@@ -319,7 +331,7 @@
 
   #Add axes
   yAxis<- seq(0, RGB_raster@extent@ymax, length.out = 11)
-  yLabels <- sprintf( "%0.1e", seq(0, max_int, length.out = 11))
+  yLabels <- sprintf( "%0.1e", seq(min_int, max_int, length.out = 11))
   par(xaxt = "l", yaxt = "l")
   axis(side=2, tck = -0.015, cex.axis = 0.7, pos = 0, at = yAxis, labels = F, las = 1) #Y left axes
   if( max_int == 0 )
