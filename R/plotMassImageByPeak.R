@@ -47,12 +47,34 @@
   return(m)
 }
 
+#Normalize by 0 to 1
+.NormalizeFrom0to1 <-function( values )
+{
+  maxN <- max(values)
+  minN <- min(values)
+  if((maxN - minN) != 0)
+  {
+    m <- 1/(maxN - minN)
+  }
+  else
+  {
+    m <- 0
+  }
+  return( values * m - m*minN)
+}
+
 #Idem k anterior plotMassImageRGB
 #Com a param img_RGB es una llista amb atributs R,G,B on cada objecte (layer) es un objecte retornat per builImageByPeak
 # XResLevel es ara un integer ja que delego la interpolacio a raster
 # All RGB layer must have the same size
 .BuildRGBImage <- function( imgR, imgG, imgB, XResLevel = 3 , light = 3)
 {
+  #Normalize from 0 to 1
+  raster::values(imgR$raster)<-.NormalizeFrom0to1(raster::values(imgR$raster))
+  raster::values(imgG$raster)<-.NormalizeFrom0to1(raster::values(imgG$raster))
+  raster::values(imgB$raster)<-.NormalizeFrom0to1(raster::values(imgB$raster))
+
+  #Normalize to 255 using light
   imgR <- .NormalizeTo255(imgR$raster, light)
   imgG <- .NormalizeTo255(imgG$raster, light)
   imgB <- .NormalizeTo255(imgB$raster, light)
@@ -307,6 +329,7 @@
   else
   {
     img_zero<-.InitRGBEmptyRaster( scale_raster@ncols, scale_raster@nrows )
+    raster::values(scale_raster) <- .NormalizeFrom0to1(raster::values(scale_raster))
     img_255 <-  .NormalizeTo255(scale_raster, light)
     if(color == "R")
     {
@@ -490,4 +513,52 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
   }
 
   .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = show_axes, roi_rectangle = crop_area, zoom = !is.null(crop_area))
+}
+
+.FillSimpleRaster <- function(img, values, text)
+{
+  #Fill data matrix
+  layer<-matrix(0, nrow=img$size["x"], ncol=img$size["y"]) #Now I'm using a zero instead of NA to display a completely black background
+  for( i in 1:nrow(img$pos))
+  {
+    layer[img$pos[ i , "x" ], img$pos[ i , "y" ]] <- values[i]
+  }
+
+  #Create the raster objects
+  Ras <- raster::raster( nrow = ncol(layer), ncol = nrow(layer), xmn= 0, xmx= nrow(layer), ymn= 0, ymx= ncol(layer))
+  raster::values(Ras) <- as.vector(layer)
+
+  return(list(raster = Ras, mass = text, tolerance = "", cal_resolution = img$pixel_size_um))
+}
+
+
+#' plotRGBDataOnImg: Function to plot generic data on a RGB raster using rMSI pixel locations.
+#'
+#' @param img an rMSI object.
+#' @param Rvalues a vector of values to be ploted as red layer sorted according IDs of rMSI object.
+#' @param Gvalues a vector of values to be ploted as green layer sorted according IDs of rMSI object.
+#' @param Bvalues a vector of values to be ploted as blue layer sorted according IDs of rMSI object.
+#' @param RText Text to plot as Red scale label.
+#' @param GText Text to plot as Green scale label.
+#' @param BText Text to plot as Blue scale label.
+#' @param XResLevel the interpolation to use in plot.
+#' @param light the light to aplied to raster.
+#' @param rotation image rotation in degree.
+#'
+#' @export
+#'
+plotRGBDataOnImg <- function(img, Rvalues, Gvalues, Bvalues, RText, GText, BText, XResLevel = 3 , light = 3, rotation = 0)
+{
+  Rraster<-.FillSimpleRaster(img, Rvalues, RText)
+  Graster<-.FillSimpleRaster(img, Gvalues, GText)
+  Braster<-.FillSimpleRaster(img, Bvalues, BText)
+
+  raster_RGB <-.BuildRGBImage( Rraster, Graster, Braster,  XResLevel = XResLevel, light = light)
+
+  layout( matrix( (4:1), ncol = 4, nrow = 1, byrow = TRUE ), widths = c(7, rep(1, 3)) )
+
+  .plotIntensityScale(Braster, "B" )
+  .plotIntensityScale(Graster, "G" )
+  .plotIntensityScale(Rraster, "R" )
+  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = F)
 }

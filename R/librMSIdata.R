@@ -497,7 +497,7 @@ SortIDsByAcquisition <- function(img)
 #'
 #' @export
 #'
-PlotTICImage <- function(img, TICs = NULL, rotate = 0)
+PlotTICImage <- function(img, TICs = NULL, rotate = 0, scale_title = "TIC")
 {
   #Calculate TICs
   if(is.null(TICs))
@@ -529,7 +529,7 @@ PlotTICImage <- function(img, TICs = NULL, rotate = 0)
   rm(zplots)
 
   #Put zplots matrix and some metadata in a list
-  img_sgn <- list(raster = my_raster, mass = "TIC", tolerance = 0, cal_resolution = img$pixel_size_um)
+  img_sgn <- list(raster = my_raster, mass = scale_title, tolerance = 0, cal_resolution = img$pixel_size_um)
   rm(my_raster)
 
   raster_RGB<-.BuildSingleIonRGBImage(img_sgn, XResLevel = 3, light = 5)

@@ -96,6 +96,14 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   SelIon_tol_B <- NA
   CurrentSelTool <- "Zoom" #Stores the curren state of the sel tool, can be: Zoom, Red, Green and Blue
   MAX_SPECTRA_LIMIT <- max_spectra_limit #Maximum number of spectra that can be added
+  this$ReDraw <- F #Signal when spectra must be redraw
+
+  #Stop gtimer if widget is distroyed
+  Widget_Disposed <- function (evt, ...)
+  {
+    #cat("Stopping spectraWidget draw timer\n")
+    this$redrawTimer$stop_timer()
+  }
 
   #Create spectrum object
   #A spectrum is created with a defined mass and intensity. This two params are not modifiable.
@@ -131,7 +139,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     }
 
     this$spectra_data[[as.character(name)]]<-this$SetSpectrumColors(this$spectra_data[[as.character(name)]], color)
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Set new peaks to the internal data list of spectra
@@ -144,7 +152,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     }
 
     this$spectra_data[[as.character(name)]]<-this$SetSpectrumPeaks(this$spectra_data[[as.character(name)]], peaks_mass, peaks_intensity)
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Set enabled state of a spectrum, if enabled then it is visble
@@ -157,7 +165,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     }
 
     this$spectra_data[[as.character(name)]]$enabled <- enabled
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Return the spectrum enabled state from a given name
@@ -216,14 +224,14 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       this$mz_lim <- this$data_mass_range
     }
     this$AutoZoomIntensity()
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Set ref mass data, ref masses will be ploted as vertical dashed lines=============================
   SetRefMass <- function( mass_data )
   {
     this$ref_mass <- mass_data
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Remove spectrum data==============================================================================
@@ -238,129 +246,132 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       this$in_lim <- c(0 ,max(sapply(this$spectra_data, function(x){ return( max(x$intensity)) }))*1.1)
       this$data_mass_range <- this$mz_lim
     }
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Clear all spectrum data===========================================================================
   ClearSpectra <- function( )
   {
     this$spectra_data<-list()
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-
-  #Redraw ggraph with interpolation, event args must be passed======================================
-  ReDraw <- function( )
+  #Redraw ggraph with interpolation using a timer ======================================
+  ReDrawByTimer <- function( data )
   {
-    #Reduce spectra data size to speed-up ploting
-    mass_range <- this$mz_lim
-    npoints <- 2*gWidgets2::size(this$plot_device)["width"]
-
-    #Visible before plot() forces the target divice for ploting
-    visible(this$plot_device)<-TRUE
-    par(mar = c(3.1, 5.1, 0.5, 0.5), cex = 0.7, xaxs = "i", yaxs = "i")
-
-    #Init Plot
-    #i_axt<-pretty(this$in_lim[1]:this$in_lim[2], n = 5)
-    i_axt<-seq(from = this$in_lim[1], to = this$in_lim[2], length.out = 5)
-    plot(x=0, xlim = this$mz_lim, ylim = this$in_lim, type = "n", xlab = "", ylab ="", yaxt ="n")
-    if((this$in_lim[2] - this$in_lim[1]) > 10 )
+    if( this$ReDraw )
     {
-      axis(2, at = i_axt, labels = sprintf("%.1e",i_axt), las = 1)
-    }
-    else
-    {
-      axis(2, at = i_axt, labels = sprintf("%.3f",i_axt), las = 1)
-    }
+      #Reduce spectra data size to speed-up ploting
+      mass_range <- this$mz_lim
+      npoints <- 2*gWidgets2::size(this$plot_device)["width"]
 
-    #Draw ref masses as vertical lines
-    if(!is.null(this$ref_mass))
-    {
-      abline(v = this$ref_mass, col = "grey", lty = 2)
-    }
+      #Visible before plot() forces the target divice for ploting
+      visible(this$plot_device)<-TRUE
+      par(mar = c(3.1, 5.1, 0.5, 0.5), cex = 0.7, xaxs = "i", yaxs = "i")
 
-    #Plot selection range Red
-    if(!is.na(this$SelIon_mz_R) && !is.na(this$SelIon_tol_R))
-    {
-      rect(xleft = this$SelIon_mz_R - this$SelIon_tol_R, xright = this$SelIon_mz_R + this$SelIon_tol_R, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightsalmon", border = "red3")
-    }
-
-    #Plot selection range Green
-    if(!is.na(this$SelIon_mz_G) && !is.na(this$SelIon_tol_G))
-    {
-      rect(xleft = this$SelIon_mz_G - this$SelIon_tol_G, xright = this$SelIon_mz_G + this$SelIon_tol_G, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightgreen", border = "green3")
-    }
-
-    #Plot selection range Blue
-    if(!is.na(this$SelIon_mz_B) && !is.na(this$SelIon_tol_B))
-    {
-      rect(xleft = this$SelIon_mz_B - this$SelIon_tol_B, xright = this$SelIon_mz_B + this$SelIon_tol_B, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightblue", border = "blue3")
-    }
-
-    if(length(this$spectra_data) > 0)
-    {
-      for(li in 1:length(this$spectra_data))
+      #Init Plot
+      #i_axt<-pretty(this$in_lim[1]:this$in_lim[2], n = 5)
+      i_axt<-seq(from = this$in_lim[1], to = this$in_lim[2], length.out = 5)
+      plot(x=0, xlim = this$mz_lim, ylim = this$in_lim, type = "n", xlab = "", ylab ="", yaxt ="n")
+      if((this$in_lim[2] - this$in_lim[1]) > 10 )
       {
-        if( this$spectra_data[[li]]$enabled)
+        axis(2, at = i_axt, labels = sprintf("%.1e",i_axt), las = 1)
+      }
+      else
+      {
+        axis(2, at = i_axt, labels = sprintf("%.3f",i_axt), las = 1)
+      }
+
+      #Draw ref masses as vertical lines
+      if(!is.null(this$ref_mass))
+      {
+        abline(v = this$ref_mass, col = "grey", lty = 2)
+      }
+
+      #Plot selection range Red
+      if(!is.na(this$SelIon_mz_R) && !is.na(this$SelIon_tol_R))
+      {
+        rect(xleft = this$SelIon_mz_R - this$SelIon_tol_R, xright = this$SelIon_mz_R + this$SelIon_tol_R, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightsalmon", border = "red3")
+      }
+
+      #Plot selection range Green
+      if(!is.na(this$SelIon_mz_G) && !is.na(this$SelIon_tol_G))
+      {
+        rect(xleft = this$SelIon_mz_G - this$SelIon_tol_G, xright = this$SelIon_mz_G + this$SelIon_tol_G, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightgreen", border = "green3")
+      }
+
+      #Plot selection range Blue
+      if(!is.na(this$SelIon_mz_B) && !is.na(this$SelIon_tol_B))
+      {
+        rect(xleft = this$SelIon_mz_B - this$SelIon_tol_B, xright = this$SelIon_mz_B + this$SelIon_tol_B, ybottom = this$in_lim[1], ytop = this$in_lim[2]*0.99, col = "lightblue", border = "blue3")
+      }
+
+      if(length(this$spectra_data) > 0)
+      {
+        for(li in 1:length(this$spectra_data))
         {
-          #Work with a copy which is much more fastter than accesing a pointer trought R.oo package
-          mz_copy<-this$spectra_data[[li]]$mass
-          int_copy <- this$spectra_data[[li]]$intensity
-
-          imin<-which(mz_copy <=  mass_range[1], arr.ind = T)
-          imax<-which(mz_copy >=  mass_range[2], arr.ind = T)
-
-          #Limiting to real mass range
-          if(length(imin) == 0)
+          if( this$spectra_data[[li]]$enabled)
           {
-            imin<-1
-          }
-          if(length(imax) == 0)
-          {
-            imax<-length(mz_copy)
-          }
-          imin<-imin[length(imin)]
-          imax<-imax[1]
+            #Work with a copy which is much more fastter than accesing a pointer trought R.oo package
+            mz_copy<-this$spectra_data[[li]]$mass
+            int_copy <- this$spectra_data[[li]]$intensity
 
-          #Interpolation
-          if(imax - imin +1 > npoints)
-          {
-            new_axes<-approx(imin:imax, mz_copy[imin:imax], n = npoints) #mz axes interpolation
-            mzData<-new_axes$y
-            dst.vect<-(new_axes$x[-1] - new_axes$x[-length(new_axes$x)])/2
-            dst.vect<-c(0, dst.vect, 0) #Add sides
-            inData<-c()
+            imin<-which(mz_copy <=  mass_range[1], arr.ind = T)
+            imax<-which(mz_copy >=  mass_range[2], arr.ind = T)
 
-            for(i in 1:length(mzData))
+            #Limiting to real mass range
+            if(length(imin) == 0)
             {
-              inMax<-max(int_copy[ceiling(new_axes$x[i] - dst.vect[i]):floor(new_axes$x[i] + dst.vect[i+1])])
-              inData<-c(inData, inMax)
+              imin<-1
             }
-          }
-          else
-          {
-            mzData<-mz_copy[imin:imax]
-            inData<-int_copy[imin:imax]
-          }
+            if(length(imax) == 0)
+            {
+              imax<-length(mz_copy)
+            }
+            imin<-imin[length(imin)]
+            imax<-imax[1]
 
-          lines(x = mzData, y = inData, col= this$spectra_data[[li]]$color)
+            #Interpolation
+            if(imax - imin +1 > npoints)
+            {
+              new_axes<-approx(imin:imax, mz_copy[imin:imax], n = npoints) #mz axes interpolation
+              mzData<-new_axes$y
+              dst.vect<-(new_axes$x[-1] - new_axes$x[-length(new_axes$x)])/2
+              dst.vect<-c(0, dst.vect, 0) #Add sides
+              inData<-c()
 
-          #Plot labels
-          if( !is.null(this$spectra_data[[li]]$mass_peaks) && !is.null(this$spectra_data[[li]]$intensity_peaks) )
-          {
-            #cat(paste("Mz peaks:", this$spectra_data[[li]]$mass_peaks, "int peaks:", this$spectra_data[[li]]$intensity_peaks, "\n"))
-            pk_lbl <- sprintf("%.4f", this$spectra_data[[li]]$mass_peaks) #4 decimals
-            text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = pk_lbl, pos = 3, cex = 0.8, offset = 1.1)
-            un_lbl<-sapply(pk_lbl, function(x) { paste(rep("_", nchar(x)), collapse = "") })
-            text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = un_lbl, pos = 3, cex = 0.8, offset = 1.1)
-            text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = rep("|", length(pk_lbl)), pos = 3, cex = 0.8)
+              for(i in 1:length(mzData))
+              {
+                inMax<-max(int_copy[ceiling(new_axes$x[i] - dst.vect[i]):floor(new_axes$x[i] + dst.vect[i+1])])
+                inData<-c(inData, inMax)
+              }
+            }
+            else
+            {
+              mzData<-mz_copy[imin:imax]
+              inData<-int_copy[imin:imax]
+            }
+
+            lines(x = mzData, y = inData, col= this$spectra_data[[li]]$color)
+
+            #Plot labels
+            if( !is.null(this$spectra_data[[li]]$mass_peaks) && !is.null(this$spectra_data[[li]]$intensity_peaks) )
+            {
+              #cat(paste("Mz peaks:", this$spectra_data[[li]]$mass_peaks, "int peaks:", this$spectra_data[[li]]$intensity_peaks, "\n"))
+              pk_lbl <- sprintf("%.4f", this$spectra_data[[li]]$mass_peaks) #4 decimals
+              text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = pk_lbl, pos = 3, cex = 0.8, offset = 1.1)
+              un_lbl<-sapply(pk_lbl, function(x) { paste(rep("_", nchar(x)), collapse = "") })
+              text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = un_lbl, pos = 3, cex = 0.8, offset = 1.1)
+              text(x = this$spectra_data[[li]]$mass_peaks, y = this$spectra_data[[li]]$intensity_peaks, labels = rep("|", length(pk_lbl)), pos = 3, cex = 0.8)
+            }
           }
         }
       }
-    }
 
-    #Update cursor
-    this$SetStateAccordingSelTool()
+      #Update cursor
+      this$SetStateAccordingSelTool()
+    }
+    this$ReDraw <- F #Reset the redraw signaling
   }
 
   #OpenTXT==========================================================================================
@@ -369,7 +380,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     fname<-file.choose()
     spect<-read.table(fname, header = F, sep = " ")
     this$AddSpectra( spect[,1], spect[,2], name = basename(fname))
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Reset Zoom button clicked========================================================================
@@ -378,7 +389,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     if(length(this$spectra_data) == 0) return()
     this$mz_lim <- this$data_mass_range
     this$in_lim <- c(0 ,max(sapply(this$spectra_data, function(x){ return( max(x$intensity)) }))*1.1)
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Auto Zoomin Mz axis==============================================================================
@@ -386,7 +397,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   {
     if(length(this$spectra_data) == 0) return()
     this$mz_lim <- this$data_mass_range
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Auto Zomming Intensity Axis======================================================================
@@ -394,7 +405,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   {
     if(length(this$spectra_data) == 0) return()
     this$AutoZoomIntensity()
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Intensity auto-zoom==============================================================================
@@ -415,7 +426,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     #Intensity zoom
     this$AutoZoomIntensity()
 
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
   #Grab Mouse Selection Changes on plot=============================================================
@@ -459,7 +470,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         this$SelIon_tol_B = ret$selTol
       }
       #Plot selection in spectra
-      this$ReDraw()
+      this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
     }
 
     return(TRUE)
@@ -543,7 +554,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       this$in_lim<- c(0, range)
     }
 
-    this$ReDraw()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
 
     return(TRUE) #The scroll event requires this return
   }
@@ -866,7 +877,10 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   gWidgets2::addHandler(this$top_window, signal = "focus-out-event", handler = this$OnLostFocus, action = this)
   gWidgets2::addHandlerMouseMotion(this$plot_device, handler = this$OnMouseMotion)
   gWidgets2::addHandlerSelectionChanged(this$plot_device, handler = this$OnSelection, action = this)
+  gWidgets2::addHandlerDestroy( obj = this$top_window, handler = this$Widget_Disposed ) #Connect to widget dispose to stop the draw timer
 
+  #Start the redraw timer
+  redrawTimer <- gWidgets2::gtimer(10, this$ReDrawByTimer)
 
   ## Set the name for the class
   class(this) <- append(class(this),"SpectraPlotWidget")

@@ -4,7 +4,7 @@
 \alias{PlotTICImage}
 \title{PlotTICImage.}
 \usage{
-PlotTICImage(img, TICs = NULL, rotate = 0)
+PlotTICImage(img, TICs = NULL, rotate = 0, scale_title = "TIC")
 }
 \arguments{
 \item{img}{an rMSI object.}
