@@ -169,8 +169,6 @@
   par( bg = "black", fg =  "white", col.lab="white", xaxt="n", yaxt="n", col.axis = "white", col.main = "white", col.sub = "white",
        cex.axis = 0.6, mar = c(1,1,1,1), mgp = c(2, 0.5, 0.5))
 
-  #TODO la ROI no es mostra be amb zooms rotats! Xo oju k ara esta ben quadrat per no-zoom!
-
   #Apply rotation
   roi_rectangle_pre <- roi_rectangle
   if( rotation == 0 )
@@ -240,7 +238,7 @@
   else
   {
     #Add calibrated scale bar
-    Lp <- 0.05
+    Lp <- 0.001
     Hp <- 0.015
     WpTarget <- 0.15
 
@@ -263,7 +261,7 @@
       xR <- rasterRGB@extent@xmax - Lp * (rasterRGB@extent@xmax - rasterRGB@extent@xmin)
     }
     lines( c( xL, xL, xR, xR), c( yB, yT, yT, yB ), col = "white", lwd = 2 )
-    text( x = (xL + 0.5*(xR - xL)), y = 1.3*yT, labels = sprintf("%0.0f um", cal_length), col = "white", cex = 0.8, adj = c(0.5,0))
+    text( x = (xL + 0.5*(xR - xL)), y = 1.4*yT, labels = sprintf("%0.0f um", cal_length), col = "white", cex = 0.8, adj = c(0.5,0))
 
     #Add coors system arrows
     raster_size <- c(rasterRGB@extent@xmax-rasterRGB@extent@xmin, rasterRGB@extent@ymax-rasterRGB@extent@ymin)
@@ -356,18 +354,18 @@
   yAxis<- seq(0, RGB_raster@extent@ymax, length.out = 11)
   yLabels <- sprintf( "%0.1e", seq(min_int, max_int, length.out = 11))
   par(xaxt = "l", yaxt = "l")
-  axis(side=2, tck = -0.015, cex.axis = 0.7, pos = 0, at = yAxis, labels = F, las = 1) #Y left axes
+  axis(side=2, tck = -0.015, cex.axis = 0.6, pos = 0, at = yAxis, labels = F, las = 1) #Y left axes
   if( max_int == 0 )
   {
-    axis(side=4, tck = -0.015, cex.axis = 0.7, pos = RGB_raster@extent@xmax, at = yAxis, labels = F) #Y right axes
+    axis(side=4, tck = -0.015, cex.axis = 0.6, pos = RGB_raster@extent@xmax, at = yAxis, labels = F) #Y right axes
   }
   else
   {
-    axis(side=4, tck = -0.015, cex.axis = 0.7, pos = RGB_raster@extent@xmax, at = yAxis, labels = yLabels, las = 1) #Y right axes
+    axis(side=4, tck = -0.015, cex.axis = 0.6, pos = RGB_raster@extent@xmax, at = yAxis, labels = yLabels, las = 1) #Y right axes
   }
 
-  axis(side = 1, tck = -0.015, cex.axis = 0.7, labels = F, pos = 0, at = c(0,ncols_scale))
-  axis(side = 3, tck = -0.015, cex.axis = 0.7, labels = F, pos = RGB_raster@extent@ymax, at = c(0,ncols_scale))
+  axis(side = 1, tck = -0.015, cex.axis = 0.6, labels = F, pos = 0, at = c(0,ncols_scale))
+  axis(side = 3, tck = -0.015, cex.axis = 0.6, labels = F, pos = RGB_raster@extent@ymax, at = c(0,ncols_scale))
 
   #Add the main title
   if(max_int == 0)

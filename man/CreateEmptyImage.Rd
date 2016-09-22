@@ -5,10 +5,12 @@
 \title{Create an empty rMSI object with defined mass axis and size.}
 \usage{
 CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
-  img_name = "New empty image", ramdisk_folder = getwd())
+  img_name = "New empty image", ramdisk_folder = getwd(),
+  data_type = "integer")
 
 CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
-  img_name = "New empty image", ramdisk_folder = getwd())
+  img_name = "New empty image", ramdisk_folder = getwd(),
+  data_type = "integer")
 }
 \arguments{
 \item{num_of_pixels}{Total number of spectrums/pixels.}
@@ -19,10 +21,21 @@ CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
 
 \item{img_name}{the name for the image.}
 
-\item{ramdisk_folder}{where ramdisk will be stored.
+\item{ramdisk_folder}{where ramdisk will be stored.}
+
+\item{data_type}{a string determining data type used to store data.
 
 Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
-and synthetic datasets to test and develop processing methods and tools.}
+and synthetic datasets to test and develop processing methods and tools.
+
+data_type possible values are:
+ byte      8 bit signed integer with NA.
+ ubyte      8 bit unsigned integer without NA.
+ short   16 bit signed integer with NA.
+ ushort  16 bit unsigned integer without NA.
+ integer 32 bit signed integer with NA.
+ single  32 bit float.
+ double  64 bit float.}
 
 \item{x_size}{the number of pixel in X direction.}
 
@@ -34,11 +47,22 @@ and synthetic datasets to test and develop processing methods and tools.}
 
 \item{img_name}{the name for the image.}
 
-\item{ramdisk_folder}{where ramdisk will be stored.
+\item{ramdisk_folder}{where ramdisk will be stored.}
+
+\item{data_type}{a string determining data type used to store data.
 
 Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
 and synthetic datasets to test and develop processing methods and tools.
-img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.}
+img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.
+
+data_type possible values are:
+ byte      8 bit signed integer with NA.
+ ubyte      8 bit unsigned integer without NA.
+ short   16 bit signed integer with NA.
+ ushort  16 bit unsigned integer without NA.
+ integer 32 bit signed integer with NA.
+ single  32 bit float.
+ double  64 bit float.}
 }
 \value{
 the created rMSI object

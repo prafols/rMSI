@@ -743,7 +743,8 @@
   }
 
   #Build the GUI
-  Top_frm <- gWidgets2::gframe( text =  paste("Image:",img$name), container = parent, spacing = 5 )
+  Top_frm <- gWidgets2::gframe( text =  paste("<span foreground=\"",meanSpectrumColor ,"\" size=\"large\">Image: ",img$name, "</span>", sep = ""), markup = T, container = parent, spacing = 5 )
+
   Panel_Img<- gWidgets2::gpanedgroup(horizontal = T, container = Top_frm,  expand=TRUE )
   Grp_SidePanel<- gWidgets2::ggroup(container = Panel_Img, expand=TRUE, fill = TRUE)
   spectraListFrame<-gWidgets2::gframe("Spectra List", container = Grp_SidePanel,  fill = T, spacing = 5, expand = T )
@@ -794,7 +795,7 @@
   Grp_ImgTop<-gWidgets2::ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
   Grp_ImgRoi<-gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
   imaging_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( imaging_dev )<- c(400, 280)
+  size( imaging_dev )<- c(200, 200)
   gWidgets2::addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
   gWidgets2::add(obj = Grp_ImgRoi, child = imaging_dev,  fill = T, expand = T)
 
@@ -807,7 +808,7 @@
   #Red Color Scale
   Grp_RedScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleRed_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleRed_dev )<- c(120, 250)
+  size( scaleRed_dev )<- c(80, -1)
   gWidgets2::add(obj = Grp_RedScale, child = scaleRed_dev,  fill = T, expand = T)
   Grp_RedCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_RedScale)
   Btn_RedEnable<-gWidgets2::gcheckbox("On", container = Grp_RedCtl, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
@@ -816,7 +817,7 @@
   #Green Color scale
   Grp_GreenScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleGreen_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleGreen_dev )<- c(120, 250)
+  size( scaleGreen_dev )<- c(100, -1)
   gWidgets2::add(obj = Grp_GreenScale, child = scaleGreen_dev,  fill = T, expand = T)
   Grp_GreenCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_GreenScale)
   Btn_GreenEnable<-gWidgets2::gcheckbox("On", container = Grp_GreenCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
@@ -825,7 +826,7 @@
   #Blue Color scale
   Grp_BlueScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleBlue_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleBlue_dev )<- c(120, 250)
+  size( scaleBlue_dev )<- c(120, -1)
   gWidgets2::add(obj = Grp_BlueScale, child = scaleBlue_dev,  fill = T, expand = T)
   Grp_BlueCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_BlueScale)
   Btn_BlueEnable<-gWidgets2::gcheckbox("On", container = Grp_BlueCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")

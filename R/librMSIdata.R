@@ -242,14 +242,24 @@ DeleteRamdisk<-function(img)
 #' @param pixel_resolution defined pixel size in um.
 #' @param img_name the name for the image.
 #' @param ramdisk_folder where ramdisk will be stored.
+#' @param data_type a string determining data type used to store data.
 #'
 #' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
 #' and synthetic datasets to test and develop processing methods and tools.
 #'
+#' data_type possible values are:
+#'  byte	  8 bit signed integer with NA.
+#'  ubyte	  8 bit unsigned integer without NA.
+#'  short   16 bit signed integer with NA.
+#'  ushort  16 bit unsigned integer without NA.
+#'  integer 32 bit signed integer with NA.
+#'  single  32 bit float.
+#'  double  64 bit float.
+#'
 #' @return the created rMSI object
 #' @export
 #'
-CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd())
+CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer")
 {
   img<-list()
   img$name <- img_name
@@ -274,7 +284,7 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name
   img$mean <- rep(0, length(mass_axis))
 
   #Prepare an empty datacube
-  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder)
+  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder, vmode_type = data_type)
 
   return(img)
 }
@@ -286,15 +296,25 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name
 #' @param pixel_resolution defined pixel size in um.
 #' @param img_name the name for the image.
 #' @param ramdisk_folder where ramdisk will be stored.
+#' @param data_type a string determining data type used to store data.
 #'
 #' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
 #' and synthetic datasets to test and develop processing methods and tools.
 #' img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.
 #'
+#' data_type possible values are:
+#'  byte	  8 bit signed integer with NA.
+#'  ubyte	  8 bit unsigned integer without NA.
+#'  short   16 bit signed integer with NA.
+#'  ushort  16 bit unsigned integer without NA.
+#'  integer 32 bit signed integer with NA.
+#'  single  32 bit float.
+#'  double  64 bit float.
+#'
 #' @return the created rMSI object
 #' @export
 #'
-CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd())
+CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer")
 {
   img<-list()
   img$name <- img_name
@@ -310,7 +330,7 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
   img$mean <- rep(0, length(mass_axis))
 
   #Prepare an empty datacube
-  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder)
+  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder, vmode_type = data_type)
 
   return(img)
 }
