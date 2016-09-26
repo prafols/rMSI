@@ -17,7 +17,7 @@ LoadTwoMsImages <- function( )
   #Signal handlers
   fileChooseClicked <- function(h, ...)
   {
-    fname<-gWidgets2::gfile("Select an MSI file to open", type="open", multi = F, filter =  c("tar"="tar"), initial.dir = path.expand("~/"))
+    fname<-gWidgets2::gfile("Select an MSI file to open", type="open", multi = F, filter =  list("TAR , imzML" = list(patterns = c("*.tar", "*.imzML"))), initial.dir = path.expand("~/"))
     if(length(fname) == 0)
     {
       return ()
@@ -119,7 +119,7 @@ LoadTwoMsImages <- function( )
   win_tp<-gWidgets2::gwindow("Load MSI data", visible = F, width = 600, height = 200, parent = c(0.5*RGtk2::gdkScreenWidth() - 300, 0.5*RGtk2::gdkScreenHeight() - 100))
   box_tp<-gWidgets2::ggroup(horizontal = F,container = win_tp, spacing = 10)
   box_title <- gWidgets2::ggroup(horizontal = T,container = box_tp, spacing = 10, expand = T, fill = T)
-  lbl_tl<-gWidgets2::glabel("<span  weight=\"bold\">  Select up to two MS images to load in .tar format</span>", markup = T,  container = box_title)
+  lbl_tl<-gWidgets2::glabel("<span  weight=\"bold\">  Select up to two MS images to load in .tar or .imzML format</span>", markup = T,  container = box_title)
   gWidgets2::addSpring(box_title)
 
   frm_img1<-gWidgets2::gframe(spacing = 5, container = box_tp)

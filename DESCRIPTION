@@ -17,5 +17,6 @@ Imports:
     ff (>= 2.2),
     raster (>= 2.4),
     zoo (>= 1.7),
-    MALDIquant (>= 1.14)
+    MALDIquant (>= 1.14),
+    digest (>= 0.6.9)
 RoxygenNote: 5.0.1

@@ -183,68 +183,12 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   }
   close(pb)
 
-  #4- Calc offsets and subtract it
-  x_offset<-min(dataPos[,"x"])
-  y_offset<-min(dataPos[,"y"])
-  for(i in 1:length(spectraList))
-  {
-    dataPos[i, "x"] <- dataPos[i, "x"] - x_offset + 1
-    dataPos[i, "y"] <- dataPos[i, "y"] - y_offset + 1
-  }
+  #4- Remap motor coords to image coords
+  dataPos <- remap2ImageCoords(dataPos)
+  x_size <- max(dataPos[,"x"])
+  y_size <- max(dataPos[,"y"])
 
-  #5- Compute Motor coords range
-  x_size<-max(dataPos[,"x"])
-  y_size<-max(dataPos[,"y"])
-
-  #6- Map MALDI motor coords to image cords (1-pixels steps)
-  #It is important to map MALDI motors coords to image coords.
-  #Otherwise, null extra pixels may be added leading to bad reconstruction
-  px_map <- matrix( 0, nrow = x_size, ncol = y_size)
-  for(i in 1:nrow(dataPos))
-  {
-    xi <- dataPos[i, "x"]
-    yi <- dataPos[i, "y"]
-    px_map[xi, yi]<- i
-  }
-
-  colNull <- which( base::colSums(px_map) == 0)
-  rowNull <- which( base::rowSums(px_map) == 0)
-  remap<-FALSE
-  if( length(colNull) > 0 && length(rowNull) > 0 )
-  {
-    px_map_ <- px_map[ -rowNull , -colNull ]
-    remap<-TRUE
-  }
-  if( length(colNull) > 0 && length(rowNull) == 0 )
-  {
-    px_map_ <- px_map[ , -colNull ]
-    remap<-TRUE
-  }
-  if( length(colNull) == 0 && length(rowNull) > 0 )
-  {
-    px_map_ <- px_map[ -rowNull , ]
-    remap<-TRUE
-  }
-
-  if(remap)
-  {
-    for(ix in 1:nrow(px_map_))
-    {
-      for(iy in 1:ncol(px_map_))
-      {
-        if(px_map_[ix, iy] > 0)
-        {
-          dataPos[px_map_[ix, iy], "x"] <- ix
-          dataPos[px_map_[ix, iy], "y"] <- iy
-        }
-      }
-    }
-
-    x_size <- max(dataPos[,"x"])
-    y_size <- max(dataPos[,"y"])
-  }
-
-  #7- Return dataCube, mz_axis, xsize, ysize as a list of elements
+  #5- Return dataCube, mz_axis, xsize, ysize as a list of elements
   return(list(mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos))
 }
 

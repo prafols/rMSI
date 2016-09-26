@@ -90,6 +90,38 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
     return(datacube)
   }
 
+  fileExtension <- unlist(strsplit(basename(data_file), split = "\\."))
+  fileExtension <- as.character(fileExtension[length(fileExtension)])
+  if( fileExtension == "imzML")
+  {
+    return(import_imzML(data_file, ramdisk_path = restore_path))
+  }
+  else if(fileExtension == "tar")
+  {
+    return(import_rMSItar(data_file,restore_path, fun_progress))
+  }
+  else
+  {
+    cat("The slected file is not valid.\n")
+  }
+  pt<-proc.time() - pt
+  cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+}
+
+#' import_rMSItar.
+#'
+#' @param data_file The tar file containing the MS image in rMSI format.
+#' @param restore_path Where the ramdisk will be created.
+#' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
+#'
+#'  Imports an rMSI data object in a tar data file
+#'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
+#'
+#' @return  an rMSI data object.
+#' @export
+#'
+import_rMSItar<-function(data_file, restore_path, fun_progress = NULL)
+{
   setPbarValue<-function(progress)
   {
     setTxtProgressBar(pb, progress)
@@ -109,6 +141,8 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   #2 - Image is not preloaded so... the slow way
   untar(tarfile = data_file)
   img_path<-file.path(getwd(), "ImgData")
+  ##TODO canviar del working al path on i a les dades tipu dirname(data_file)
+  ## oju ke untar descomprimiex al working directory!!!!! mes TODO per tu
 
   load(file.path(img_path, "mass.ImgR"))
   load(file.path(img_path, "size.ImgR"))
@@ -132,7 +166,6 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   {
     normalizationsObj <- NULL
   }
-
 
   spectra<-list()
   ppStep<-100/length(ffDataNames)
@@ -169,8 +202,6 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   {
     close(pb)
   }
-  pt<-proc.time() - pt
-  cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   return(datacube)
 }
 
@@ -739,4 +770,81 @@ plotParamAcqOrdered <- function( img, Param, yAxisLabel = "Param" )
   colnames(idxArray) <- c("id", "x", "y")
   idxArray <- idxArray[order(idxArray[,"y"], idxArray[,"x"]), ]
   plot(Param[idxArray[,"id"]], type="l", col ="red", ylab = yAxisLabel, xlab = "Pixel" )
+}
+
+
+
+#' remap2ImageCoords.
+#'
+#' @param dataPos a pos matrix as it is in rMSI data object.
+#'
+#' This function should be only used to implement data importers from foreign formats.
+#' This functions maps a MALDI motors coors space to a image coord space.
+#' dataPos matrix is a two columns matrix where first column stores x positions and second y pixel positions.
+#' a remapped dataPos matrix do not contain empty raster positions neighter offsets.
+#'
+#' @return the dataPos matrix remapped.
+#' @export
+#'
+remap2ImageCoords <- function(dataPos)
+{
+  #1- Calc offsets and subtract it
+  x_offset<-min(dataPos[,"x"])
+  y_offset<-min(dataPos[,"y"])
+  for(i in 1:nrow(dataPos))
+  {
+    dataPos[i, "x"] <- dataPos[i, "x"] - x_offset + 1
+    dataPos[i, "y"] <- dataPos[i, "y"] - y_offset + 1
+  }
+
+  #2- Compute Motor coords range
+  x_size<-max(dataPos[,"x"])
+  y_size<-max(dataPos[,"y"])
+
+  #3- Map MALDI motor coords to image cords (1-pixels steps)
+  #It is important to map MALDI motors coords to image coords.
+  #Otherwise, null extra pixels may be added leading to bad reconstruction
+  px_map <- matrix( 0, nrow = x_size, ncol = y_size)
+  for(i in 1:nrow(dataPos))
+  {
+    xi <- dataPos[i, "x"]
+    yi <- dataPos[i, "y"]
+    px_map[xi, yi]<- i
+  }
+
+  colNull <- which( base::colSums(px_map) == 0)
+  rowNull <- which( base::rowSums(px_map) == 0)
+  remap<-FALSE
+  if( length(colNull) > 0 && length(rowNull) > 0 )
+  {
+    px_map_ <- px_map[ -rowNull , -colNull ]
+    remap<-TRUE
+  }
+  if( length(colNull) > 0 && length(rowNull) == 0 )
+  {
+    px_map_ <- px_map[ , -colNull ]
+    remap<-TRUE
+  }
+  if( length(colNull) == 0 && length(rowNull) > 0 )
+  {
+    px_map_ <- px_map[ -rowNull , ]
+    remap<-TRUE
+  }
+
+  if(remap)
+  {
+    for(ix in 1:nrow(px_map_))
+    {
+      for(iy in 1:ncol(px_map_))
+      {
+        if(px_map_[ix, iy] > 0)
+        {
+          dataPos[px_map_[ix, iy], "x"] <- ix
+          dataPos[px_map_[ix, iy], "y"] <- iy
+        }
+      }
+    }
+  }
+
+  return(dataPos)
 }
