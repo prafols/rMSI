@@ -60,6 +60,8 @@ SaveMsiData<-function(imgData, data_file)
 #' @param restore_path Where the ramdisk will be created.
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
 #' @param ff_overwrite Tell ff to overwrite or not current ramdisk files.
+#' @param fun_label This is a callback function to update the progress bar dialog text.
+#' @param close_signal function to be called if the loading process is aborted.
 #'
 #' @return an rMSI object pointing to ramdisk stored data
 #'
@@ -71,7 +73,7 @@ SaveMsiData<-function(imgData, data_file)
 #' The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
 #'
 #' @export
-LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F)
+LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F, fun_label = NULL, close_signal = NULL)
 {
   cat("Loading Image...\n")
   pt<-proc.time()
@@ -94,11 +96,11 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   fileExtension <- as.character(fileExtension[length(fileExtension)])
   if( fileExtension == "imzML")
   {
-    return(import_imzML(data_file, ramdisk_path = restore_path))
+    return(import_imzML(data_file, ramdisk_path = restore_path, fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal))
   }
   else if(fileExtension == "tar")
   {
-    return(import_rMSItar(data_file,restore_path, fun_progress))
+    return(import_rMSItar(data_file,restore_path, fun_progress, fun_text = fun_label, close_signal = close_signal))
   }
   else
   {
@@ -113,6 +115,8 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
 #' @param data_file The tar file containing the MS image in rMSI format.
 #' @param restore_path Where the ramdisk will be created.
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
+#' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
+#' @param close_signal function to call if error.
 #'
 #'  Imports an rMSI data object in a tar data file
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
@@ -120,7 +124,7 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
 #' @return  an rMSI data object.
 #' @export
 #'
-import_rMSItar<-function(data_file, restore_path, fun_progress = NULL)
+import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text = NULL, close_signal = NULL )
 {
   setPbarValue<-function(progress)
   {
@@ -139,10 +143,13 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL)
   }
 
   #2 - Image is not preloaded so... the slow way
-  untar(tarfile = data_file)
-  img_path<-file.path(getwd(), "ImgData")
-  ##TODO canviar del working al path on i a les dades tipu dirname(data_file)
-  ## oju ke untar descomprimiex al working directory!!!!! mes TODO per tu
+  if(!is.null(fun_text))
+  {
+    fun_text("Unpacking data...")
+  }
+
+  untar(tarfile = data_file, exdir = restore_path)
+  img_path<-file.path(restore_path, "ImgData")
 
   load(file.path(img_path, "mass.ImgR"))
   load(file.path(img_path, "size.ImgR"))
@@ -167,6 +174,10 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL)
     normalizationsObj <- NULL
   }
 
+  if(!is.null(fun_text))
+  {
+    fun_text("Loading data in the ramdisk...")
+  }
   spectra<-list()
   ppStep<-100/length(ffDataNames)
   pp<-0
@@ -195,12 +206,16 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL)
     datacube$normalizations <- normalizationsObj
   }
 
-  unlink("ImgData", recursive = T)
+  unlink(img_path, recursive = T)
 
   save(datacube, file = file.path(restore_path, "datacube.RImg"))
   if(!is.null(pb))
   {
     close(pb)
+  }
+  if(!is.null(fun_text))
+  {
+    fun_text("Done")
   }
   return(datacube)
 }
@@ -847,4 +862,18 @@ remap2ImageCoords <- function(dataPos)
   }
 
   return(dataPos)
+}
+
+#' .controlled_loadAbort.
+#'
+#' @param text to be promt at R console
+#' @param close_signal the function to call
+#'
+.controlled_loadAbort <- function(text, close_signal = NULL)
+{
+  if(!is.null(close_signal))
+  {
+    close_signal()
+  }
+  stop(text)
 }

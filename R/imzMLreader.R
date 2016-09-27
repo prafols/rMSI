@@ -4,6 +4,8 @@
 #' @param ibd_File path to the binary file (default the same as imzML file but with .ibd extension)
 #' @param ramdisk_path where the ramdisk will be created.
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
+#' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
+#' @param close_signal function to be called if loading process is abored.
 #'
 #'  Imports an imzML image to an rMSI data object.
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
@@ -11,7 +13,7 @@
 #' @return an rMSI data object.
 #' @export
 #'
-import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL)
+import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL, fun_text = NULL, close_signal = NULL)
 {
   setPbarValue<-function(progress)
   {
@@ -30,7 +32,11 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   }
 
   #1- Parse XML data
-  xmlRes <- imzMLparse( imzML_File, ibd_File  )
+  if(!is.null(fun_text))
+  {
+    fun_text("Parsing XML data in imzML file...")
+  }
+  xmlRes <- imzMLparse( imzML_File, ibd_File, fun_progress =  fun_progress, close_signal = close_signal)
 
   #2- Create a connection to read binary file
   bincon <- file(description = ibd_File, open = "rb")
@@ -40,7 +46,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   if(binUUID != xmlRes$UUID)
   {
     close(bincon)
-    stop("ERROR: UUID in imzML file does not match UUID in ibd file\n")
+    .controlled_loadAbort("ERROR: UUID in imzML file does not match UUID in ibd file\n", close_signal)
   }
 
   sizeInBytesFromDataType <- function(str_dataType)
@@ -90,6 +96,10 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   bytes2Read <- sizeInBytesFromDataType(xmlRes$int_dataType)
 
   #6- Create the ramdisk
+  if(!is.null(fun_text))
+  {
+    fun_text("Loading data in the ramdisk...")
+  }
   dir.create(ramdisk_path, recursive = T)
   datacube <- CreateEmptyImage(num_of_pixels = nrow(xmlRes$run_data), mass_axis = mzAxis, pixel_resolution = xmlRes$pixel_size_um,
                                img_name = basename(imzML_File),
@@ -123,8 +133,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     }
   }
 
-
-
   #8- Close the bin file connection
   close(bincon)
 
@@ -145,6 +153,10 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     close(pb)
   }
   gc()
+  if(!is.null(fun_text))
+  {
+    fun_text("Done")
+  }
   return(datacube)
 }
 
@@ -153,6 +165,8 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
 #'
 #' @param fpath_xml full path to imzML file (XML data).
 #' @param fpath_bin full path to ibd file (binary data).
+#' @param fun_progress callback to a pbar function.
+#' @param close_signal function to call if error.
 #'
 #' @return a named list containing all relevant information for rMSI data object.
 #' UUID: A string containing the UUID to be verified also in binary file.
@@ -164,7 +178,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
 #' pixel_size_um: per pixel resolution in micrometers.
 #' run_data: a data frame containing information of pixel location in image ans offsets in binary data file.
 #'
-imzMLparse <- function( fpath_xml, fpath_bin)
+imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal = NULL)
 {
   xmld <- XML::xmlTreeParse(fpath_xml)
   xmltop <- XML::xmlRoot(xmld)
@@ -217,13 +231,13 @@ imzMLparse <- function( fpath_xml, fpath_bin)
   if(length( err_string) > 0)
   {
     cat(paste("imzML reading has been aborted due the following errors:\n", err_string, sep = ""))
-    stop("imzML XML parese ERROR\n")
+    .controlled_loadAbort("imzML XML parese ERROR\n", close_signal)
   }
 
   #Check data in continuos mode, processed is currently not supported for rMSI
   if( !continuous_mode )
   {
-    stop("Binary data is in imzML processed mode. Sorry this mode is not supported yet\n")
+    .controlled_loadAbort("Binary data is in imzML processed mode. Sorry this mode is not supported yet\n", close_signal)
   }
 
   #Check the checksum
@@ -240,7 +254,7 @@ imzMLparse <- function( fpath_xml, fpath_bin)
     else
     {
       cat(paste("NOK\nChecksums don't match\nXML key:", SHA, "\nBinary file key:", res,"\n"))
-      stop("ERROR: possible data corruption\n")
+      .controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
     }
   }
   if( !is.null(MD5))
@@ -255,7 +269,7 @@ imzMLparse <- function( fpath_xml, fpath_bin)
     else
     {
       cat(paste("NOK\nChecksums don't match\nXML key:", MD5, "\nBinary file key:", res,"\n"))
-      stop("ERROR: possible data corruption\n")
+      .controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
     }
   }
   if(!bChecked)
@@ -362,23 +376,23 @@ imzMLparse <- function( fpath_xml, fpath_bin)
   if(length( err_string) > 0)
   {
     cat(paste("imzML reading has been aborted due the following errors:\n", err_string, sep = ""))
-    stop("imzML XML parese ERROR\n")
+    .controlled_loadAbort("imzML XML parese ERROR\n", close_signal)
   }
 
   #Check data definitions fits the rMSI requirments
   if( !mzArrayDesc$no_compression || !intArrayDesc$no_compression)
   {
-    stop("Data is compressed, compressed imzML images are still not supported for rMSI\n")
+    .controlled_loadAbort("Data is compressed, compressed imzML images are still not supported for rMSI\n", close_signal)
   }
 
   if (mzArrayDesc$units != "m/z")
   {
-    stop("m/z Array is not in m/z format, rMSI only supports m/z units\n")
+    .controlled_loadAbort("m/z Array is not in m/z format, rMSI only supports m/z units\n", close_signal)
   }
 
   if( intArrayDesc$units != "number of counts")
   {
-    stop("intensity Arrays are not in number of counts units, rMSI does not support it\n")
+    .controlled_loadAbort("intensity Arrays are not in number of counts units, rMSI does not support it\n", close_signal)
   }
 
 
@@ -395,7 +409,7 @@ imzMLparse <- function( fpath_xml, fpath_bin)
   }
 
   #Obtain the RUN data
-  imgData <- xmlParseSpectra(XML::xmlChildren(xmlch$run))
+  imgData <- xmlParseSpectra(XML::xmlChildren(xmlch$run), fun_progress = fun_progress)
 
   return( list( UUID = UUID, continuous_mode = continuous_mode,
                 compression_mz = !mzArrayDesc$no_compression, compression_int = !intArrayDesc$no_compression,
@@ -409,21 +423,52 @@ imzMLparse <- function( fpath_xml, fpath_bin)
 #' Internal use only.
 #'
 #' @param xmlRunNode an XML node containing the imzML run tree.
+#' @param fun_progress a callback to use another progress bar instead of the internaly used text pbar.
 #'
 #' @return a named data frame containing pixels positions in image (x, y) and spectra poisitions in binary file (offsets).
 #'
-xmlParseSpectra <- function (xmlRunNode)
+xmlParseSpectra <- function (xmlRunNode, fun_progress = NULL)
 {
+  updatePbar <- function( value )
+  {
+    if(!is.null(fun_progress))
+    {
+      if(!fun_progress(value))
+      {
+        return(NULL) #progress bar function must return true if the loading process is to be continued.
+      }
+    }
+    else
+    {
+      setTxtProgressBar(pb, i)
+    }
+  }
+
+  if(is.null(fun_progress))
+  {
+    pb <- txtProgressBar(min = 0, max = 100, initial = 0, style = 3)
+  }
+
   pt<-proc.time()
   imgData <- data.frame(x = numeric(0), y = numeric(0), mzLength = integer(0), mzOffset = integer(0), intLength = integer(0), intOffset = integer(0))
   cat("Reading imzML spectra data...\n")
-  pb <- txtProgressBar(min = 0, max = XML::xmlSize(xmlRunNode$spectrumList), initial = 0, style = 3)
+  ppStep<-100/(XML::xmlSize(xmlRunNode$spectrumList))
+  pp<-0
   for( i in 1:(XML::xmlSize(xmlRunNode$spectrumList)))
   {
     imgData[i, ] <- unlist(xmlParseSpectrum(xmlRunNode$spectrumList[[i]]))
-    setTxtProgressBar(pb, i)
+    pp_ant<-pp
+    pp<-pp+ppStep
+    if(round(pp) > round(pp_ant))
+    {
+      updatePbar( pp )
+    }
   }
-  close(pb)
+
+  if(is.null(fun_progress))
+  {
+    close(pb)
+  }
   pt<-proc.time() - pt
   cat(paste("imzML XML parse time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   return( imgData )
@@ -514,3 +559,4 @@ xmlParseSpectrum <- function( xmlSingleSpectrum )
   }
   return(spectrumInfo)
 }
+

@@ -4,14 +4,19 @@
 \alias{import_rMSItar}
 \title{import_rMSItar.}
 \usage{
-import_rMSItar(data_file, restore_path, fun_progress = NULL)
+import_rMSItar(data_file, restore_path, fun_progress = NULL,
+  fun_text = NULL, close_signal = NULL)
 }
 \arguments{
 \item{data_file}{The tar file containing the MS image in rMSI format.}
 
 \item{restore_path}{Where the ramdisk will be created.}
 
-\item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.
+\item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.}
+
+\item{fun_text}{This is a callback function to update the label widget of loading data. See details for more information.}
+
+\item{close_signal}{function to call if error.
 
  Imports an rMSI data object in a tar data file
  It is recomanded to use rMSI::LoadMsiData directly instead of this function.}

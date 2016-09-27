@@ -6,7 +6,7 @@
 \usage{
 LoadMsiData(data_file, restore_path = file.path(dirname(data_file),
   paste("ramdisk", basename(data_file), sep = "_")), fun_progress = NULL,
-  ff_overwrite = F)
+  ff_overwrite = F, fun_label = NULL, close_signal = NULL)
 }
 \arguments{
 \item{data_file}{The tar file containing the MS image in rMSI format.}
@@ -16,6 +16,10 @@ LoadMsiData(data_file, restore_path = file.path(dirname(data_file),
 \item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.}
 
 \item{ff_overwrite}{Tell ff to overwrite or not current ramdisk files.}
+
+\item{fun_label}{This is a callback function to update the progress bar dialog text.}
+
+\item{close_signal}{function to be called if the loading process is aborted.}
 }
 \value{
 an rMSI object pointing to ramdisk stored data

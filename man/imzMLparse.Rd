@@ -5,12 +5,16 @@
 \title{imzMLparse.
 Parses a imzML file and obtain all relevant data for rMSI data object.}
 \usage{
-imzMLparse(fpath_xml, fpath_bin)
+imzMLparse(fpath_xml, fpath_bin, fun_progress = NULL, close_signal = NULL)
 }
 \arguments{
 \item{fpath_xml}{full path to imzML file (XML data).}
 
 \item{fpath_bin}{full path to ibd file (binary data).}
+
+\item{fun_progress}{callback to a pbar function.}
+
+\item{close_signal}{function to call if error.}
 }
 \value{
 a named list containing all relevant information for rMSI data object.

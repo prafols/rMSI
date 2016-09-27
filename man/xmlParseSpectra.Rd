@@ -4,10 +4,12 @@
 \alias{xmlParseSpectra}
 \title{xmlParseSpectra.}
 \usage{
-xmlParseSpectra(xmlRunNode)
+xmlParseSpectra(xmlRunNode, fun_progress = NULL)
 }
 \arguments{
 \item{xmlRunNode}{an XML node containing the imzML run tree.}
+
+\item{fun_progress}{a callback to use another progress bar instead of the internaly used text pbar.}
 }
 \value{
 a named data frame containing pixels positions in image (x, y) and spectra poisitions in binary file (offsets).

@@ -47,7 +47,7 @@
   {
     if( this$bKeepLoading )
     {
-      gWidgets2::gmessage("The loading process has been aborted by the user. ", icon = "info", title = "User aborted")
+      gWidgets2::gmessage("The loading process has been aborted.", icon = "info", title = "User aborted")
       this$bKeepLoading<-F
     }
   }

@@ -5,7 +5,8 @@
 \title{import_imzML.}
 \usage{
 import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File),
-  ".ibd", sep = ""), ramdisk_path, fun_progress = NULL)
+  ".ibd", sep = ""), ramdisk_path, fun_progress = NULL, fun_text = NULL,
+  close_signal = NULL)
 }
 \arguments{
 \item{imzML_File}{full path to .imzML file.}
@@ -14,7 +15,11 @@ import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File),
 
 \item{ramdisk_path}{where the ramdisk will be created.}
 
-\item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.
+\item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.}
+
+\item{fun_text}{This is a callback function to update the label widget of loading data. See details for more information.}
+
+\item{close_signal}{function to be called if loading process is abored.
 
  Imports an imzML image to an rMSI data object.
  It is recomanded to use rMSI::LoadMsiData directly instead of this function.}
