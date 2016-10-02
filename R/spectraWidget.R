@@ -192,6 +192,22 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     return(data.frame( names = spcNames, colors = spcColors))
   }
 
+  #Return the current plotted mass range
+  GetPlottedMassRange <- function()
+  {
+    return(list( mz_min = this$mz_lim[1], mz_max = this$mz_lim[2]))
+  }
+
+  #Set a mew plotted mass range
+  SetPlottedMassRange <- function(mz_min, mz_max)
+  {
+    if(length(this$spectra_data) == 0) return()
+    this$mz_lim[1] <- mz_min
+    this$mz_lim[2] <- mz_max
+    this$AutoZoomIntensity()
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
+  }
+
   #Add spectrum data================================================================================
   AddSpectra <- function( mass_data, intensity_data, mass_peaks = NULL, intensity_peaks = NULL, col = "", name = "", add_enabled = T )
   {
@@ -273,14 +289,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       #i_axt<-pretty(this$in_lim[1]:this$in_lim[2], n = 5)
       i_axt<-seq(from = this$in_lim[1], to = this$in_lim[2], length.out = 5)
       plot(x=0, xlim = this$mz_lim, ylim = this$in_lim, type = "n", xlab = "", ylab ="", yaxt ="n")
-      if((this$in_lim[2] - this$in_lim[1]) > 10 )
-      {
-        axis(2, at = i_axt, labels = sprintf("%.1e",i_axt), las = 1)
-      }
-      else
-      {
-        axis(2, at = i_axt, labels = sprintf("%.3f",i_axt), las = 1)
-      }
+      axis(2, at = i_axt, labels = sprintf("%.2e",i_axt), las = 1)
 
       #Draw ref masses as vertical lines
       if(!is.null(this$ref_mass))
@@ -450,6 +459,13 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       mz_tol<-round(mz_tol, digits = 2)
       mz_sel<-round(mz_sel, digits = 2)
       mz_tol<-max(mz_tol, 0)
+
+      #Limit selection to 5 Da to avoid selecting large parts of spectra and filling RAM
+      if(mz_tol*2 > 5 )
+      {
+        cat(paste("Ion selection in a range of", mz_tol*2, "Da has been aborted. To large data sector.\n"))
+        return(TRUE)
+      }
 
       if(this$CurrentSelTool == "Red" && !is.null(this$clicFun))
       {

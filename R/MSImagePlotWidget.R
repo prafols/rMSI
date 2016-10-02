@@ -235,7 +235,7 @@
   }
 
   #Plot spectra using parent plot function including normalization ==================================================
-  plotSpectra <- function( id, colors)
+  plotSpectra <- function( id, colors, mz_min = NULL, mz_max = NULL)
   {
     intensity_list <- list()
     color_list <- list()
@@ -256,7 +256,16 @@
         intensity_list[[length(intensity_list) + 1]] <- this$img$mean
       }
       color_list[[length(color_list) + 1 ]] <- colors[id0_pos]
-      norm_vect <- c(norm_vect, mean(this$NormalizationCoefs))
+
+      inf_index <- which(is.infinite(this$NormalizationCoefs))
+      if(length(inf_index) > 0)
+      {
+        norm_vect <- c(norm_vect, mean(this$NormalizationCoefs[-inf_index]))
+      }
+      else
+      {
+        norm_vect <- c(norm_vect, mean(this$NormalizationCoefs))
+      }
       id_list[[length(id_list) + 1]] <-  0
     }
 
@@ -276,7 +285,7 @@
 
     if(!is.null(this$AddSpectra_ptr))
     {
-      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list, id_list, this$myName, norm_vect)
+      this$AddSpectra_ptr(this$img$mass, intensity_list, color_list, id_list, this$myName, norm_vect, mz_min, mz_max)
     }
   }
 
@@ -551,7 +560,7 @@
     }
     this$PlotMassImageRGB()
 
-      #Re-Plot spectra using norm factors
+    #Re-Plot spectra using norm factors
     if(!is.null(this$GetSpectraInfo_ptr))
     {
       plotted_data <- this$GetSpectraInfo_ptr(this$myName)
@@ -559,7 +568,7 @@
       if(!is.null(this$ClearSpectraPlot_ptr))
       {
         this$ClearSpectraPlot_ptr(plotted_data$ID, this$myName)
-        this$plotSpectra(plotted_data$ID, plotted_data$color)
+        this$plotSpectra(plotted_data$ID, plotted_data$color, mz_min = plotted_data$mz_min, mz_max = plotted_data$mz_max)
       }
     }
   }

@@ -74,11 +74,16 @@ MSIWindow<-function(img1, img2 = NULL)
   }
 
   #A connector between spectraWidget and msiWidgets because them can not be joined directly
-  AddSpectra <- function ( mass_axis, intensity_list, color_list, id_list, calling_image_string, normalizations )
+  AddSpectra <- function ( mass_axis, intensity_list, color_list, id_list, calling_image_string, normalizations,  mz_min, mz_max )
   {
     for( i in 1:length(intensity_list))
     {
       this$spectraWidget$AddSpectra(mass_axis, intensity_list[[i]]/normalizations[i], col = color_list[[i]], name = paste(calling_image_string,"_ID",as.character(id_list[[i]]), sep = ""))
+    }
+
+    if( !is.null(mz_min) && !is.null(mz_max))
+    {
+      this$spectraWidget$SetPlottedMassRange(mz_min, mz_max)
     }
   }
 
@@ -109,7 +114,11 @@ MSIWindow<-function(img1, img2 = NULL)
         }
       }
     }
-    return(list(ID=myImgIds, color =  myImgColors))
+
+    #Get plotted mass range
+    mz_range <- this$spectraWidget$GetPlottedMassRange()
+
+    return(list(ID=myImgIds, color =  myImgColors, mz_min = mz_range$mz_min, mz_max = mz_range$mz_max))
   }
 
   #GUI builder
@@ -162,7 +171,7 @@ MSIWindow<-function(img1, img2 = NULL)
   }
 
   window$widget$present()
-  RGtk2::gtkWindowMaximize(gWidgets2::getToolkitWidget(window)) #Start maximized
+  ###RGtk2::gtkWindowMaximize(gWidgets2::getToolkitWidget(window)) #Start maximized, currently disabled to addres windows redraw issue
 
   ## Set the name for the class
   class(this) <- append(class(this),"MsiWindows")
