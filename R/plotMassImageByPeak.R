@@ -154,20 +154,20 @@
 }
 
 #roi_rectangle  is c(left, rigth, bottom, top)
-.plotMassImageRGB <- function(rasterRGB, cal_um2pixels = 1,  rotation=0, flipV=F, flipH=F, display_axes=T, roi_rectangle = NULL, zoom = F)
+.plotMassImageRGB <- function(rasterRGB, cal_um2pixels = 1,  rotation=0, flipV=F, flipH=F, display_axes=T, display_syscoords=T, roi_rectangle = NULL, zoom_rectangle = NULL, border = 10)
 {
   img_Xmax <- rasterRGB@extent@xmax
   img_Ymax <- rasterRGB@extent@ymax
 
   #Crop raster according the zoom window
-  if( zoom && !is.null(roi_rectangle) )
+  if( !is.null(zoom_rectangle) )
   {
-    rasterRGB<- raster::crop( rasterRGB, raster::extent( c(roi_rectangle[1] -1, roi_rectangle[2], rasterRGB@extent@ymax - roi_rectangle[4], rasterRGB@extent@ymax - roi_rectangle[3] + 1)))
+    rasterRGB<- raster::crop( rasterRGB, raster::extent( c(zoom_rectangle[1] -1, zoom_rectangle[2], rasterRGB@extent@ymax - zoom_rectangle[4], rasterRGB@extent@ymax - zoom_rectangle[3] + 1)))
   }
 
   #Setting my tricky par values...
   par( bg = "black", fg =  "white", col.lab="white", xaxt="n", yaxt="n", col.axis = "white", col.main = "white", col.sub = "white",
-       cex.axis = 0.6, mar = c(1,1,1,1), mgp = c(2, 0.5, 0.5))
+       cex.axis = 0.7, mar = c(1,1,1,1), mgp = c(2, 0.5, 0.5))
 
   #Apply rotation
   roi_rectangle_pre <- roi_rectangle
@@ -186,8 +186,16 @@
   {
     if(!is.null(roi_rectangle))
     {
-      roi_rectangle[1] <- roi_rectangle_pre[3] - 1 #Left maps Bottom
-      roi_rectangle[2] <- roi_rectangle_pre[4] #Rigth maps Top
+      if(is.null(zoom_rectangle))
+      {
+        roi_rectangle[1] <-  roi_rectangle_pre[3] - 1 #Left maps Bottom
+        roi_rectangle[2] <- roi_rectangle_pre[4] #Rigth maps Top
+      }
+      else
+      {
+        roi_rectangle[1] <- img_Ymax - zoom_rectangle[4] - zoom_rectangle[3] + roi_rectangle_pre[3] #Left maps Bottom
+        roi_rectangle[2] <- img_Ymax - zoom_rectangle[4] - zoom_rectangle[3] + roi_rectangle_pre[4] +1 #Rigth maps Top
+      }
       roi_rectangle[3] <- roi_rectangle_pre[1] - 1 #Bottom  maps Left
       roi_rectangle[4] <- roi_rectangle_pre[2] #Top maps Right
     }
@@ -201,8 +209,16 @@
     {
       roi_rectangle[1] <- img_Ymax - roi_rectangle_pre[4] #Left maps top
       roi_rectangle[2] <- img_Ymax - roi_rectangle_pre[3] + 1 #Rigth maps bottom
-      roi_rectangle[3] <- img_Xmax - roi_rectangle_pre[2] #Bottom  maps Right
-      roi_rectangle[4] <- img_Xmax - roi_rectangle_pre[1] + 1 #Top maps Left
+      if(is.null(zoom_rectangle))
+      {
+        roi_rectangle[3] <- img_Xmax - roi_rectangle_pre[2] #Bottom  maps Right
+        roi_rectangle[4] <- img_Xmax - roi_rectangle_pre[1] + 1 #Top maps Left
+      }
+      else
+      {
+        roi_rectangle[3] <- zoom_rectangle[2] + zoom_rectangle[1] - roi_rectangle_pre[2] - 1 #Bottom  maps Right
+        roi_rectangle[4] <- zoom_rectangle[2] + zoom_rectangle[1] - roi_rectangle_pre[1] #Top maps Left
+      }
     }
 
     rasterRGB <- raster::flip(raster::t(rasterRGB), direction = "x") #270º rotation
@@ -211,16 +227,29 @@
   {
     if(!is.null(roi_rectangle))
     {
-      roi_rectangle[1] <- img_Xmax - roi_rectangle_pre[2] #Left maps Right
-      roi_rectangle[2] <- img_Xmax - roi_rectangle_pre[1] + 1 #Rigth maps Left
-      roi_rectangle[3] <- roi_rectangle_pre[3] -1 #Bottom  maps Top
-      roi_rectangle[4] <- roi_rectangle_pre[4] #Top maps Bottom
+      if(is.null(zoom_rectangle))
+      {
+        roi_rectangle[1] <- img_Xmax - roi_rectangle_pre[2] #Left maps Right
+        roi_rectangle[2] <- img_Xmax - roi_rectangle_pre[1] + 1 #Rigth maps Left
+        roi_rectangle[3] <- roi_rectangle_pre[3] -1 #Bottom  maps Top
+        roi_rectangle[4] <- roi_rectangle_pre[4] #Top maps Bottom
+      }
+      else
+      {
+        roi_rectangle[1] <- zoom_rectangle[2] + zoom_rectangle[1]  - roi_rectangle_pre[2] - 1 #Left maps Right
+        roi_rectangle[2] <- zoom_rectangle[2] + zoom_rectangle[1]  - roi_rectangle_pre[1] #Rigth maps Left
+        roi_rectangle[3] <- img_Ymax - zoom_rectangle[3] - zoom_rectangle[4]  + roi_rectangle_pre[3] #Bottom  maps Top
+        roi_rectangle[4] <- img_Ymax - zoom_rectangle[3] - zoom_rectangle[4]  +roi_rectangle_pre[4] + 1 #Top maps Bottom
+      }
     }
 
     rasterRGB <- raster::flip(raster::flip(rasterRGB, direction = "y"), direction = "x")#180º rotation
   }
 
-  raster::plotRGB(rasterRGB, axes = T, asp = 1, interpolate = F ) ##TODO testing interpolation
+  #Add a border pixels and plot image
+  raster::extent(rasterRGB) <- border + c(rasterRGB@extent@xmin, rasterRGB@extent@xmax, rasterRGB@extent@ymin, rasterRGB@extent@ymax)
+  rasterRGB <- raster::extend(rasterRGB, raster::extent(rasterRGB@extent@xmin - border, rasterRGB@extent@xmax + border, rasterRGB@extent@ymin - border, rasterRGB@extent@ymax + border), value = 0)
+  raster::plotRGB(rasterRGB, axes = T, asp = 1, interpolate = F )
 
   if(display_axes)
   {
@@ -249,7 +278,7 @@
     yB <- Lp*rasterRGB@extent@ymax
     yT <- (Lp + Hp)*rasterRGB@extent@ymax
 
-    if( rotation == 180  )
+    if( rotation == 180  && display_syscoords)
     {
       #Avoid overlapping scale and axes
       xL <- rasterRGB@extent@xmin + (Lp + Wp)*(rasterRGB@extent@xmax - rasterRGB@extent@xmin)
@@ -264,51 +293,54 @@
     text( x = (xL + 0.5*(xR - xL)), y = 1.4*yT, labels = sprintf("%0.0f um", cal_length), col = "white", cex = 0.8, adj = c(0.5,0))
 
     #Add coors system arrows
-    raster_size <- c(rasterRGB@extent@xmax-rasterRGB@extent@xmin, rasterRGB@extent@ymax-rasterRGB@extent@ymin)
-    arrow_length <- 0.25*min(raster_size)
-    if( rotation == 0  )
+    if(display_syscoords)
     {
-      P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      P_Y <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
-      Txt_Adj <- c(0, 1)
-    }
-    if( rotation == 90 )
-    {
-      P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
-      P_Y <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      Txt_Adj <- c(0, 0)
-    }
-    if( rotation == 270 )
-    {
-      P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
-      P_Y <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
-      Txt_Adj <- c(1, 1)
-    }
-    if( rotation == 180 )
-    {
-      P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      P_X <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
-      P_Y <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
-      Txt_Adj <- c(1, 0)
-    }
+      raster_size <- c(rasterRGB@extent@xmax-rasterRGB@extent@xmin, rasterRGB@extent@ymax-rasterRGB@extent@ymin)
+      arrow_length <- 0.25*min(raster_size)
+      if( rotation == 0  )
+      {
+        P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+        P_X <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+        P_Y <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
+        Txt_Adj <- c(0, 1)
+      }
+      if( rotation == 90 )
+      {
+        P_0 <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+        P_X <- c(rasterRGB@extent@xmin + 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
+        P_Y <- c(rasterRGB@extent@xmin + arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+        Txt_Adj <- c(0, 0)
+      }
+      if( rotation == 270 )
+      {
+        P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+        P_X <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymax - arrow_length)
+        P_Y <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymax - 0.01*(raster_size[2]))
+        Txt_Adj <- c(1, 1)
+      }
+      if( rotation == 180 )
+      {
+        P_0 <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+        P_X <- c(rasterRGB@extent@xmax - arrow_length, rasterRGB@extent@ymin + 0.01*(raster_size[2]))
+        P_Y <- c(rasterRGB@extent@xmax - 0.01*(raster_size[1]), rasterRGB@extent@ymin + arrow_length)
+        Txt_Adj <- c(1, 0)
+      }
 
-    arrows(x0 = P_0[1], y0 = P_0[2], x1 = P_X[1], y1 = P_X[2], code = 2, lwd = 2, col = "white", length = 0.1)
-    text ( x = P_X[1], y = P_X[2], labels = " X", col = "white", adj = Txt_Adj, cex = 0.8)
-    arrows(x0 = P_0[1], y0 = P_0[2], x1 = P_Y[1], y1 = P_Y[2], code = 2, lwd = 2, col = "white", length = 0.1)
-    text ( x = P_Y[1], y = P_Y[2], labels = " Y", col = "white", adj = Txt_Adj, cex = 0.8)
+      arrows(x0 = P_0[1], y0 = P_0[2], x1 = P_X[1], y1 = P_X[2], code = 2, lwd = 2, col = "white", length = 0.1)
+      text ( x = P_X[1], y = P_X[2], labels = " X", col = "white", adj = Txt_Adj, cex = 0.8)
+      arrows(x0 = P_0[1], y0 = P_0[2], x1 = P_Y[1], y1 = P_Y[2], code = 2, lwd = 2, col = "white", length = 0.1)
+      text ( x = P_Y[1], y = P_Y[2], labels = " Y", col = "white", adj = Txt_Adj, cex = 0.8)
+    }
   }
 
-  if(!is.null(roi_rectangle) && !zoom)
+  if(!is.null(roi_rectangle))
   {
     #roi_rectangle  is c(left, rigth, top, bottom)
-    rect( xleft = roi_rectangle[1], xright = roi_rectangle[2], ytop = roi_rectangle[4], ybottom = roi_rectangle[3], border = "red", lwd = 2 )
+    rect( xleft = roi_rectangle[1] + border, xright = roi_rectangle[2]  + border, ytop = roi_rectangle[4] + border, ybottom = roi_rectangle[3] + border, border = "red", lwd = 2 )
   }
 }
 
-.plotIntensityScale<-function(img, color = NULL, light=3)
+.plotIntensityScale<-function(img, color = NULL, light=3, intensity_limit = NULL)
 {
   max_int<-max(raster::values(img$raster))
   min_int<-min(raster::values(img$raster))
@@ -322,7 +354,14 @@
   if( is.null(color))
   {
     #Remap Color 2 rainbow Space  (24bits color space, 8 bits per channel 255 steps)
-    RGB_raster<-.ReMappingIntensity2HSV(scale_raster, value_multiplier = light)
+    if(is.null(intensity_limit))
+    {
+      RGB_raster<-.ReMappingIntensity2HSV(scale_raster, value_multiplier = light )
+    }
+    else
+    {
+      RGB_raster<-.ReMappingIntensity2HSV(scale_raster, value_multiplier = light, maxN = intensity_limit)
+    }
   }
   else
   {
@@ -346,7 +385,7 @@
 
   #Setting my tricky par values...
   par( bg = "black", fg =  "white", col.lab="white", xaxt="n", yaxt="n", col.axis = "white", col.main = "white", col.sub = "white",
-       cex.axis = 0.6, mar = c(1,0,1,2),  mgp = c(3, 0.5, 0.5))
+       cex.axis = 0.7, mar = c(1,0,1,2),  mgp = c(3, 0.5, 0.5))
 
   raster::plotRGB(RGB_raster, axes = T, asp = 1, interpolate = T  )
 
@@ -354,18 +393,18 @@
   yAxis<- seq(0, RGB_raster@extent@ymax, length.out = 11)
   yLabels <- sprintf( "%0.1e", seq(min_int, max_int, length.out = 11))
   par(xaxt = "l", yaxt = "l")
-  axis(side=2, tck = -0.015, cex.axis = 0.6, pos = 0, at = yAxis, labels = F, las = 1) #Y left axes
+  axis(side=2, tck = -0.015, cex.axis = 0.7, pos = 0, at = yAxis, labels = F, las = 1) #Y left axes
   if( max_int == 0 )
   {
-    axis(side=4, tck = -0.015, cex.axis = 0.6, pos = RGB_raster@extent@xmax, at = yAxis, labels = F) #Y right axes
+    axis(side=4, tck = -0.015, cex.axis = 0.7, pos = RGB_raster@extent@xmax, at = yAxis, labels = F) #Y right axes
   }
   else
   {
-    axis(side=4, tck = -0.015, cex.axis = 0.6, pos = RGB_raster@extent@xmax, at = yAxis, labels = yLabels, las = 1) #Y right axes
+    axis(side=4, tck = -0.015, cex.axis = 0.7, pos = RGB_raster@extent@xmax, at = yAxis, labels = yLabels, las = 1) #Y right axes
   }
 
-  axis(side = 1, tck = -0.015, cex.axis = 0.6, labels = F, pos = 0, at = c(0,ncols_scale))
-  axis(side = 3, tck = -0.015, cex.axis = 0.6, labels = F, pos = RGB_raster@extent@ymax, at = c(0,ncols_scale))
+  axis(side = 1, tck = -0.015, cex.axis = 0.7, labels = F, pos = 0, at = c(0,ncols_scale))
+  axis(side = 3, tck = -0.015, cex.axis = 0.7, labels = F, pos = RGB_raster@extent@ymax, at = c(0,ncols_scale))
 
   #Add the main title
   if(max_int == 0)
@@ -435,7 +474,7 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
     }
     else
     {
-      raster_RGB<-.BuildSingleIonRGBImage(im_sgn, XResLevel = XResLevel, light = vlight)
+      raster_RGB<-.BuildSingleIonRGBImage(im_sgn, XResLevel = XResLevel, global_intensity_scaling_factor = intensity_limit[1], light = vlight)
     }
   }
   else
@@ -498,7 +537,7 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
 
   if(numberOfChannels == 1 )
   {
-    .plotIntensityScale(im_sgn, light =  vlight)
+    .plotIntensityScale(im_sgn, light =  vlight, intensity_limit = intensity_limit[1])
   }
   else
   {
@@ -510,7 +549,7 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
     .plotIntensityScale(im_R, "R" )
   }
 
-  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = show_axes, roi_rectangle = crop_area, zoom = !is.null(crop_area))
+  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = show_axes, roi_rectangle = crop_area, roi_rectangle = crop_area)
 }
 
 .FillSimpleRaster <- function(img, values, text)
@@ -560,3 +599,214 @@ plotRGBDataOnImg <- function(img, Rvalues, Gvalues, Bvalues, RText, GText, BText
   .plotIntensityScale(Rraster, "R" )
   .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = F)
 }
+
+#' Plots a image using various MS image objects and the same intensity scale for every MS image.
+#'
+#' @param ... MS images in rMSI format as various arguments to be plotted together.
+#' @param mass.peak m/z selected to plot MS image
+#' @param tolerance mass tolerance to represent the MS image.
+#' @param NormalizationName a string representing the normalization to use in the plot.
+#' @param rotation a vector of rotation in degree to perform on plot for each image.
+#'        If only one value is supplied, then all image will be rotated the same.
+#' @param flipV vector of booleans indicating if images must be flipped vertically.
+#' @param flipH vector of booleans indicating if images must be flipped horizontally.
+#' @param light the lighting factor used in the plot.
+#'
+#' @export
+plotVariousMassImagesByPeak <- function(..., mass.peak, tolerance = 0.25 , NormalizationName = NULL, rotation = 0, flipV = F, flipH = F, light = 5)
+{
+  MAIN_BORDER_SIZE <- 20
+  SUB_BORDER_SIZE <- 15
+  imgList <- list(...)
+
+  #Check resultions
+  pxRes <- unlist(lapply(imgList, function(x){ return(x$pixel_size_um) }))
+  if(any(pxRes[1] != pxRes) )
+  {
+    cat("WARNING: At least one image have a different pixel resolution\n The used size scale bar may be inacurate\n")
+  }
+
+  #Compute rasters
+  if(is.null(NormalizationName))
+  {
+    rasterImgs <- lapply(imgList, function(x){ .buildImageByPeak(x, mass.peak, tolerance)})
+  }
+  else
+  {
+    notAvailNorms <-unlist(lapply(imgList, function(x) {
+      nullNorm <- is.null(x$normalizations[[NormalizationName]]);
+      if(nullNorm)
+      {
+        cat(paste("Error: Image", x$name, "does not have normalization with name:", NormalizationName, "available\n"))
+      }
+      return(nullNorm);
+    }))
+    if(any(notAvailNorms))
+    {
+      stop("Error, not available normalization method for at least one image.\n")
+    }
+    rasterImgs <- lapply(imgList, function(x){ .buildImageByPeak(x, mass.peak, tolerance, x$normalizations[[NormalizationName]])})
+  }
+
+  multiImgWin <- gWidgets2::gwindow(title = "Multiple MS images view", visible = F)
+  grpTop <- gWidgets2::ggroup(horizontal = F, container = multiImgWin)
+  imaging_dev <- gWidgets2::ggraphics(spacing = 5 )
+  gWidgets2::size( imaging_dev )<- c(800, 600)
+  gWidgets2::add(obj = grpTop, child = imaging_dev,  fill = T, expand = T)
+  grpCtl <- gWidgets2::ggroup(horizontal = T, container = grpTop)
+  lblMz <- gWidgets2::glabel(text = paste("m/z", round(mass.peak, digits = 4), "+/-", round(tolerance, digits = 2)), container = grpCtl)
+  lblNorm <- gWidgets2::glabel(text = paste("Normalization:", NormalizationName), container = grpCtl)
+  gWidgets2::addSpring(grpCtl)
+  btnSave <- gWidgets2::gbutton(text = "Save to png", container = grpCtl)
+  gWidgets2::addHandlerClicked(btnSave, .saveGgraphicsPlot2PngFile, action = imaging_dev)
+  gWidgets2::visible(multiImgWin) <- T
+  gWidgets2::visible(imaging_dev) <- T
+  plot.new()
+  title(main = "Generating multi MS image, please wait...")
+
+
+  #Method to apply rotations to a raster object
+  rotateRaster <- function(rasterImg, rotation)
+  {
+    if(rotation == 0)
+    {
+      return(rasterImg)
+    }
+    if(rotation == 90)
+    {
+      return(raster::flip(raster::t(rasterImg), direction = "y"))
+    }
+    if(rotation == 180)
+    {
+      return(raster::flip(raster::flip(rasterImg, direction = "y"), direction = "x"))
+    }
+    if(rotation == 270)
+    {
+      return(raster::flip(raster::t(rasterImg), direction = "x"))
+    }
+    stop("ERROR, invalid rotation parameter. Valid parameters are: 0, 90, 180 and 270\n")
+  }
+
+  #Compute max intenssity for all images
+  idMaxInt <- 1
+  maxIntensity <- 0
+  rotation <- c(rotation, rep(rotation[1], length(rasterImgs) - length(rotation)))
+  flipH <- c(flipH, rep(F, length(rasterImgs) - length(flipH)))
+  flipV <- c(flipV, rep(F, length(rasterImgs) - length(flipV)))
+  for( i in 1:length(rasterImgs))
+  {
+    currMax <- max(raster::values(rasterImgs[[i]]$raster))
+    if(currMax > maxIntensity)
+    {
+      maxIntensity <- currMax
+      idMaxInt <- i
+    }
+    if(flipH[i])
+    {
+      rasterImgs[[i]]$raster <- raster::flip(rasterImgs[[i]]$raster, direction = "x")
+    }
+    if(flipV[i])
+    {
+      rasterImgs[[i]]$raster <- raster::flip(rasterImgs[[i]]$raster, direction = "y")
+    }
+    rasterImgs[[i]]$raster <- rotateRaster(rasterImgs[[i]]$raster, rotation[i])
+  }
+
+  #Layout various rasters horizontally
+  xrangeH <- sum(unlist(lapply(rasterImgs, function(x){ raster::extent(x$raster)@xmax })))
+  yrangeH <- max(unlist(lapply(rasterImgs, function(x){ raster::extent(x$raster)@ymax })))
+
+  #Layout various rasters vertically
+  xrangeV <- max(unlist(lapply(rasterImgs, function(x){ raster::extent(x$raster)@xmax })))
+  yrangeV <- sum(unlist(lapply(rasterImgs, function(x){ raster::extent(x$raster)@ymax })))
+
+  #Choose betweeb horizontal vs vertical layout
+  aspectRatio <- c( xrangeH/yrangeH, xrangeV/yrangeV )
+  names(aspectRatio) <- c("H", "V")
+  selLayout <- names(which.min(abs(1 - aspectRatio)))
+  if( selLayout == "H")
+  {
+    xrange <- xrangeH + (SUB_BORDER_SIZE * length(rasterImgs))
+    yrange <- yrangeH
+    vMode <- 0
+    hMode <- 1
+    imgLabelRotation <- 90
+  }
+  else
+  {
+    xrange <- xrangeV
+    yrange <- yrangeV + (SUB_BORDER_SIZE * length(rasterImgs))
+    vMode <- 1
+    hMode <- 0
+    imgLabelRotation <- 0
+  }
+
+  #Prepara main raster
+  globCanvas <- raster::extent(0, xrange, 0, yrange)
+  xoffset <- 0
+  yoffset <- yrange + SUB_BORDER_SIZE
+  rasterList <- lapply(rasterImgs, function(x){ return(x$raster) })
+  txtXPos <- c()
+  txtYPos <- c()
+  for( i in 1:length(rasterList))
+  {
+    yoffset <- vMode * (yoffset - raster::extent(rasterList[[i]])@ymax - SUB_BORDER_SIZE) #This is only true for vertical layout
+    txtXPos[i] <- xoffset
+    txtYPos[i] <- yoffset
+    raster::extent(rasterList[[i]]) <- c( xoffset , raster::extent(rasterList[[i]])@xmax + xoffset, yoffset, raster::extent(rasterList[[i]])@ymax + yoffset)
+    xoffset <- hMode * (raster::extent(rasterList[[i]])@xmax + SUB_BORDER_SIZE)#This is only true for horitzontal layout
+    rasterList[[i]] <- raster::extend(rasterList[[i]], globCanvas, value = 0)
+  }
+
+  #Combain all rasters in a mosaic
+  rasterList$fun <- max
+  rasterList$na.rm <- TRUE
+  RGBMosaic <- do.call(raster::mosaic, rasterList)
+  rm(rasterList)
+  RGBMosaic <- list(raster = RGBMosaic) #Workaround to be able to use .BuildSingleIonRGBImage function
+  RGBMosaic <- .BuildSingleIonRGBImage(RGBMosaic, XResLevel = 3, global_intensity_scaling_factor = maxIntensity, light = light)
+
+  #Plot data
+  layout( matrix( 1:2, ncol = 2, nrow = 1, byrow = TRUE ), widths = c(7 , 1))
+  .plotMassImageRGB(RGBMosaic, cal_um2pixels = imgList[[i]]$pixel_size_um, display_axes = F, display_syscoords = F, border = MAIN_BORDER_SIZE)
+  txtYPos <- txtYPos + MAIN_BORDER_SIZE
+  txtXPos <- txtXPos + MAIN_BORDER_SIZE
+  rect( xleft = txtXPos,
+        xright = txtXPos +  unlist(lapply(rasterImgs, function(x){ return( x$raster@extent@xmax - x$raster@extent@xmin )  }) ),
+        ybottom = txtYPos,
+        ytop = txtYPos +  unlist(lapply(rasterImgs, function(x){ return( x$raster@extent@ymax - x$raster@extent@ymin )  }) ),
+        border = "white"
+  )
+
+  text(x = txtXPos - hMode, y = vMode + txtYPos + vMode*unlist(lapply(rasterImgs, function(x){ return( x$raster@extent@ymax - x$raster@extent@ymin ) }) ),
+       labels = unlist(lapply(imgList, function(x){return(x$name)})), adj = c(0, 0), cex = 0.8, col ="white", srt = imgLabelRotation)
+  .plotIntensityScale(rasterImgs[[idMaxInt]], intensity_limit = maxIntensity)
+}
+
+#' Save a gWidgets2::ggraphic widget to a png file.
+#' A file dialog is presented to allow the user selecting where png file will be placed.
+#'
+#' @param evt the evt$action must be a pointer to gWidgets2::ggraphic to save.
+#' @param ...
+#'
+.saveGgraphicsPlot2PngFile <- function(evt, ...)
+{
+  png_width <- evt$action$get_size()["width"]
+  png_height <- evt$action$get_size()["height"]
+  fname <- gWidgets2::gfile(text = "Choose location to save plot as png file", type = "save", initial.filename = "~/", multi = F)
+  if( is.null(fname))
+  {
+    return()
+  }
+  if( length(fname) == 0)
+  {
+    return()
+  }
+  if( tolower(unlist(strsplit(fname, split = "\\."))[length( unlist(strsplit(fname, split = "\\.")))]) != "png" )
+  {
+    fname <- paste(fname, ".png", sep = "")
+  }
+  gWidgets2::visible(evt$action) <- T
+  dev.print(png, fname, width = png_width, height = png_height)
+}
+

@@ -17,6 +17,7 @@
   rm(parent_widget)
   mz_tolerance <- c()
   mz_selected <- c()
+  GUI_RASTER_BORDER <- 10 #Pixels of border around ms image to allow better placement of axes and scales
   imaging_dev <- 0
   Spin_Smooth <- 0
   Spin_Xmin <- 0
@@ -98,16 +99,8 @@
   RedrawMSImage <-function()
   {
     visible(this$imaging_dev)<-TRUE
-    if(is.null(this$ZOOM_win))
-    {
-      .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
-                         roi_rectangle =  this$ROI, zoom = F)
-    }
-    else
-    {
-      .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
-                         roi_rectangle =  this$ZOOM_win, zoom = T)
-    }
+    .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
+                         roi_rectangle =  this$ROI, zoom = this$ZOOM_win, border = this$GUI_RASTER_BORDER)
   }
 
   #==================================================================================================
@@ -384,10 +377,10 @@
   #==================================================================================================
   OnPixelSelection <- function( evt, ...)
   {
-    X_left<-round(min(evt$x))
-    X_right<-round(max(evt$x))
-    Y_bottom<-round(min(evt$y)) #Transform raster coords to image coords (only Y axis is affected)
-    Y_top<-round(max(evt$y)) #Transform raster coords to image coords (only Y axis is affected)
+    X_left<-round(min(evt$x)) - this$GUI_RASTER_BORDER
+    X_right<-round(max(evt$x)) - this$GUI_RASTER_BORDER
+    Y_bottom<-round(min(evt$y)) - this$GUI_RASTER_BORDER #Transform raster coords to image coords (only Y axis is affected)
+    Y_top<-round(max(evt$y)) - this$GUI_RASTER_BORDER #Transform raster coords to image coords (only Y axis is affected)
 
     #Apply rotation!
     if(this$Rotation == 0)
@@ -396,15 +389,39 @@
     }
     if(this$Rotation == 90)
     {
-      this$ROI <- c(Y_bottom + 1, Y_top, X_left + 1, X_right)
+      if(is.null(this$ZOOM_win))
+      {
+        this$ROI <- c(Y_bottom + 1, Y_top, X_left + 1, X_right)
+      }
+      else
+      {
+        this$ROI <- c(Y_bottom + 1, Y_top, this$ZOOM_win[3] + this$ZOOM_win[4] - this$img$size["y"] + X_left, this$ZOOM_win[3] + this$ZOOM_win[4] - this$img$size["y"] + X_right - 1)
+      }
     }
     if(this$Rotation == 180)
     {
-      this$ROI <- c( this$img$size["x"] - X_right + 1, this$img$size["x"] - X_left, Y_bottom + 1, Y_top)
+      if(is.null(this$ZOOM_win))
+      {
+        this$ROI <- c( this$img$size["x"] - X_right + 1, this$img$size["x"] - X_left, Y_bottom + 1, Y_top)
+      }
+      else
+      {
+        this$ROI <- c( this$ZOOM_win[2] + this$ZOOM_win[1] - X_right,
+                       this$ZOOM_win[2] + this$ZOOM_win[1] - X_left - 1,
+                       this$ZOOM_win[3] + this$ZOOM_win[4] + Y_bottom - this$img$size["y"],
+                       this$ZOOM_win[3] + this$ZOOM_win[4] + Y_top - this$img$size["y"] - 1)
+      }
     }
     if(this$Rotation == 270)
     {
-      this$ROI <- c( this$img$size["x"] - Y_top + 1, this$img$size["x"] - Y_bottom, this$img$size["y"] - X_right + 1, this$img$size["y"] - X_left)
+      if(is.null(this$ZOOM_win))
+      {
+        this$ROI <- c( this$img$size["x"] - Y_top + 1, this$img$size["x"] - Y_bottom, this$img$size["y"] - X_right + 1, this$img$size["y"] - X_left)
+      }
+      else
+      {
+        this$ROI <- c( this$ZOOM_win[2] + this$ZOOM_win[1] - Y_top, this$ZOOM_win[2] + this$ZOOM_win[1] - Y_bottom - 1, this$img$size["y"] - X_right + 1, this$img$size["y"] - X_left)
+      }
     }
 
     #Set it to ROI spinbuttons
@@ -804,7 +821,7 @@
   Grp_ImgTop<-gWidgets2::ggroup( horizontal = T, container =  Grp_TopImg,  fill = T, expand = T)
   Grp_ImgRoi<-gWidgets2::ggroup( horizontal = F, container =  Grp_ImgTop,  fill = T, expand = T)
   imaging_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( imaging_dev )<- c(200, 200)
+  gWidgets2::size( imaging_dev )<- c(200, 200)
   gWidgets2::addHandlerSelectionChanged( imaging_dev, handler = this$OnPixelSelection, action = this)
   gWidgets2::add(obj = Grp_ImgRoi, child = imaging_dev,  fill = T, expand = T)
 
