@@ -108,7 +108,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
 
   #7- Read all spectra
   binReadOffset <- 16 + ((xmlRes$run_data[1, "mzLength"]) * sizeInBytesFromDataType(xmlRes$mz_dataType))
-  cat("Reading spectra from binary file...\n")
+  cat("\nReading spectra from binary file...\n")
   ppStep<-100/nrow(xmlRes$run_data)
   pp<-0
   for( i in 1:nrow(xmlRes$run_data))
@@ -363,7 +363,8 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
   }
   if( is.null(intArrayDesc$units ))
   {
-    err_string <- paste(err_string, "No intensity array units declared\n", sep = "")
+    cat("\nWarning: No intensity array units declared. Assuming number of counts as default unit.\n") #Just display a wrining because some implementation do not provide data units for intensity array
+    intArrayDesc$units <- "number of counts"
   }
   if( is.null(mzArrayDesc$dataType))
   {
@@ -394,7 +395,6 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
   {
     .controlled_loadAbort("intensity Arrays are not in number of counts units, rMSI does not support it\n", close_signal)
   }
-
 
   #Obtain pixel resolution (I'm reading directly the accession becasue I've found some mismatch beetween obo and imzML example)
   pixel_size_um <- NULL
@@ -490,7 +490,16 @@ xmlParseSpectrum <- function( xmlSingleSpectrum )
 
   #Read pixel position
   ttscanPos <- XML::xmlChildren(ttscan$scanList)
-  ttscanPosXY <- XML::removeChildren(ttscanPos$scan, "referenceableParamGroupRef") #Remove unused node to facilitat reading
+
+  if( is.null((XML::xmlChildren(ttscanPos$scan))$referenceableParamGroupRef ))
+  {
+    ttscanPosXY <- ttscanPos$scan
+  }
+  else
+  {
+    ttscanPosXY <- XML::removeChildren(ttscanPos$scan, "referenceableParamGroupRef") #Remove unused node to facilitat reading
+  }
+
   spectrumInfo <- list (x = NULL, y = NULL, mzLength = NULL, mzOffset = NULL, intLength = NULL, intOffset = NULL)
   for( i in 1:(XML::xmlSize(ttscanPosXY) ))
   {
