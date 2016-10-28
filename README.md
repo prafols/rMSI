@@ -3,7 +3,7 @@ rMSI is an R package for mass spectrometry (MS) imaging data handling and visual
 The package is a multi-platform tool that has been tested on Linux, MAC and Windows systems. 
 It provides an optimized data model to allow loading large MS imaging datasets in low resource computers. MS data is stored in the hard disk drive (HDD) but rMSI is able to access data as if it where kept in computer’s memory using a virtual memory technology. The package also provides a graphical user interface (GUI) to facilitate MS imaging data exploration in R platform. The main rMSI GUI allows representing up to three MS ions spacial distribution, direct access to pixel spectrum and other usefull features. See and screenshot below.
 
-![alt text](https://github.com/prafols/rMSI/blob/master/images/screenShotrMSI_RGB.png = 600x "rMSI Main GUI")
+![alt text](https://github.com/prafols/rMSI/blob/master/images/screenShotrMSI_RGB.png "rMSI Main GUI")
 
 ### Installation
 ##### Rtools (Windows only)
