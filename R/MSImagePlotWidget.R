@@ -25,6 +25,8 @@
   Spin_Ymin <- 0
   Spin_Ymax <- 0
   Rotation <- 0
+  flipV <- F
+  flipH <- F
   Tbl_spotList <- 0
   Scale_light <- 0
   plotting_raster <- NULL #Current plotted MS image object
@@ -99,8 +101,8 @@
   RedrawMSImage <-function()
   {
     visible(this$imaging_dev)<-TRUE
-    .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, display_axes = F,
-                         roi_rectangle =  this$ROI, zoom = this$ZOOM_win, border = this$GUI_RASTER_BORDER)
+    .plotMassImageRGB (this$plotting_raster, cal_um2pixels = this$img$pixel_size_um,  rotation = this$Rotation, flipV = this$flipV, flipH = this$flipH,
+                         display_axes = F, roi_rectangle =  this$ROI, zoom = this$ZOOM_win, border = this$GUI_RASTER_BORDER)
   }
 
   #==================================================================================================
@@ -422,6 +424,20 @@
       {
         this$ROI <- c( this$ZOOM_win[2] + this$ZOOM_win[1] - Y_top, this$ZOOM_win[2] + this$ZOOM_win[1] - Y_bottom - 1, this$img$size["y"] - X_right + 1, this$img$size["y"] - X_left)
       }
+    }
+
+    #Apply flip
+    if((this$flipV && this$Rotation == 0) || (this$flipV && this$Rotation == 180) || (this$flipH && this$Rotation == 90) || (this$flipH && this$Rotation == 270))
+    {
+      aux <- this$img$size["y"]  - this$ROI[4]
+      this$ROI[4] <- this$img$size["y"]  - this$ROI[3]
+      this$ROI[3] <- aux
+    }
+    if((this$flipH && this$Rotation == 0) || (this$flipH && this$Rotation == 180) || (this$flipV && this$Rotation == 90) || (this$flipV && this$Rotation == 270))
+    {
+      aux <- this$img$size["x"] - this$ROI[2]
+      this$ROI[2] <- this$img$size["x"] - this$ROI[1]
+      this$ROI[1] <- aux
     }
 
     #Set it to ROI spinbuttons
@@ -768,6 +784,20 @@
     RGtk2::gtkWidgetShow(gWidgets2::getToolkitWidget(this$Btn_Show))
   }
 
+  #================================================================================================
+  BtnFlipH <- function ( ... )
+  {
+    this$flipH <-  !(this$flipH)
+    this$RedrawMSImage()
+  }
+
+  #================================================================================================
+  BtnFlipV <- function ( ... )
+  {
+    this$flipV <- !(this$flipV)
+    this$RedrawMSImage()
+  }
+
   #Build the GUI
   Top_frm <- gWidgets2::gframe( text =  paste("<span foreground=\"",meanSpectrumColor ,"\" size=\"large\">Image: ",img$name, "</span>", sep = ""), markup = T, container = parent, spacing = 5 )
 
@@ -805,9 +835,15 @@
   RGtk2::gtkWidgetHide(gWidgets2::getToolkitWidget(this$Btn_Show))
   Lbl_Rotation<- gWidgets2::glabel(text = "Rotation: 0", container = Grp_Buttons)
   Btn_rotate_CCW <- gWidgets2::gbutton("", container = Grp_Buttons, handler = this$BtnRotateCCW)
-  RGtk2::gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CCW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CCW.png") )
+  RGtk2::gtkImageSetFromFile( gWidgets2::getToolkitWidget(Btn_rotate_CCW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CCW.png") )
   Btn_rotate_CW <- gWidgets2::gbutton("", container = Grp_Buttons, handler = this$BtnRotateCW)
-  RGtk2::gtkImageSetFromFile( getToolkitWidget(Btn_rotate_CW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CW.png") )
+  RGtk2::gtkImageSetFromFile( gWidgets2::getToolkitWidget(Btn_rotate_CW)$image, filename = file.path(system.file(package = "rMSI", "icons"),"Rotate_CW.png") )
+
+  Btn_flipV <- gWidgets2::gbutton("", container = Grp_Buttons, handler = this$BtnFlipV)
+  RGtk2::gtkImageSetFromFile( gWidgets2::getToolkitWidget(Btn_flipV)$image, filename = file.path(system.file(package = "rMSI", "icons"),"FlipV.png") )
+  Btn_flipH <- gWidgets2::gbutton("", container = Grp_Buttons, handler = this$BtnFlipH)
+  RGtk2::gtkImageSetFromFile( gWidgets2::getToolkitWidget(Btn_flipH)$image, filename = file.path(system.file(package = "rMSI", "icons"),"FlipH.png") )
+
   Lbl_Xres<- gWidgets2::glabel(text = "Interpolation:", container = Grp_Buttons)
   Combo_Xres <- gWidgets2::gcombobox( items = c("x1","x2","x3","x4","x5"), selected = 2, container = Grp_Buttons, handler = this$ComboBox_XRes_Changed)
   Lbl_Normalitzation <- gWidgets2::glabel(text = "Normalization:", container = Grp_Buttons)

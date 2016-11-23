@@ -169,6 +169,22 @@
   par( bg = "black", fg =  "white", col.lab="white", xaxt="n", yaxt="n", col.axis = "white", col.main = "white", col.sub = "white",
        cex.axis = 0.7, mar = c(1,1,1,1), mgp = c(2, 0.5, 0.5))
 
+  #Apply flip
+  if((flipV && rotation == 0) || (flipV && rotation == 180) || (flipH && rotation == 90) || (flipH && rotation == 270))
+  {
+    aux <- img_Ymax - roi_rectangle[4]
+    roi_rectangle[4] <- img_Ymax - roi_rectangle[3]
+    roi_rectangle[3] <- aux
+    rasterRGB <- raster::flip(rasterRGB, direction = "y")
+  }
+  if((flipH && rotation == 0) || (flipH && rotation == 180) || (flipV && rotation == 90) || (flipV && rotation == 270))
+  {
+    aux <- img_Xmax - roi_rectangle[2]
+    roi_rectangle[2] <- img_Xmax - roi_rectangle[1]
+    roi_rectangle[1] <- aux
+    rasterRGB <- raster::flip(rasterRGB, direction = "x")
+  }
+
   #Apply rotation
   roi_rectangle_pre <- roi_rectangle
   if( rotation == 0 )
