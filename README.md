@@ -31,4 +31,8 @@ Then simply tell devtools to install rMSI from github latest release:
 ```R
 > devtools::install_github("prafols/rMSI", ref = "0.3")
 ```
-This will install rMSI package and all of its dependencies in your R environment. Then you can access to its functions by loading the rMSI package or through the `::` operator.
+This will install rMSI package and all of its dependencies in your R environment. Then you can access to its functions by loading the rMSI package or through the `::` operator. For example, you can test the main rMSI GUI by executing:
+```R
+> foo <- rMSI::OpenMSI()
+```
+This will open a dialog that allows loading up to two MS images in imzML format or rMSI .tar format. Then the MS images will be displayed. A reference to each MS image will be returned and stored in *foo* variable as *foo$img1* and *foo$img2*. 
