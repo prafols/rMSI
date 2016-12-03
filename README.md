@@ -102,5 +102,5 @@ rMSI::plotSpectra(mass = myData$mass, intensity = myFirstIntensities, col = "red
 The rMSI main GUI can be used to obtain spectra ID’s from a set of pixels. First, open the MS image in the main GUI using the  *OpenMSI()* or *MSIWindow()* functions as described before. Then select some ion to visualize in the spectrum. After that, draw a rectangle over the MS image and click the *Get Spectra* button to fill the spectra list with the pixels inside the selected area. Finally, export the spectra list using the *Export* button. This will export the selected spectra as plain ASCII files and a list of ID’s also as an ASCII file. If many pixels are selected a warning will be displayed and exporting only ID list will be allowed. Then, the exported list can be loaded into R session by standard functions as *read.table()*.
 
 ###  Example Data
-Some free MS images are available at the following link to test rMSI package:
+Some MS images are available at the following link to test rMSI package:
 <https://drive.google.com/drive/folders/0Bw0ksDAUk_BDWWttY0dTdnFWSVU?usp=sharing>
