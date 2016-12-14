@@ -429,6 +429,28 @@ SortIDsByAcquisition <- function(img)
   return(idxArray[,"id"])
 }
 
+#' PlotValues.
+#'
+#' Plot values in a image using the same methods as plotting an MS image.
+#' The raster position of each value is definied in posMat.
+#'
+#' @param posMat a two columns matrix where first column ara the x coodrinates of values and second column the y coordinates.
+#' @param values the values to plot.
+#' @param rotate rotation to apply.
+#' @param scale_title a text label for the color scale.
+#'
+#' @export
+#'
+PlotValues <- function(posMat, values, rotate = 0, scale_title = "")
+{
+  fooImg <- list()
+  fooImg$pos <- posMat
+  colnames(fooImg$pos) <- c("x", "y")
+  fooImg$size <- c(max(fooImg$pos[ ,"x"]), max(fooImg$pos[ ,"y"]))
+  names(fooImg$size) <- c("x", "y")
+  PlotTICImage( fooImg, values, rotate, scale_title )
+}
+
 #' PlotTICImage.
 #'
 #' @param img an rMSI object.
