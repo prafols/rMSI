@@ -438,16 +438,18 @@ SortIDsByAcquisition <- function(img)
 #' @param values the values to plot.
 #' @param rotate rotation to apply.
 #' @param scale_title a text label for the color scale.
+#' @param pixel_size_um the pixel resolution in um.
 #'
 #' @export
 #'
-PlotValues <- function(posMat, values, rotate = 0, scale_title = "")
+PlotValues <- function(posMat, values, rotate = 0, scale_title = "", pixel_size_um = 100)
 {
   fooImg <- list()
   fooImg$pos <- posMat
   colnames(fooImg$pos) <- c("x", "y")
   fooImg$size <- c(max(fooImg$pos[ ,"x"]), max(fooImg$pos[ ,"y"]))
   names(fooImg$size) <- c("x", "y")
+  fooImg$pixel_size_um <- pixel_size_um
   PlotTICImage( fooImg, values, rotate, scale_title )
 }
 
