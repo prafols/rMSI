@@ -56,11 +56,10 @@
 #' @param raw_data_full_path Where the Bruker XMASS data is located.
 #' @param resolution_um The image pixel size un micrometers (sorry it can not be read directly from XMASS).
 #' @param xml_file_full_path Full path to the XML file.
-#' @param output_data_filename Where the compressed image .tar will be stored
 #' @param ... Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).
 #'
 #' @export
-importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_path, output_data_filename, ...)
+importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_path, ...)
 {
   cat("Importing data to R session...\n")
   pt<-proc.time()
@@ -78,24 +77,12 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   cat(paste("Average spectrun time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   gc()
 
-  cat("Packaging R data objects...\n")
-  pt<-proc.time()
-
-  #Append esolution fields to img Object
+  #Append resolution fields to img Object
   raw$pixel_size_um <- resolution_um
 
-  #Store the img to hdd
-  SaveMsiData(raw, output_data_filename)
-  pt<-proc.time() - pt
-  cat(paste("Data saving time:", round(pt["elapsed"], digits = 1),"seconds\n"))
-
-  cat("Done. Data is saved in:\n",  output_data_filename, "\n")
-  gc()
-
-  #Remove ff file created on HDD
-  lapply(raw$data, ff::delete)
-  rm(raw)
-  unlink(ff_folder, recursive = T) #Remove folder containing ffdata
+  #Give a name to the image
+  raw$name <- basename(xml_file_full_path)
+  return(raw)
 }
 
 
@@ -294,13 +281,19 @@ importBrukerXMASSImg_Wizard <- function()
     {
       cat(paste("\n\nStarting imporation of:", basename(path_xml[i]), "(file", i, "of", length(path_xml), ")\n"))
       veryStart<-proc.time()
-      importBrukerXmassImg(raw_data_full_path = path_data, resolution_um =  resolutions[i] , xml_file_full_path = path_xml[i], output_data_filename= path_output_file[i])
+      rawImg <- importBrukerXmassImg(raw_data_full_path = path_data, resolution_um =  resolutions[i] , xml_file_full_path = path_xml[i])
+      SaveMsiData(rawImg, path_output_file[i])
+      DeleteRamdisk(rawImg)
+      rm(rawImg)
+      gc()
       cat(paste("Importation of", basename(path_xml[i]), "complete  with the following time statistics:\n"))
       print(proc.time() - veryStart)
     }
   } else {
     cat("Data importation aborted by user, please try again!\n")
   }
+
+  gc()
 
   setwd(startWD)
 }

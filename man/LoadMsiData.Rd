@@ -24,7 +24,7 @@ LoadMsiData(data_file, restore_path = file.path(dirname(data_file),
 \value{
 an rMSI object pointing to ramdisk stored data
 
-Loads a rMSI data object from .tar compressed file. It will be uncompressed at specified restore_path.
+Loads a rMSI data object from .tar compressed file or imzML format. It will be uncompressed at specified restore_path.
 fun_progress can be NULL or a function with the following prototipe: fun_progress( currentState ). If NULL is used
 a default command line progress bar is used.
 This function will be called periodically to monitor the loading status. This is usefull to implement progressbars.

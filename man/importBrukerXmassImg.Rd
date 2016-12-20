@@ -4,8 +4,7 @@
 \alias{importBrukerXmassImg}
 \title{Import a MSI dataset from Bruker XMASS folder and a XML file.}
 \usage{
-importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path,
-  output_data_filename, ...)
+importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path, ...)
 }
 \arguments{
 \item{raw_data_full_path}{Where the Bruker XMASS data is located.}
@@ -13,8 +12,6 @@ importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path,
 \item{resolution_um}{The image pixel size un micrometers (sorry it can not be read directly from XMASS).}
 
 \item{xml_file_full_path}{Full path to the XML file.}
-
-\item{output_data_filename}{Where the compressed image .tar will be stored}
 
 \item{...}{Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).}
 }
