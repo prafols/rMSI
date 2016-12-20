@@ -56,16 +56,17 @@
 #' @param raw_data_full_path Where the Bruker XMASS data is located.
 #' @param resolution_um The image pixel size un micrometers (sorry it can not be read directly from XMASS).
 #' @param xml_file_full_path Full path to the XML file.
+#' @param txt_spectrum_path Full path to a bruker spectrum txt file to extract mass axis (optional).
 #' @param ... Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).
 #'
 #' @export
-importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_path, ...)
+importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_path, txt_spectrum_path = NULL, ...)
 {
   cat("Importing data to R session...\n")
   pt<-proc.time()
   ff_folder<-file.path(raw_data_full_path, "ffdata")
   dir.create(ff_folder)
-  raw<-.readBrukerXmassImg(raw_data_folder = raw_data_full_path, xml_file = xml_file_full_path, ff_data_folder = ff_folder, ...)
+  raw<-.readBrukerXmassImg(raw_data_folder = raw_data_full_path, xml_file = xml_file_full_path, ff_data_folder = ff_folder, sample_spectrum_path = txt_spectrum_path, ...)
 
   pt<-proc.time() - pt
   cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
@@ -87,7 +88,7 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
 
 
 #Internal function too read bruker XMASS data and create the ramdisk
-.readBrukerXmassImg<-function(raw_data_folder, xml_file, ff_data_folder, max_ff_file_size_MB = 50)
+.readBrukerXmassImg<-function(raw_data_folder, xml_file, ff_data_folder, max_ff_file_size_MB = 50, sample_spectrum_path = NULL)
 {
   #Internal methods
   ##Stores a directory structure of raw_data
@@ -168,8 +169,21 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   #Store directory structure to avoid wasting time in dir() fuctions
   rawDirs<-dataListing(raw_data_folder, spectraList[1])
 
-  #2- Read Spectrum acqu file and generate m/z vector
-  mz_axis<-generateMzAxisFromAcquFile(file.path(rawDirs[spectraList[1]], "1", "1SRef","acqu"))
+  #2- Read Spectrum acqu file and generate m/z vector or use sampel txt spectrum if it is available
+  mz_axis_acqu<-generateMzAxisFromAcquFile(file.path(rawDirs[spectraList[1]], "1", "1SRef","acqu"))
+  if(!is.null(sample_spectrum_path))
+  {
+    mz_axis_sample<-read.table(sample_spectrum_path)[,1]
+    if(length(mz_axis_acqu) != length(mz_axis_sample))
+    {
+      stop("Error: The mass axis length of acqu file is different of the sample txt spectrum.\n")
+    }
+  }
+  else
+  {
+    #No sample spectrum provided, so use the acqu file
+    mz_axis <- mz_axis_acqu
+  }
 
   #3- Read Spectrum FID file and fill data structure if not zero intensity
   dataPos <- matrix(NA, ncol = 2, nrow = length(spectraList))
