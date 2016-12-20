@@ -503,38 +503,6 @@ PlotTICImage <- function(img, TICs = NULL, rotate = 0, scale_title = "TIC")
   .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F)
 }
 
-#' calMzAxis.
-#'
-#' @param avgSpc_mz  The mass axis to calibrate.
-#' @param ref_mz a vector of reference masses (for exaple the theorical gold peaks).
-#' @param target_mz manually slected masses to be fittet to ref_masses (must be the same length than ref_mz).
-#' @param use_zoo if true zoo package is used for mass error interpolation, it is much more tolerant to large mass errors. Use it carefuly!.
-#'
-#' @return the calibrated mass axis.
-#' @export
-#'
-calMzAxis <- function(avgSpc_mz, ref_mz, target_mz, use_zoo = F )
-{
-  if(use_zoo)
-  {
-    real_idx <- unlist( lapply(target_mz, function(x){ which.min(abs(x - avgSpc_mz)) }))
-    new_mz <- rep(NA, length(avgSpc_mz))
-    new_mz[real_idx] <- ref_mz
-    error <- new_mz - avgSpc_mz
-    error <- zoo::na.spline( error )
-    return(avgSpc_mz + error)
-  }
-  else
-  {
-    MQrefPeaks <- MALDIquant::createMassPeaks(ref_mz, rep(1, length(ref_mz)))
-    MQtargetPeaks <- MALDIquant::createMassPeaks(target_mz, rep(1, length(target_mz)))
-    MQwarp <- MALDIquant::determineWarpingFunctions(list(MQtargetPeaks), reference = MQrefPeaks, tolerance = 0.005, method = "lowess")
-    MQSpectra <- MALDIquant::createMassSpectrum(mass = avgSpc_mz, intensity = rep(0, length(avgSpc_mz)))
-    MQcalibrated <- MALDIquant::warpMassSpectra(list(MQSpectra), MQwarp)
-    return(MQcalibrated[[1]]@mass)
-  }
-}
-
 #' ConvertrMSIimg2Bin.
 #'
 #' @param img a rMSI image object to be converted.

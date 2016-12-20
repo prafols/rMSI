@@ -71,7 +71,6 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   pt<-proc.time() - pt
   cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
 
-  cat("Calculating average spectrum...\n")
   pt<-proc.time()
   raw$mean <-AverageSpectrum(raw)
   pt<-proc.time() - pt
@@ -178,6 +177,7 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
     {
       stop("Error: The mass axis length of acqu file is different of the sample txt spectrum.\n")
     }
+    mz_axis <- mz_axis_sample
   }
   else
   {
