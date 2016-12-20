@@ -26,6 +26,7 @@
 #'
 NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
 {
+  cat("TIC normalization...\n")
   pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
   setTxtProgressBar(pb, 0)
   TICs <- c()
@@ -59,6 +60,7 @@ NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
 #'
 NormalizeMAX <- function(img, remove_empty_pixels = FALSE)
 {
+  cat("MAX normalization...\n")
   pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
   setTxtProgressBar(pb, 0)
   MAXs <- c()
@@ -95,6 +97,7 @@ NormalizeMAX <- function(img, remove_empty_pixels = FALSE)
 #'
 NormalizeTargetPeaks <- function(img, mz_vector, mz_window_size = 0.1, norm_name = "SelPK")
 {
+  cat("Target peaks normalization...\n")
   pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
   setTxtProgressBar(pb, 0)
 
@@ -134,6 +137,8 @@ NormalizeTargetPeaks <- function(img, mz_vector, mz_window_size = 0.1, norm_name
 #'
 NormalizeByAcqDegradation <- function( img, winSize = 0.1 )
 {
+  cat("AcqTic normalization...\n")
+
   #Calc all tics
   pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
   setTxtProgressBar(pb, 0)
@@ -196,6 +201,7 @@ NormalizeByAcqDegradation <- function( img, winSize = 0.1 )
 #'
 NormalizeByAcqDegradationOnTargetPeaks <- function(img, mz_vector, mz_window_size = 0.1, norm_name = "AcqSelPK", winSize = 0.1)
 {
+  cat("AcqTargetPeaks normalization...\n")
   pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
   setTxtProgressBar(pb, 0)
 
