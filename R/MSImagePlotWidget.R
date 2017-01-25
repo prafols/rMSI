@@ -286,7 +286,7 @@
     id_fil_pos <- which(id > 0)
     if(length(id_fil_pos) > 0)
     {
-      intensity_data <- loadImgCunckFromIds(this$img, id[id_fil_pos])
+      intensity_data <- loadImgChunkFromIds(this$img, id[id_fil_pos])
       for( i in 1:length(id_fil_pos))
       {
         intensity_list[[length(intensity_list) + 1]] <- intensity_data[i, ]
@@ -313,8 +313,22 @@
       return ()
     }
 
+    #Export indexes to ID.txt file
+    if(length(indexes) > 0)
+    {
+      #Save the id file
+      id_fname <- file.path( store_paths, "ID.txt")
+      write(indexes, file = id_fname, ncolumns = 1)
+    }
+
+    #Continue exporting TXT spectra
+    bExportData <- gWidgets2::gconfirm(paste("ID's have been exported to ID.txt file\nDo you also want to store spectra as TXT?"), title = "Export spectra as TXT", icon = "question")
+    if(!bExportData)
+    {
+      return()
+    }
+
     #display a BIG WaRNIng IF to much ID's are seected!
-    bExportData <- T
     if( length(indexes) > 25)
     {
       bExportData<-gWidgets2::gconfirm(paste("You are exporting a lot of data. (", length(indexes) ,"mass spectrums )\nThis may take a long time and expend a lot of memory.\nDo you want to store spectra as TXT?"), title = "Warning: Large data export!", icon = "warning")
@@ -325,7 +339,6 @@
     #Create a dir to store all data inside
     store_paths <- file.path(store_paths, paste("Export_", tools::file_path_sans_ext(this$img$name),"_", format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), sep = "" ))
     dir.create( store_paths )
-
 
     #Save mean spectra
     if(class(this$img$mean) == "MassSpectrum")
@@ -340,30 +353,23 @@
     write( x = t(spc), file = file.path( store_paths, "average.txt" ), ncolumns = 2  )
 
 
-    if(length(indexes) > 0)
+    if(length(indexes) > 0 && bExportData)
     {
-      #Save the id file
-      id_fname <- file.path( store_paths, "ID.txt")
-      write(indexes, file = id_fname, ncolumns = 1)
+      #Save each ID in the lit
+      dataChunck <- loadImgChunkFromIds(this$img, indexes)
 
-      if(bExportData)
+      for( i in 1:length(indexes))
       {
-        #Save each ID in the lit
-        dataChunck <- loadImgCunckFromIds(this$img, indexes)
-
-        for( i in 1:length(indexes))
+        spc <- matrix(data= c(this$img$mass, dataChunck[i, ]), ncol = 2, byrow = F)
+        spc_fname<-  file.path( store_paths, paste("ID_", indexes[i] ,".txt", sep =""))
+        write( x = t(spc), file = spc_fname, ncolumns = 2  )
+        if( !mPbar$setValue( 100* i/length(indexes) ))
         {
-          spc <- matrix(data= c(this$img$mass, dataChunck[i, ]), ncol = 2, byrow = F)
-          spc_fname<-  file.path( store_paths, paste("ID_", indexes[i] ,".txt", sep =""))
-          write( x = t(spc), file = spc_fname, ncolumns = 2  )
-          if( !mPbar$setValue( 100* i/length(indexes) ))
-          {
-            #Aborted by user
-            rm(dataChunck)
-            unlink( store_paths, recursive = T )
-            gc()
-            return()
-          }
+          #Aborted by user
+          rm(dataChunck)
+          unlink( store_paths, recursive = T )
+          gc()
+          return()
         }
       }
     }

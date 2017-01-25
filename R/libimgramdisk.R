@@ -29,7 +29,7 @@
 #'
 #' @export
 #'
-loadImgCunckFromIds<-function(Img, Ids)
+loadImgChunkFromIds<-function(Img, Ids)
 {
   ind <- getCubeRowFromIds(Img, Ids)
 
@@ -57,7 +57,7 @@ loadImgCunckFromIds<-function(Img, Ids)
 #'
 #' @export
 #'
-saveImgCunckAtIds<-function(Img, Ids, dm)
+saveImgChunkAtIds<-function(Img, Ids, dm)
 {
   ind <- getCubeRowFromIds(Img, Ids)
 
@@ -82,9 +82,9 @@ saveImgCunckAtIds<-function(Img, Ids, dm)
 #'
 #' @export
 #'
-loadImgCunckFromCoords<-function(Img, Coords)
+loadImgChunkFromCoords<-function(Img, Coords)
 {
-  return(loadImgCunckFromIds(Img, getIdsFromCoords(Img, Coords)))
+  return(loadImgChunkFromIds(Img, getIdsFromCoords(Img, Coords)))
 }
 
 #' Stores a data matrix to a part of ff data img.
@@ -97,9 +97,9 @@ loadImgCunckFromCoords<-function(Img, Coords)
 #'
 #' @export
 #'
-saveImgCunckAtCoords<-function(Img, Coords, dm)
+saveImgChunkAtCoords<-function(Img, Coords, dm)
 {
-  saveImgCunckAtIds(Img, getIdsFromCoords(Img, Coords), dm)
+  saveImgChunkAtIds(Img, getIdsFromCoords(Img, Coords), dm)
 }
 
 #' Loads a part of a ff data img in RAM.
@@ -114,7 +114,7 @@ saveImgCunckAtCoords<-function(Img, Coords, dm)
 #'
 #' @export
 #'
-loadImgCunckFromCube<-function(Img, Cube)
+loadImgChunkFromCube<-function(Img, Cube)
 {
   return(Img$data[[Cube]][,])
 }
@@ -127,7 +127,7 @@ loadImgCunckFromCube<-function(Img, Cube)
 #'
 #' @export
 #'
-saveImgCunckToCube<-function(Img, Cube, dm)
+saveImgChunkToCube<-function(Img, Cube, dm)
 {
   Img$data[[Cube]][,] <- dm
 }

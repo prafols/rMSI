@@ -85,11 +85,11 @@ rMSI stores MS data in computer’s hard drive and only loads part of it to RAM 
 ##### Accessing spectra
 To simplify data access rMSI provides *loadImgCunckFromIds()* and *loadImgCunckFromCoords()* functions to load a bunch of selected pixel spectra to an R matrix. This functions load data into standard R variables so, be careful to not load to many data in your computer’s memory. For example, lets suppose I want lo load some spectra of pixels which I know their ID and the desired ID’s are 34, 56 and 96:
 ```R
-mySpectra <- rMSI::loadImgCunckFromIds(myData, c(34, 56, 96))
+mySpectra <- rMSI::loadImgChunkFromIds(myData, c(34, 56, 96))
 ```
 And if I don't know the ID's but I know the XY coordinates the spectra can be also access expresing the XY coordinates as complex numbers, for example:
 ```R
-mySpectra <- rMSI::loadImgCunckFromCoords(myData, complex(real = c(10, 12, 34), imaginary = c(5, 9, 12)))
+mySpectra <- rMSI::loadImgChunkFromCoords(myData, complex(real = c(10, 12, 34), imaginary = c(5, 9, 12)))
 ```
 In both cases an R matrix is returned. Each row of the matrix corresponds to one spectrum using the same order as the ID’s or XY coords were provided. So you can get your first spectrum intensities by doing:
 ```R

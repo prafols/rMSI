@@ -135,7 +135,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     iCol <- which(xmlRes$run_data[, "intOffset"] == binReadOffset)
     dd <- readBin(bincon, readDataType, xmlRes$run_data[iCol, "intLength"], size = bytes2Read, signed = T)
     binReadOffset <- binReadOffset + (bytes2Read * xmlRes$run_data[iCol, "intLength"])
-    saveImgCunckAtIds(datacube, Ids =  i, dm = matrix(dd, nrow = 1, ncol = length(dd)))
+    saveImgChunkAtIds(datacube, Ids =  i, dm = matrix(dd, nrow = 1, ncol = length(dd)))
     datacube$pos[i, "x"] <- xmlRes$run_data[iCol, "x"]
     datacube$pos[i, "y"] <- xmlRes$run_data[iCol, "y"]
 

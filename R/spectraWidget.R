@@ -114,7 +114,11 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   SelIon_tol_B <- NA
   CurrentSelTool <- "Zoom" #Stores the curren state of the sel tool, can be: Zoom, Red, Green and Blue
   MAX_SPECTRA_LIMIT <- max_spectra_limit #Maximum number of spectra that can be added
-  this$ReDraw <- F #Signal when spectra must be redraw
+  ReDraw <- F #Signal when spectra must be redraw
+  MAX_MASS_SEL_RANGE <- 4 #Max range of masses to allow selection (in Da)
+  ReDrawRedImg <- F
+  ReDrawGreenImg <- F
+  ReDrawBlueImg <- F
 
   #Stop gtimer if widget is distroyed
   Widget_Disposed <- function (evt, ...)
@@ -226,7 +230,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Add spectrum data================================================================================
+  #Add spectrum data
   AddSpectra <- function( mass_data, intensity_data, mass_peaks = NULL, intensity_peaks = NULL, col = "", name = "", add_enabled = T )
   {
     if( length(this$spectra_data) >= this$MAX_SPECTRA_LIMIT)
@@ -253,6 +257,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$spectra_data[[as.character(name)]]<-this$CreateSpectrumObj(mass_data, intensity_data, col, mass_peaks, intensity_peaks, add_enabled)
 
     this$data_mass_range <- c(min(sapply(this$spectra_data, function(x){ return( x$mass[1] ) })),max(sapply(this$spectra_data, function(x){ return( x$mass[length(x$mass)] ) })))
+
+    #Set Spin_massSel range properly
+    gWidgets2::blockHandlers(this$Spin_massSel)
+    RGtk2::gtkSpinButtonSetRange( gWidgets2::getToolkitWidget( this$Spin_massSel),  this$data_mass_range[1],  this$data_mass_range[2] )
+    gWidgets2::unblockHandlers(this$Spin_massSel)
+
     if(length(this$spectra_data) == 1) #First spectrum added, so zoom properly
     {
       this$mz_lim <- this$data_mass_range
@@ -261,14 +271,14 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Set ref mass data, ref masses will be ploted as vertical dashed lines=============================
+  #Set ref mass data, ref masses will be ploted as vertical dashed lines
   SetRefMass <- function( mass_data )
   {
     this$ref_mass <- mass_data
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Remove spectrum data==============================================================================
+  #Remove spectrum data
   RmSpectra <- function( name )
   {
     this$spectra_data<- this$spectra_data[-(which(names(this$spectra_data) == as.character(name)))]
@@ -279,22 +289,86 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       this$mz_lim <- c(min(sapply(this$spectra_data, function(x){ return( x$mass[1] ) })),max(sapply(this$spectra_data, function(x){ return( x$mass[length(x$mass)] ) })))
       this$in_lim <- c(0 ,max(sapply(this$spectra_data, function(x){ return( max(x$intensity)) }))*1.1)
       this$data_mass_range <- this$mz_lim
+
+      #Set Spin_massSel range properly
+      gWidgets2::blockHandlers(this$Spin_massSel)
+      RGtk2::gtkSpinButtonSetRange( gWidgets2::getToolkitWidget( this$Spin_massSel),  this$data_mass_range[1],  this$data_mass_range[2] )
+      gWidgets2::unblockHandlers(this$Spin_massSel)
     }
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Clear all spectrum data===========================================================================
+  #Clear all spectrum data
   ClearSpectra <- function( )
   {
     this$spectra_data<-list()
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Redraw ggraph with interpolation using a timer ======================================
+  #Redraw MS image on parent widget in a given channel
+  ReDrawParentMSI <- function()
+  {
+    if(this$ReDrawRedImg) #Red
+    {
+      this$clicFun(1, this$SelIon_mz_R, this$SelIon_tol_R)
+    }
+    if(this$ReDrawGreenImg) #Green
+    {
+      this$clicFun(2, this$SelIon_mz_G, this$SelIon_tol_G)
+    }
+    if(this$ReDrawBlueImg) #Blue
+    {
+      this$clicFun(3, this$SelIon_mz_B, this$SelIon_tol_B)
+    }
+
+    mz_sel_spin <- NULL
+    mz_tol_spin <- NULL
+    if(this$CurrentSelTool == "Red" )
+    {
+      mz_sel_spin <- this$SelIon_mz_R
+      mz_tol_spin <- this$SelIon_tol_R
+    }
+
+    if(this$CurrentSelTool == "Green" )
+    {
+      mz_sel_spin <- this$SelIon_mz_G
+      mz_tol_spin <- this$SelIon_tol_G
+    }
+
+    if(this$CurrentSelTool == "Blue" )
+    {
+      mz_sel_spin <- this$SelIon_mz_B
+      mz_tol_spin <- this$SelIon_tol_B
+    }
+
+    #Set Spin_massSel range properly
+    if( !is.null(mz_sel_spin) && !is.null(mz_tol_spin))
+    {
+      gWidgets2::blockHandlers(this$Spin_massSel)
+      gWidgets2::blockHandlers(this$Spin_TolSel)
+      gWidgets2::svalue(this$Spin_massSel) <- mz_sel_spin
+      gWidgets2::svalue(this$Spin_TolSel) <- mz_tol_spin
+      RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), mz_tol_spin, mz_tol_spin)
+      gWidgets2::unblockHandlers(this$Spin_massSel)
+      gWidgets2::unblockHandlers(this$Spin_TolSel)
+    }
+
+    this$ReDrawRedImg <- F
+    this$ReDrawGreenImg <- F
+    this$ReDrawBlueImg <- F
+  }
+
+  #Redraw ggraph with interpolation using a timer
   ReDrawByTimer <- function( data )
   {
     if( this$ReDraw )
     {
+      #Redraw parent MS image if necessari
+      if( !is.null( this$clicFun ))
+      {
+          ReDrawParentMSI()
+      }
+
       #Reduce spectra data size to speed-up ploting
       mass_range <- this$mz_lim
       npoints <- 2*gWidgets2::size(this$plot_device)["width"]
@@ -380,6 +454,10 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
             }
 
             lines(x = mzData, y = inData, col= this$spectra_data[[li]]$color)
+            if(length(mzData) <= 200)
+            {
+              points(x = mzData, y = inData, col= this$spectra_data[[li]]$color, pch = 20)
+            }
 
             #Plot labels
             if( !is.null(this$spectra_data[[li]]$mass_peaks) && !is.null(this$spectra_data[[li]]$intensity_peaks) )
@@ -394,14 +472,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
           }
         }
       }
-
-      #Update cursor
-      this$SetStateAccordingSelTool()
     }
+    this$SetStateAccordingSelTool()
     this$ReDraw <- F #Reset the redraw signaling
   }
 
-  #OpenTXT==========================================================================================
+  #OpenTXT
   OpenTXT <- function( evt, ... )
   {
     fname<-file.choose()
@@ -410,7 +486,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Reset Zoom button clicked========================================================================
+  #Reset Zoom button clicked
   ZoomResetClicked <- function( evt, ... )
   {
     if(length(this$spectra_data) == 0) return()
@@ -419,7 +495,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Auto Zoomin Mz axis==============================================================================
+  #Auto Zoomin Mz axis
   ZoomMzClicked <- function( evt, ... )
   {
     if(length(this$spectra_data) == 0) return()
@@ -427,7 +503,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Auto Zomming Intensity Axis======================================================================
+  #Auto Zomming Intensity Axis
   ZoomInClicked <- function( evt, ... )
   {
     if(length(this$spectra_data) == 0) return()
@@ -435,7 +511,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Intensity auto-zoom==============================================================================
+  #Intensity auto-zoom
   AutoZoomIntensity <- function( )
   {
     if(length(this$spectra_data) == 0) return()
@@ -456,7 +532,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
 
-  #Grab Mouse Selection Changes on plot=============================================================
+  #Grab Mouse Selection Changes on plot
   OnSelection <- function( evt, ... )
   {
     if(length(this$spectra_data) == 0) return()
@@ -478,30 +554,36 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       mz_sel<-round(mz_sel, digits = 2)
       mz_tol<-max(mz_tol, 0)
 
+      #Use the tolerance spin if the spectrum was just clicked
+      if(mz_tol == 0)
+      {
+        mz_tol <- gWidgets2::svalue(this$Spin_TolSel)
+      }
+
       #Limit selection to 5 Da to avoid selecting large parts of spectra and filling RAM
-      if(mz_tol*2 > 5 )
+      if(mz_tol*2 > this$MAX_MASS_SEL_RANGE )
       {
         cat(paste("Ion selection in a range of", mz_tol*2, "Da has been aborted. To large data sector.\n"))
         return(TRUE)
       }
 
-      if(this$CurrentSelTool == "Red" && !is.null(this$clicFun))
+      if(this$CurrentSelTool == "Red")
       {
-        ret <- this$clicFun(1, mz_sel, mz_tol)
-        this$SelIon_mz_R = ret$selMz
-        this$SelIon_tol_R = ret$selTol
+        this$SelIon_mz_R <- mz_sel
+        this$SelIon_tol_R <- mz_tol
+        this$ReDrawRedImg <- T
       }
-      else if ( this$CurrentSelTool == "Green" && !is.null(this$clicFun))
+      else if ( this$CurrentSelTool == "Green")
       {
-        ret <- this$clicFun(2, mz_sel, mz_tol)
-        this$SelIon_mz_G = ret$selMz
-        this$SelIon_tol_G = ret$selTol
+        this$SelIon_mz_G <- mz_sel
+        this$SelIon_tol_G <- mz_tol
+        this$ReDrawGreenImg <- T
       }
-      else if ( this$CurrentSelTool == "Blue" && !is.null(this$clicFun))
+      else if ( this$CurrentSelTool == "Blue")
       {
-        ret <- this$clicFun(3, mz_sel, mz_tol)
-        this$SelIon_mz_B = ret$selMz
-        this$SelIon_tol_B = ret$selTol
+        this$SelIon_mz_B <- mz_sel
+        this$SelIon_tol_B <- mz_tol
+        this$ReDrawBlueImg <- T
       }
       #Plot selection in spectra
       this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
@@ -510,7 +592,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     return(TRUE)
   }
 
-  #Grab mouse cursor on plot=======================================================================
+  #Grab mouse cursor on plot
   OnMouseMotion <- function( evt, ... )
   {
     if(length(this$spectra_data) == 0) return()
@@ -524,7 +606,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
        evt$y >= this$in_lim[1] &&
        evt$y <= this$in_lim[2])
     {
-      mz_txt<-sprintf(paste("%-",this$LABEL_LENGTH, ".2f", sep = ""), this$PointerCoords[1])
+      mz_txt<-sprintf(paste("%-",this$LABEL_LENGTH, ".4f", sep = ""), this$PointerCoords[1])
       in_txt<-sprintf(paste("%-",this$LABEL_LENGTH, ".2e", sep = ""), this$PointerCoords[2])
     }
     else
@@ -536,7 +618,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     return(TRUE)
   }
 
-  #Zoom on spectra plot handler====================================================================
+  #Zoom on spectra plot handler
   ScrollEventOnSpectra <- function( obj, evt, ... )
   {
     if(length(this$spectra_data) == 0) return()
@@ -593,7 +675,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     return(TRUE) #The scroll event requires this return
   }
 
-  #Key Press handler===============================================================================
+  #Key Press handler
   OnKeyPress <- function( evt, ... )
   {
     if(evt[[4]][["keyval"]] == 65507)
@@ -611,10 +693,10 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       }
     }
 
-    return(TRUE) #The key event requires this return
+    return(FALSE) #The key event requires this return to allow keyboard continue working for other widgets as spin buttons
   }
 
-  #Key Release handler=============================================================================
+  #Key Release handler
   OnKeyRelease <- function( evt, ... )
   {
     if(evt[[4]][["keyval"]] == 65507)
@@ -631,17 +713,17 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         this$MouseWheelFunction<-0
       }
     }
-    return(TRUE) #The key event requires this return
+    return(FALSE) #The key event requires this return to allow keyboard continue working for other widgets as spin buttons
   }
 
-  #Windows lost focuts, used to restore zoom status================================================
+  #Windows lost focuts, used to restore zoom status
   OnLostFocus <- function( evt, ... )
   {
     this$MouseWheelFunction<-0
     return(TRUE) #This event requires this return
   }
 
-  #Clear all spectra button click======================================================================
+  #Clear all spectra button click
   ClearSpectraClicked <- function( evt, ... )
   {
     this$ClearSpectra()
@@ -665,6 +747,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       {
         gWidgets2::svalue(this$Btn_SelBlueTool) <- F
       }
+
+      #Set ion manually selection visibility
+      gWidgets2::visible(Lbl_massSel) <- F
+      gWidgets2::visible(Spin_massSel) <- F
+      gWidgets2::visible(Lbl_TolSel) <- F
+      gWidgets2::visible(Spin_TolSel) <- F
     }
     else #Check if all ara false and avoid such situation
     {
@@ -704,6 +792,21 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       {
         gWidgets2::svalue(this$Btn_SelBlueTool) <- F
       }
+
+      #Set Spin_massSel range properly
+      gWidgets2::blockHandlers(this$Spin_massSel)
+      gWidgets2::blockHandlers(this$Spin_TolSel)
+      gWidgets2::svalue(this$Spin_massSel) <- this$SelIon_mz_R
+      gWidgets2::svalue(this$Spin_TolSel) <- this$SelIon_tol_R
+      RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), this$SelIon_tol_R, this$SelIon_tol_R)
+      gWidgets2::unblockHandlers(this$Spin_massSel)
+      gWidgets2::unblockHandlers(this$Spin_TolSel)
+
+      #Set ion manually selection visibility
+      gWidgets2::visible(Lbl_massSel) <- T
+      gWidgets2::visible(Spin_massSel) <- T
+      gWidgets2::visible(Lbl_TolSel) <- T
+      gWidgets2::visible(Spin_TolSel) <- T
     }
     else #Check if all ara false and avoid such situation
     {
@@ -740,6 +843,21 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       {
         gWidgets2::svalue(this$Btn_SelBlueTool) <- F
       }
+
+      #Set Spin_massSel range properly
+      gWidgets2::blockHandlers(this$Spin_massSel)
+      gWidgets2::blockHandlers(this$Spin_TolSel)
+      gWidgets2::svalue(this$Spin_massSel) <- this$SelIon_mz_G
+      gWidgets2::svalue(this$Spin_TolSel) <- this$SelIon_tol_G
+      RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), this$SelIon_tol_G, this$SelIon_tol_G)
+      gWidgets2::unblockHandlers(this$Spin_massSel)
+      gWidgets2::unblockHandlers(this$Spin_TolSel)
+
+      #Set ion manually selection visibility
+      gWidgets2::visible(Lbl_massSel) <- T
+      gWidgets2::visible(Spin_massSel) <- T
+      gWidgets2::visible(Lbl_TolSel) <- T
+      gWidgets2::visible(Spin_TolSel) <- T
     }
     else #Check if all ara false and avoid such situation
     {
@@ -776,6 +894,21 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       {
         gWidgets2::svalue(this$Btn_SelGreenTool) <- F
       }
+
+      #Set Spin_massSel range properly
+      gWidgets2::blockHandlers(this$Spin_massSel)
+      gWidgets2::blockHandlers(this$Spin_TolSel)
+      gWidgets2::svalue(this$Spin_massSel) <- this$SelIon_mz_B
+      gWidgets2::svalue(this$Spin_TolSel) <- this$SelIon_tol_B
+      RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), this$SelIon_tol_B, this$SelIon_tol_B)
+      gWidgets2::unblockHandlers(this$Spin_massSel)
+      gWidgets2::unblockHandlers(this$Spin_TolSel)
+
+      #Set ion manually selection visibility
+      gWidgets2::visible(Lbl_massSel) <- T
+      gWidgets2::visible(Spin_massSel) <- T
+      gWidgets2::visible(Lbl_TolSel) <- T
+      gWidgets2::visible(Spin_TolSel) <- T
     }
     else #Check if all ara false and avoid such situation
     {
@@ -801,13 +934,13 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   {
     if (this$CurrentSelTool == "Zoom")
     {
-      c=gdkCursorNew("GDK_SIZING")
+      c=RGtk2::gdkCursorNew("GDK_SIZING")
     }
     else
     {
-      c=gdkCursorNew("GDK_BASED_ARROW_DOWN")
+      c=RGtk2::gdkCursorNew("GDK_BASED_ARROW_DOWN")
     }
-    getToolkitWidget(this$plot_device)$getWindow()$setCursor(c)
+    gWidgets2::getToolkitWidget(this$plot_device)$getWindow()$setCursor(c)
   }
 
   #Set the tool to use externally, can be: Zoom, Red, Green or Blue
@@ -840,19 +973,87 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     }
   }
 
-  #Build GUI======================================================================================
+  MassSelSpinChanged <- function(...)
+  {
+    if(this$CurrentSelTool == "Red")
+    {
+      this$SelIon_mz_R <- gWidgets2::svalue(this$Spin_massSel)
+      this$ReDrawRedImg <- T
+    }
+    else if ( this$CurrentSelTool == "Green")
+    {
+      this$SelIon_mz_G <- gWidgets2::svalue(this$Spin_massSel)
+      this$ReDrawGreenImg <- T
+    }
+    else if ( this$CurrentSelTool == "Blue")
+    {
+      this$SelIon_mz_B <- gWidgets2::svalue(this$Spin_massSel)
+      this$ReDrawBlueImg <- T
+    }
+
+    #Set zoom range to see the selected ion centered
+    currentRange <- this$mz_lim[2] - this$mz_lim[1]
+    this$ZoomMzRange( gWidgets2::svalue(this$Spin_massSel) - (currentRange/2), gWidgets2::svalue(this$Spin_massSel) + (currentRange/2))
+
+    #Plot selection in spectra
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
+  }
+
+  TolSelSpinChanged <- function(...)
+  {
+    if(this$CurrentSelTool == "Red")
+    {
+      this$SelIon_tol_R <-  gWidgets2::svalue(this$Spin_TolSel)
+      this$ReDrawRedImg <- T
+    }
+    else if ( this$CurrentSelTool == "Green")
+    {
+      this$SelIon_tol_G <-  gWidgets2::svalue(this$Spin_TolSel)
+      this$ReDrawGreenImg <- T
+    }
+    else if ( this$CurrentSelTool == "Blue")
+    {
+      this$SelIon_tol_B <-  gWidgets2::svalue(this$Spin_TolSel)
+      this$ReDrawBlueImg <- T
+    }
+    #Plot selection in spectra
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
+  }
+
+  SetSelectedMassTol <- function (channel, mass, tol)
+  {
+    if(channel == 1)
+    {
+      this$SelIon_mz_R <- mass
+      this$SelIon_tol_R <- tol
+    }
+    if(channel == 2)
+    {
+      this$SelIon_mz_G <- mass
+      this$SelIon_tol_G <- tol
+    }
+    if(channel == 3)
+    {
+      this$SelIon_mz_B <- mass
+      this$SelIon_tol_B <- tol
+    }
+    this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
+  }
+
+    #Build GUI
   Grp_Top <- gWidgets2::ggroup(horizontal = F, container = this$parent, fill = T, expand = T)
   Grp_Buttons<- gWidgets2::ggroup(horizontal = T, container = Grp_Top, fill = F, expand = F)
   Btn_reset_zoom<- gWidgets2::gbutton(text = "Reset Zoom", handler = this$ZoomResetClicked, action = this, container = Grp_Buttons)
-  Btn_auto_zoom_mz<- gWidgets2::gbutton(text = "Auto Zoom m/z", handler = this$ZoomMzClicked, action = this, container = Grp_Buttons)
-  Btn_auto_zoom_in<- gWidgets2::gbutton(text = "Auto Zoom Intensity", handler = this$ZoomInClicked, action = this, container = Grp_Buttons)
-  Btn_RemoveSpectra<- gWidgets2::gbutton(text = "Clear all spectra", handler = this$ClearSpectraClicked, action = this, container = Grp_Buttons)
+  Btn_auto_zoom_mz<- gWidgets2::gbutton(text = "Auto m/z", handler = this$ZoomMzClicked, action = this, container = Grp_Buttons)
+  Btn_auto_zoom_in<- gWidgets2::gbutton(text = "Auto Intensity", handler = this$ZoomInClicked, action = this, container = Grp_Buttons)
+  Btn_RemoveSpectra<- gWidgets2::gbutton(text = "Clear all", handler = this$ClearSpectraClicked, action = this, container = Grp_Buttons)
   Btn_ZoomTool <- gWidgets2::gcheckbox("Zoom", checked = T, handler = this$ZoomToolSel, container = Grp_Buttons, use.togglebutton = F)
+  gWidgets2::visible(Btn_ZoomTool) <- display_sel_red | display_sel_green | display_sel_blue #Only dispaly the zoom tool selector if at leas one sel. ion is visible
 
   if( display_sel_red )
   {
     Btn_SelRedTool <- gWidgets2::gcheckbox("SelRed", checked = F, handler = this$RedToolSel, container = Grp_Buttons, use.togglebutton = F)
-    .setCheckBoxText(Btn_SelRedTool, "Sel. Red", background = NULL, foreground = "darkred", font_size = NULL, font_weight = "heavy")
+    .setCheckBoxText(Btn_SelRedTool, "Sel.Red", background = NULL, foreground = "darkred", font_size = NULL, font_weight = "heavy")
   }
   else
   {
@@ -862,7 +1063,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   if( display_sel_green )
   {
     Btn_SelGreenTool <- gWidgets2::gcheckbox("GreenRed", checked = F, handler = this$GreenToolSel, container = Grp_Buttons, use.togglebutton = F)
-    .setCheckBoxText(Btn_SelGreenTool, "Sel. Green", background = NULL, foreground = "darkgreen", font_size = NULL, font_weight = "heavy")
+    .setCheckBoxText(Btn_SelGreenTool, "Sel.Green", background = NULL, foreground = "darkgreen", font_size = NULL, font_weight = "heavy")
   }
   else
   {
@@ -872,12 +1073,22 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   if( display_sel_blue )
   {
     Btn_SelBlueTool <- gWidgets2::gcheckbox("SelBlue", checked = F, handler = this$BlueToolSel, container = Grp_Buttons, use.togglebutton = F)
-    .setCheckBoxText(Btn_SelBlueTool, "Sel. Blue", background = NULL, foreground = "darkblue", font_size = NULL, font_weight = "heavy")
+    .setCheckBoxText(Btn_SelBlueTool, "Sel.Blue", background = NULL, foreground = "darkblue", font_size = NULL, font_weight = "heavy")
   }
   else
   {
     Btn_SelBlueTool <- NULL
   }
+
+  #Dislay mass and tolerance spin boxes
+  Lbl_massSel <- gWidgets2::glabel("m/z:", container = Grp_Buttons)
+  Spin_massSel <- gWidgets2::gspinbutton( from = 0, to = 1, value = 0, digits = 4, by = 0.1, container =  Grp_Buttons, handler = this$MassSelSpinChanged)
+  Lbl_TolSel <- gWidgets2::glabel("+/-", container = Grp_Buttons)
+  Spin_TolSel <- gWidgets2::gspinbutton( from = 0, to = MAX_MASS_SEL_RANGE, value = 0.1, digits = 4, by = 0.01, container =  Grp_Buttons, handler = this$TolSelSpinChanged)
+  gWidgets2::visible(Lbl_massSel) <- F
+  gWidgets2::visible(Spin_massSel) <- F
+  gWidgets2::visible(Lbl_TolSel) <- F
+  gWidgets2::visible(Spin_TolSel) <- F
 
   gWidgets2::addSpring(Grp_Buttons)
   if(showOpenFileButton)

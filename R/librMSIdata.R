@@ -534,7 +534,7 @@ ConvertrMSIimg2Bin <- function( img, out_data_dir)
   for( ic in 1:length(img$data))
   {
     cat(paste("Processing cube", ic, "of", length(img$data), "\n"))
-    cube <- loadImgCunckFromCube(img, ic)
+    cube <- loadImgChunkFromCube(img, ic)
 
     for( i in 1:nrow(cube))
     {
@@ -618,7 +618,7 @@ ConvertBin2rMSIimg <- function( in_data_dir, out_img_tar_file = NULL )
 
     if( dm_irow > nrow(dm) || i == nrow(data_inf))
     {
-      saveImgCunckAtIds( img,  partial_ids, dm[1:length(partial_ids), ] )
+      saveImgChunkAtIds( img,  partial_ids, dm[1:length(partial_ids), ] )
       partial_ids <- c()
       dm_irow <- 1
     }

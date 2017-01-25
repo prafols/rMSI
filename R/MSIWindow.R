@@ -74,22 +74,34 @@ MSIWindow<-function(img1, img2 = NULL)
   spectraWidget <- NULL
   msiWidget1 <- NULL
   msiWidget2 <- NULL
+  ChannelRedraw <- list( ReDraw = F, mass = 0, tol = 0  )
+  MsiRedraw <- list( Red = ChannelRedraw, Green = ChannelRedraw, Blue = ChannelRedraw  )
+
+  #Redraw MS image by timer callback
+  ReDrawByTimer <- function(data)
+  {
+    for( i in 1:3)
+    {
+      if( this$MsiRedraw[[i]]$ReDraw)
+      {
+        this$msiWidget1$ImgBuildFun(i, this$MsiRedraw[[i]]$mass, this$MsiRedraw[[i]]$tol)
+        this$msiWidget1$PlotMassImageRGB()
+        if(!is.null(this$msiWidget2))
+        {
+          this$msiWidget2$ImgBuildFun(i, this$MsiRedraw[[i]]$mass, this$MsiRedraw[[i]]$tol)
+          this$msiWidget2$PlotMassImageRGB()
+        }
+        this$MsiRedraw[[i]]$ReDraw <- F
+      }
+    }
+  }
 
   #A click on mass spectra widgets drives here. From here image recostruction will be called for various widgets
   SpectrumClicked <- function( channel, mass, tol )
   {
-    ret1<-this$msiWidget1$ImgBuildFun(channel, mass, tol)
-    this$msiWidget1$PlotMassImageRGB()
-    if(!is.null(this$msiWidget2))
-    {
-      ret2<-this$msiWidget2$ImgBuildFun(channel, mass, tol)
-      this$msiWidget2$PlotMassImageRGB()
-    }
-    else
-    {
-      ret2 <- ret1
-    }
-    return(list(selMz = mean(c(ret1$selMz, ret2$selMz)), selTol = mean(c(ret1$selTol, ret2$selTol))))
+    this$MsiRedraw[[channel]]$mass <- mass
+    this$MsiRedraw[[channel]]$tol <- tol
+    this$MsiRedraw[[channel]]$ReDraw <- T
   }
 
   #A connector between spectraWidget and msiWidgets because them can not be joined directly
@@ -151,7 +163,7 @@ MSIWindow<-function(img1, img2 = NULL)
   }
   spectraFrame<-gWidgets2::gframe("Average Spectra", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
   spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F,  display_sel_red = T, display_sel_green = T, display_sel_blue = T)
-
+  gWidgets2::size(window) <- c(1024, 740)
   visible(window)<-TRUE
 
   if( class( img1$mean) == "MassSpectrum")
@@ -180,17 +192,26 @@ MSIWindow<-function(img1, img2 = NULL)
   spectraWidget$ZoomResetClicked()
 
   #Plot a initial image which is the maximum peak in mean spectrum with a tolereance of 100 ppm of the mass range
+  startTol <- 100/1e6*(max(img1$mass)-min(img1$mass))
   if( class( img1$mean) == "MassSpectrum")
   {
-    SpectrumClicked( channel = 1, mass = img1$mass[which.max(img1$mean@intensity)], tol = 100/1e6*(max(img1$mass)-min(img1$mass)))
+    startMass <- img1$mass[which.max(img1$mean@intensity)]
   }
   else
   {
-    SpectrumClicked( channel = 1, mass = img1$mass[which.max(img1$mean)], tol = 100/1e6*(max(img1$mass)-min(img1$mass)))
+    startMass = img1$mass[which.max(img1$mean)]
+  }
+  for( i in 1:3)
+  {
+    SpectrumClicked( channel = i, mass = startMass, tol = startTol)
+    spectraWidget$SetSelectedMassTol( channel = i, mass = startMass, tol = startTol )
   }
 
   window$widget$present()
   ###RGtk2::gtkWindowMaximize(gWidgets2::getToolkitWidget(window)) #Start maximized, currently disabled to addres windows redraw issue
+
+  #Start the redraw timer
+  redrawTimer <- gWidgets2::gtimer(10, this$ReDrawByTimer)
 
   ## Set the name for the class
   class(this) <- append(class(this),"MsiWindows")
