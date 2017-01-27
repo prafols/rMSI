@@ -473,7 +473,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         }
       }
     }
-    this$SetStateAccordingSelTool()
+    ## this$SetStateAccordingSelTool() ###TODO test
     this$ReDraw <- F #Reset the redraw signaling
   }
 
@@ -774,7 +774,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         gWidgets2::svalue(this$Btn_ZoomTool) <- T
       }
     }
-    this$SetStateAccordingSelTool()
+    ## this$SetStateAccordingSelTool() ###TODO test
   }
 
   #Red tool selected
@@ -825,7 +825,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         gWidgets2::svalue(this$Btn_SelRedTool) <- T
       }
     }
-    this$SetStateAccordingSelTool()
+    ## this$SetStateAccordingSelTool() ###TODO test
   }
 
   #Green tool selected
@@ -876,7 +876,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         gWidgets2::svalue(this$Btn_SelGreenTool) <- T
       }
     }
-    this$SetStateAccordingSelTool()
+    ## this$SetStateAccordingSelTool() ###TODO test
   }
 
   #Blue tool selected
@@ -927,7 +927,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         gWidgets2::svalue(this$Btn_SelBlueTool) <- T
       }
     }
-    this$SetStateAccordingSelTool()
+    ## this$SetStateAccordingSelTool() ###TODO test
   }
 
   SetStateAccordingSelTool <- function ()
