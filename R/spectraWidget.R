@@ -67,7 +67,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
 }
 
 .SpectraPlotWidget <- function( parent_widget=gwindow ( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T,
-                                display_sel_red = F, display_sel_green = F, display_sel_blue = F, max_spectra_limit = 50)
+                                display_sel_red = F, display_sel_green = F, display_sel_blue = F, display_sel_spins = T, max_spectra_limit = 50)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -259,9 +259,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$data_mass_range <- c(min(sapply(this$spectra_data, function(x){ return( x$mass[1] ) })),max(sapply(this$spectra_data, function(x){ return( x$mass[length(x$mass)] ) })))
 
     #Set Spin_massSel range properly
-    gWidgets2::blockHandlers(this$Spin_massSel)
-    RGtk2::gtkSpinButtonSetRange( gWidgets2::getToolkitWidget( this$Spin_massSel),  this$data_mass_range[1],  this$data_mass_range[2] )
-    gWidgets2::unblockHandlers(this$Spin_massSel)
+    if(!is.null(this$Spin_massSel))
+    {
+      gWidgets2::blockHandlers(this$Spin_massSel)
+      RGtk2::gtkSpinButtonSetRange( gWidgets2::getToolkitWidget( this$Spin_massSel),  this$data_mass_range[1],  this$data_mass_range[2] )
+      gWidgets2::unblockHandlers(this$Spin_massSel)
+    }
 
     if(length(this$spectra_data) == 1) #First spectrum added, so zoom properly
     {
@@ -291,9 +294,12 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       this$data_mass_range <- this$mz_lim
 
       #Set Spin_massSel range properly
-      gWidgets2::blockHandlers(this$Spin_massSel)
-      RGtk2::gtkSpinButtonSetRange( gWidgets2::getToolkitWidget( this$Spin_massSel),  this$data_mass_range[1],  this$data_mass_range[2] )
-      gWidgets2::unblockHandlers(this$Spin_massSel)
+      if(!is.null(this$Spin_massSel))
+      {
+        gWidgets2::blockHandlers(this$Spin_massSel)
+        RGtk2::gtkSpinButtonSetRange( gWidgets2::getToolkitWidget( this$Spin_massSel),  this$data_mass_range[1],  this$data_mass_range[2] )
+        gWidgets2::unblockHandlers(this$Spin_massSel)
+      }
     }
     this$ReDraw <- T #Signal a redraw request, redraw will be performed on the next timer interrupt
   }
@@ -342,7 +348,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     }
 
     #Set Spin_massSel range properly
-    if( !is.null(mz_sel_spin) && !is.null(mz_tol_spin))
+    if( !is.null(mz_sel_spin) && !is.null(mz_tol_spin) && !is.null(this$Spin_massSel) && !is.null(this$Spin_TolSel))
     {
       gWidgets2::blockHandlers(this$Spin_massSel)
       gWidgets2::blockHandlers(this$Spin_TolSel)
@@ -555,7 +561,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       mz_tol<-max(mz_tol, 0)
 
       #Use the tolerance spin if the spectrum was just clicked
-      if(mz_tol == 0)
+      if(mz_tol == 0 && !is.null(this$Spin_TolSel))
       {
         mz_tol <- gWidgets2::svalue(this$Spin_TolSel)
       }
@@ -749,10 +755,13 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       }
 
       #Set ion manually selection visibility
-      gWidgets2::visible(Lbl_massSel) <- F
-      gWidgets2::visible(Spin_massSel) <- F
-      gWidgets2::visible(Lbl_TolSel) <- F
-      gWidgets2::visible(Spin_TolSel) <- F
+      if(!is.null(this$Spin_massSel))
+      {
+        gWidgets2::visible(Lbl_massSel) <- F
+        gWidgets2::visible(Spin_massSel) <- F
+        gWidgets2::visible(Lbl_TolSel) <- F
+        gWidgets2::visible(Spin_TolSel) <- F
+      }
     }
     else #Check if all ara false and avoid such situation
     {
@@ -777,6 +786,30 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     this$SetStateAccordingSelTool()
   }
 
+  #Set mass and tolerance spins value and visibility
+  SetMassTolSping <- function( mzValue, tolValue, bVisible = T)
+  {
+    if(is.null(this$Spin_massSel) || is.null(this$Spin_TolSel))
+    {
+      return()
+    }
+
+    #Set Spin_massSel range properly
+    gWidgets2::blockHandlers(this$Spin_massSel)
+    gWidgets2::blockHandlers(this$Spin_TolSel)
+    gWidgets2::svalue(this$Spin_massSel) <- mzValue
+    gWidgets2::svalue(this$Spin_TolSel) <- tolValue
+    RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), tolValue, tolValue)
+    gWidgets2::unblockHandlers(this$Spin_massSel)
+    gWidgets2::unblockHandlers(this$Spin_TolSel)
+
+    #Set ion manually selection visibility
+    gWidgets2::visible(Lbl_massSel) <- bVisible
+    gWidgets2::visible(Spin_massSel) <- bVisible
+    gWidgets2::visible(Lbl_TolSel) <- bVisible
+    gWidgets2::visible(Spin_TolSel) <- bVisible
+  }
+
   #Red tool selected
   RedToolSel <- function( ... )
   {
@@ -793,20 +826,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         gWidgets2::svalue(this$Btn_SelBlueTool) <- F
       }
 
-      #Set Spin_massSel range properly
-      gWidgets2::blockHandlers(this$Spin_massSel)
-      gWidgets2::blockHandlers(this$Spin_TolSel)
-      gWidgets2::svalue(this$Spin_massSel) <- this$SelIon_mz_R
-      gWidgets2::svalue(this$Spin_TolSel) <- this$SelIon_tol_R
-      RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), this$SelIon_tol_R, this$SelIon_tol_R)
-      gWidgets2::unblockHandlers(this$Spin_massSel)
-      gWidgets2::unblockHandlers(this$Spin_TolSel)
-
-      #Set ion manually selection visibility
-      gWidgets2::visible(Lbl_massSel) <- T
-      gWidgets2::visible(Spin_massSel) <- T
-      gWidgets2::visible(Lbl_TolSel) <- T
-      gWidgets2::visible(Spin_TolSel) <- T
+      this$SetMassTolSping(  this$SelIon_mz_R, this$SelIon_tol_R, T)
     }
     else #Check if all ara false and avoid such situation
     {
@@ -844,20 +864,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         gWidgets2::svalue(this$Btn_SelBlueTool) <- F
       }
 
-      #Set Spin_massSel range properly
-      gWidgets2::blockHandlers(this$Spin_massSel)
-      gWidgets2::blockHandlers(this$Spin_TolSel)
-      gWidgets2::svalue(this$Spin_massSel) <- this$SelIon_mz_G
-      gWidgets2::svalue(this$Spin_TolSel) <- this$SelIon_tol_G
-      RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), this$SelIon_tol_G, this$SelIon_tol_G)
-      gWidgets2::unblockHandlers(this$Spin_massSel)
-      gWidgets2::unblockHandlers(this$Spin_TolSel)
-
-      #Set ion manually selection visibility
-      gWidgets2::visible(Lbl_massSel) <- T
-      gWidgets2::visible(Spin_massSel) <- T
-      gWidgets2::visible(Lbl_TolSel) <- T
-      gWidgets2::visible(Spin_TolSel) <- T
+      this$SetMassTolSping(  this$SelIon_mz_G, this$SelIon_tol_G, T)
     }
     else #Check if all ara false and avoid such situation
     {
@@ -895,20 +902,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         gWidgets2::svalue(this$Btn_SelGreenTool) <- F
       }
 
-      #Set Spin_massSel range properly
-      gWidgets2::blockHandlers(this$Spin_massSel)
-      gWidgets2::blockHandlers(this$Spin_TolSel)
-      gWidgets2::svalue(this$Spin_massSel) <- this$SelIon_mz_B
-      gWidgets2::svalue(this$Spin_TolSel) <- this$SelIon_tol_B
-      RGtk2::gtkSpinButtonSetIncrements( gWidgets2::getToolkitWidget( this$Spin_massSel), this$SelIon_tol_B, this$SelIon_tol_B)
-      gWidgets2::unblockHandlers(this$Spin_massSel)
-      gWidgets2::unblockHandlers(this$Spin_TolSel)
-
-      #Set ion manually selection visibility
-      gWidgets2::visible(Lbl_massSel) <- T
-      gWidgets2::visible(Spin_massSel) <- T
-      gWidgets2::visible(Lbl_TolSel) <- T
-      gWidgets2::visible(Spin_TolSel) <- T
+      this$SetMassTolSping( this$SelIon_mz_B, this$SelIon_tol_B, T)
     }
     else #Check if all ara false and avoid such situation
     {
@@ -1081,14 +1075,17 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   }
 
   #Dislay mass and tolerance spin boxes
-  Lbl_massSel <- gWidgets2::glabel("m/z:", container = Grp_Buttons)
-  Spin_massSel <- gWidgets2::gspinbutton( from = 0, to = 1, value = 0, digits = 4, by = 0.1, container =  Grp_Buttons, handler = this$MassSelSpinChanged)
-  Lbl_TolSel <- gWidgets2::glabel("+/-", container = Grp_Buttons)
-  Spin_TolSel <- gWidgets2::gspinbutton( from = 0, to = MAX_MASS_SEL_RANGE, value = 0.1, digits = 4, by = 0.01, container =  Grp_Buttons, handler = this$TolSelSpinChanged)
-  gWidgets2::visible(Lbl_massSel) <- F
-  gWidgets2::visible(Spin_massSel) <- F
-  gWidgets2::visible(Lbl_TolSel) <- F
-  gWidgets2::visible(Spin_TolSel) <- F
+  if(display_sel_spins)
+  {
+    Lbl_massSel <- gWidgets2::glabel("m/z:", container = Grp_Buttons)
+    Spin_massSel <- gWidgets2::gspinbutton( from = 0, to = 1, value = 0, digits = 4, by = 0.1, container =  Grp_Buttons, handler = this$MassSelSpinChanged)
+    Lbl_TolSel <- gWidgets2::glabel("+/-", container = Grp_Buttons)
+    Spin_TolSel <- gWidgets2::gspinbutton( from = 0, to = MAX_MASS_SEL_RANGE, value = 0.1, digits = 4, by = 0.01, container =  Grp_Buttons, handler = this$TolSelSpinChanged)
+    gWidgets2::visible(Lbl_massSel) <- F
+    gWidgets2::visible(Spin_massSel) <- F
+    gWidgets2::visible(Lbl_TolSel) <- F
+    gWidgets2::visible(Spin_TolSel) <- F
+  }
 
   gWidgets2::addSpring(Grp_Buttons)
   if(showOpenFileButton)
