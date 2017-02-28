@@ -76,24 +76,38 @@ MSIWindow<-function(img1, img2 = NULL)
   msiWidget2 <- NULL
   ChannelRedraw <- list( ReDraw = F, mass = 0, tol = 0  )
   MsiRedraw <- list( Red = ChannelRedraw, Green = ChannelRedraw, Blue = ChannelRedraw  )
+  RedrawIsIdle <- F
 
   #Redraw MS image by timer callback
   ReDrawByTimer <- function(data)
   {
-    for( i in 1:3)
+    if( !this$RedrawIsIdle)
     {
-      if( this$MsiRedraw[[i]]$ReDraw)
+      this$RedrawIsIdle <- T
+      spectraWidget$ReDrawByTimer(data)
+      for( i in 1:3)
       {
-        this$msiWidget1$ImgBuildFun(i, this$MsiRedraw[[i]]$mass, this$MsiRedraw[[i]]$tol)
-        this$msiWidget1$PlotMassImageRGB()
-        if(!is.null(this$msiWidget2))
+        if( this$MsiRedraw[[i]]$ReDraw)
         {
-          this$msiWidget2$ImgBuildFun(i, this$MsiRedraw[[i]]$mass, this$MsiRedraw[[i]]$tol)
-          this$msiWidget2$PlotMassImageRGB()
+          this$msiWidget1$ImgBuildFun(i, this$MsiRedraw[[i]]$mass, this$MsiRedraw[[i]]$tol)
+          this$msiWidget1$PlotMassImageRGB()
+          if(!is.null(this$msiWidget2))
+          {
+            this$msiWidget2$ImgBuildFun(i, this$MsiRedraw[[i]]$mass, this$MsiRedraw[[i]]$tol)
+            this$msiWidget2$PlotMassImageRGB()
+          }
+          this$MsiRedraw[[i]]$ReDraw <- F
         }
-        this$MsiRedraw[[i]]$ReDraw <- F
       }
+      this$RedrawIsIdle <- F
     }
+  }
+
+  #Stop gtimer if widget is distroyed
+  Widget_Disposed <- function (evt, ...)
+  {
+    #cat("Stopping spectraWidget draw timer\n")
+    this$redrawTimer$stop_timer()
   }
 
   #A click on mass spectra widgets drives here. From here image recostruction will be called for various widgets
@@ -152,17 +166,23 @@ MSIWindow<-function(img1, img2 = NULL)
     return(list(ID=myImgIds, color =  myImgColors, mz_min = mz_range$mz_min, mz_max = mz_range$mz_max))
   }
 
-  #GUI builder
+    #GUI builder
   window <- gWidgets2::gwindow ( "MSI Reconstruction" , visible = F )
+
+  #TODO testing without panneds
   Grp_Top <- gWidgets2::gpanedgroup(horizontal = F, container = window)
-  Grp_Ims <- gWidgets2::gpanedgroup(horizontal = T, container = Grp_Top)
+  Grp_Ims <- gWidgets2::gpanedgroup(horizontal = T, container = Grp_Top )
+
   msiWidget1 <- .MSImagePlotWidget(in_img = img1 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, GetSpectraInfo_function = this$GetPlotedSpectraInfo, ClearSpectraPlot_function = this$ClearSpectraPlot, meanSpectrumColor = "red", widget_name = "imgLeft")
   if( !is.null(img2))
   {
     msiWidget2 <- .MSImagePlotWidget(in_img = img2 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, GetSpectraInfo_function = this$GetPlotedSpectraInfo, ClearSpectraPlot_function = this$ClearSpectraPlot, meanSpectrumColor = "blue", widget_name = "imgRight")
   }
-  spectraFrame<-gWidgets2::gframe("Average Spectra", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
-  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F,  display_sel_red = T, display_sel_green = T, display_sel_blue = T)
+  spectraFrame<-gWidgets2::gframe("Spectra Viewer", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
+  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F,  display_sel_red = T, display_sel_green = T, display_sel_blue = T, useInternalRedrawTimer = F)
+
+  ##window$widget$present()
+  #RGtk2::gtkWindowMaximize(gWidgets2::getToolkitWidget(window)) #Start maximized, currently disabled to addres windows redraw issue
   gWidgets2::size(window) <- c(1024, 740)
   visible(window)<-TRUE
 
@@ -207,11 +227,9 @@ MSIWindow<-function(img1, img2 = NULL)
     spectraWidget$SetSelectedMassTol( channel = i, mass = startMass, tol = startTol )
   }
 
-  window$widget$present()
-  ###RGtk2::gtkWindowMaximize(gWidgets2::getToolkitWidget(window)) #Start maximized, currently disabled to addres windows redraw issue
-
   #Start the redraw timer
   redrawTimer <- gWidgets2::gtimer(10, this$ReDrawByTimer)
+  gWidgets2::addHandlerDestroy( obj = window, handler = this$Widget_Disposed ) #Connect to widget dispose to stop the draw timer
 
   ## Set the name for the class
   class(this) <- append(class(this),"MsiWindows")

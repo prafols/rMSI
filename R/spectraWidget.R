@@ -66,8 +66,8 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   gc()
 }
 
-.SpectraPlotWidget <- function( parent_widget=gwindow ( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T,
-                                display_sel_red = F, display_sel_green = F, display_sel_blue = F, display_sel_spins = T, max_spectra_limit = 50)
+.SpectraPlotWidget <- function( parent_widget = gWidgets2::gwindow( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T,
+                                display_sel_red = F, display_sel_green = F, display_sel_blue = F, display_sel_spins = T, max_spectra_limit = 50, useInternalRedrawTimer = T)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -544,7 +544,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     if(length(this$spectra_data) == 0) return()
     if(this$CurrentSelTool == "Zoom")
     {
-      if(abs(evt$x[1] - evt$x[2]) > 1)
+      if(abs(evt$x[1] - evt$x[2]) > 0.1)
       {
         #Mz zooming
         this$ZoomMzRange(min(evt$x), max(evt$x))
@@ -1102,15 +1102,14 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   lbl_help_info<-gWidgets2::glabel(" Mouse wheel -> m/z scroll\n Ctrl + Mouse wheel -> m/z zooming\n Shift + Mouse Wheel -> intensity scaling", container = Grp_BottomLabel)
   gWidgets2::addSpring(Grp_BottomLabel)
   lbl_mz<-gWidgets2::glabel("m/z:", container = Grp_BottomLabel)
-  this$lbl_mz_coords<-gWidgets2::glabel(paste(rep(" ", this$LABEL_LENGTH), collapse = ""), container = Grp_BottomLabel)
+  lbl_mz_coords<-gWidgets2::glabel(paste(rep(" ", this$LABEL_LENGTH), collapse = ""), container = Grp_BottomLabel)
   lbl_int<-gWidgets2::glabel("Intensity:", container = Grp_BottomLabel)
-  this$lbl_in_coords<-gWidgets2::glabel(paste(rep(" ", this$LABEL_LENGTH), collapse = ""), container = Grp_BottomLabel)
-
-  font(this$lbl_mz_coords)<-list(family = "monospace", weight = "light", size = 8)
-  font(this$lbl_in_coords)<-list(family = "monospace", weight = "light", size = 8)
-  font(lbl_mz)<-list(family = "monospace", weight = "light", size = 8)
-  font(lbl_int)<-list(family = "monospace", weight = "light", size = 8)
-  font(lbl_help_info)<-list(family = "monospace", weight = "light", size = 8)
+  lbl_in_coords<-gWidgets2::glabel(paste(rep(" ", this$LABEL_LENGTH), collapse = ""), container = Grp_BottomLabel)
+  gWidgets2::font(lbl_mz_coords)<-list(family = "monospace", weight = "light", size = 8)
+  gWidgets2::font(lbl_in_coords)<-list(family = "monospace", weight = "light", size = 8)
+  gWidgets2::font(lbl_mz)<-list(family = "monospace", weight = "light", size = 8)
+  gWidgets2::font(lbl_int)<-list(family = "monospace", weight = "light", size = 8)
+  gWidgets2::font(lbl_help_info)<-list(family = "monospace", weight = "light", size = 8)
 
   #Signal handlers
   scroll_event_id <- RGtk2::gSignalConnect( gWidgets2::getToolkitWidget(this$plot_device),  signal = "scroll-event", f = this$ScrollEventOnSpectra, data = this )
@@ -1119,10 +1118,13 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   gWidgets2::addHandler(this$top_window, signal = "focus-out-event", handler = this$OnLostFocus, action = this)
   gWidgets2::addHandlerMouseMotion(this$plot_device, handler = this$OnMouseMotion)
   gWidgets2::addHandlerSelectionChanged(this$plot_device, handler = this$OnSelection, action = this)
-  gWidgets2::addHandlerDestroy( obj = this$top_window, handler = this$Widget_Disposed ) #Connect to widget dispose to stop the draw timer
 
   #Start the redraw timer
-  redrawTimer <- gWidgets2::gtimer(10, this$ReDrawByTimer)
+  if(useInternalRedrawTimer)
+  {
+    redrawTimer <- gWidgets2::gtimer(10, this$ReDrawByTimer)
+    gWidgets2::addHandlerDestroy( obj = this$top_window, handler = this$Widget_Disposed ) #Connect to widget dispose to stop the draw timer
+  }
 
   ## Set the name for the class
   class(this) <- append(class(this),"SpectraPlotWidget")

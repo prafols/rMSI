@@ -67,7 +67,6 @@
   Glayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
   Blayer_raster <- .InitRGBEmptyRaster( img$size["x"], img$size["y"] )
 
-  #==================================================================================================
   ImgBuildFun <- function(channel, mass, tol )
   {
     this$mz_tolerance[channel] <- tol
@@ -115,7 +114,6 @@
     return(list(selMz = img_new$mass, selTol = img_new$tolerance))
   }
 
-  #==================================================================================================
   RedrawMSImage <-function()
   {
     visible(this$imaging_dev)<-TRUE
@@ -123,7 +121,6 @@
                          display_axes = F, roi_rectangle =  this$ROI, zoom = this$ZOOM_win, border = this$GUI_RASTER_BORDER)
   }
 
-  #==================================================================================================
   PlotMassImageRGB <- function()
   {
     ch_count <- 0
@@ -214,7 +211,6 @@
     }
   }
 
-  #==================================================================================================
   BtnClearSpotList <- function( mass, tol, ... )
   {
     this$Tbl_spotList$set_items(data.frame(this$Tbl_spotList$get_items())[1,])
@@ -228,7 +224,6 @@
     gtkTreeViewGetColumn(getToolkitWidget(this$Tbl_spotList), 3)$set(visible = F)
   }
 
-  #==================================================================================================
   SpectraListSelChange <- function( ... )
   {
     selected <- gWidgets2::svalue(this$Tbl_spotList)
@@ -247,7 +242,7 @@
     plotSpectra( id_list, color_list)
   }
 
-  #Plot spectra using parent plot function including normalization ==================================================
+  #Plot spectra using parent plot function including normalization
   plotSpectra <- function( id, colors, mz_min = NULL, mz_max = NULL)
   {
     intensity_list <- list()
@@ -302,7 +297,6 @@
     }
   }
 
-  #==================================================================================================
   BtnExportSpotList <- function( ... )
   {
     indexes<-as.vector(data.frame(this$Tbl_spotList$get_items())$ID)
@@ -400,7 +394,6 @@
 
   }
 
-  #==================================================================================================
   OnPixelSelection <- function( evt, ...)
   {
     X_left<-round(min(evt$x)) - this$GUI_RASTER_BORDER
@@ -483,7 +476,6 @@
     gWidgets2::enabled(this$Frame_RoiCtl) <- T
   }
 
-  #==================================================================================================
   SaveImg2Png <- function( ... )
   {
     mass_sel <- c()
@@ -540,7 +532,6 @@
     gWidgets2::gmessage(paste("Image saved at:", fname), icon = "info")
   }
 
-  #==================================================================================================
   SpinImageRangeChanged <- function( ... )
   {
     #Set ROI from spinbuttons
@@ -551,14 +542,12 @@
     this$RedrawMSImage()
   }
 
-  #==================================================================================================
   SliderLightChanged<- function( ... )
   {
     #Set it to ROI spinbuttons
     this$PlotMassImageRGB()
   }
 
-  #==================================================================================================
   BtnRotateCCW <- function ( ... )
   {
     this$Rotation <- this$Rotation + 90
@@ -569,7 +558,6 @@
     this$RotateImage(this$Rotation)
   }
 
-  #==================================================================================================
   BtnRotateCW <- function ( ... )
   {
     this$Rotation <- this$Rotation - 90
@@ -580,7 +568,6 @@
     this$RotateImage(this$Rotation)
   }
 
-  #==================================================================================================
   RotateImage <- function( angle )
   {
     rotateLabel <- this$Rotation
@@ -592,13 +579,11 @@
     this$RedrawMSImage()
   }
 
-  #==================================================================================================
   ComboBox_XRes_Changed <- function( ... )
   {
     this$PlotMassImageRGB()
   }
 
-  #==================================================================================================
   ComboBox_Norm_Changed <- function( ... )
   {
     if(gWidgets2::svalue(this$Combo_Norm) == "RAW")
@@ -630,7 +615,6 @@
     }
   }
 
-  #==================================================================================================
   ROI_Deleted <-function (...)
   {
     #Set it to ROI spinbuttons
@@ -656,7 +640,6 @@
     }
   }
 
-  #==================================================================================================
   ROI_Zoom <- function( ... )
   {
     this$ZOOM_win <- switch(svalue(this$Btn_RoiZoom) , this$ROI)
@@ -678,7 +661,6 @@
     }
   }
 
-  #==================================================================================================
   ROI_GetSpectra <- function( ... )
   {
     if(!is.null(this$ROI))
@@ -737,13 +719,11 @@
     }
   }
 
-  #==================================================================================================
   IntensityScale_EnableClicked <- function( evt, ...)
   {
     this$PlotMassImageRGB()
   }
 
-  #==================================================================================================
   ROI_IntensityLimit <- function( ... )
   {
     if( is.null(this$ROI))
@@ -773,7 +753,6 @@
     this$Btn_RoiIntUnLimit$add_handler_changed(this$ROI_IntensityUnLimit)
   }
 
-  #==================================================================================================
   ROI_IntensityUnLimit <- function( ... )
   {
     #Disable intensity limitation
@@ -791,7 +770,6 @@
     gWidgets2::svalue(this$Btn_RoiIntUnLimit)<- "No Intensity Limit"
   }
 
-  #===================================================================================================
   ShowSpectraList <- function ( ... )
   {
     gWidgets2::add(this$Grp_SidePanel, this$spectraListFrame, expand=TRUE, fill = TRUE)
@@ -799,7 +777,6 @@
     RGtk2::gtkWidgetHide(gWidgets2::getToolkitWidget(this$Btn_Show))
   }
 
-  #===================================================================================================
   HideSpectraList <- function ( ... )
   {
     gWidgets2::delete(this$Grp_SidePanel, this$spectraListFrame)
@@ -808,14 +785,12 @@
     RGtk2::gtkWidgetShow(gWidgets2::getToolkitWidget(this$Btn_Show))
   }
 
-  #================================================================================================
   BtnFlipH <- function ( ... )
   {
     this$flipH <-  !(this$flipH)
     this$RedrawMSImage()
   }
 
-  #================================================================================================
   BtnFlipV <- function ( ... )
   {
     this$flipV <- !(this$flipV)
@@ -824,7 +799,6 @@
 
   #Build the GUI
   Top_frm <- gWidgets2::gframe( text =  paste("<span foreground=\"",meanSpectrumColor ,"\" size=\"large\">Image: ",img$name, "</span>", sep = ""), markup = T, container = parent, spacing = 5 )
-
   Panel_Img<- gWidgets2::gpanedgroup(horizontal = T, container = Top_frm,  expand=TRUE )
   Grp_SidePanel<- gWidgets2::ggroup(container = Panel_Img, expand=TRUE, fill = TRUE)
   spectraListFrame<-gWidgets2::gframe("Spectra List", container = Grp_SidePanel,  fill = T, spacing = 5, expand = T )
@@ -853,7 +827,7 @@
   Btn_ClearSpotList<-gWidgets2::gbutton("Clear", container= Grp_BtmTbl,  handler = this$BtnClearSpotList)
   Btn_ExportSpotList<-gWidgets2::gbutton("Export", container= Grp_BtmTbl,  handler = this$BtnExportSpotList)
 
-  Grp_TopImg <- gWidgets2::ggroup(horizontal = F, container = Panel_Img, expand = T)
+  Grp_TopImg <- gWidgets2::ggroup(horizontal = F, container = Panel_Img, expand = T, fill = T)
   Grp_Buttons <- gWidgets2::ggroup(horizontal = T, container = Grp_TopImg)
   Btn_Show <- gWidgets2::gbutton(">>>Spectra List", container = Grp_Buttons, handler = this$ShowSpectraList )
   RGtk2::gtkWidgetHide(gWidgets2::getToolkitWidget(this$Btn_Show))
@@ -894,7 +868,7 @@
   #Red Color Scale
   Grp_RedScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleRed_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleRed_dev )<- c(80, -1)
+  gWidgets2::size( scaleRed_dev )<- c(100, -1)
   gWidgets2::add(obj = Grp_RedScale, child = scaleRed_dev,  fill = T, expand = T)
   Grp_RedCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_RedScale)
   Btn_RedEnable<-gWidgets2::gcheckbox("On", container = Grp_RedCtl, use.togglebutton = T, checked = T,  handler = this$IntensityScale_EnableClicked, action = "R")
@@ -903,7 +877,7 @@
   #Green Color scale
   Grp_GreenScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleGreen_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleGreen_dev )<- c(100, -1)
+  gWidgets2::size( scaleGreen_dev )<- c(100, -1)
   gWidgets2::add(obj = Grp_GreenScale, child = scaleGreen_dev,  fill = T, expand = T)
   Grp_GreenCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_GreenScale)
   Btn_GreenEnable<-gWidgets2::gcheckbox("On", container = Grp_GreenCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "G")
@@ -912,7 +886,7 @@
   #Blue Color scale
   Grp_BlueScale<-gWidgets2::ggroup( horizontal = F, container = Grp_ScalesH)
   scaleBlue_dev <- gWidgets2::ggraphics(spacing = 5 )
-  size( scaleBlue_dev )<- c(120, -1)
+  gWidgets2::size( scaleBlue_dev )<- c(100, -1)
   gWidgets2::add(obj = Grp_BlueScale, child = scaleBlue_dev,  fill = T, expand = T)
   Grp_BlueCtl <- gWidgets2::ggroup( horizontal = T, container = Grp_BlueScale)
   Btn_BlueEnable<-gWidgets2::gcheckbox("On", container = Grp_BlueCtl, use.togglebutton = T, checked = F, handler = this$IntensityScale_EnableClicked, action = "B")
@@ -944,7 +918,7 @@
   gWidgets2::enabled(Frame_RoiCtl) <- F
   gWidgets2::enabled(Btn_RoiIntUnLimit) <- F
 
-  ## Set the name for the class
+  # Set the name for the class
   class(this) <- append(class(this),"MSImagePlotWidget")
   gc()
 

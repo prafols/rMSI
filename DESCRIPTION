@@ -1,7 +1,7 @@
 Package: rMSI
 Type: Package
 Title: MSI Tools
-Version: 0.1
+Version: 0.6
 Date: 2015-11-30
 Author: Pere Rafols Soler
 Maintainer: Pere Rafols Soler<pere.rafols@urv.cat>
@@ -18,5 +18,6 @@ Imports:
     bit (>= 1.1-12),
     raster (>= 2.4),
     sp (>= 1.2-0),
-    digest (>= 0.6.9)
+    digest (>= 0.6.9),
+    Rcpp (>= 0.12.2)
 RoxygenNote: 5.0.1
