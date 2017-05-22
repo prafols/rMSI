@@ -31,4 +31,3 @@ run_data: a data frame containing information of pixel location in image ans off
 imzMLparse.
 Parses a imzML file and obtain all relevant data for rMSI data object.
 }
-

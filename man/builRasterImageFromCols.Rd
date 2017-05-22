@@ -21,4 +21,3 @@ a matrix with the same size as image size containing the pixel values.
 \description{
 Builds a image from the selected columns in the rMSI object. The image is returned arranged in a matrix containing each pixel value.
 }
-

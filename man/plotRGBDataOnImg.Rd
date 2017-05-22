@@ -31,4 +31,3 @@ plotRGBDataOnImg(img, Rvalues, Gvalues, Bvalues, RText, GText, BText,
 \description{
 plotRGBDataOnImg: Function to plot generic data on a RGB raster using rMSI pixel locations.
 }
-

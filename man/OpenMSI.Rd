@@ -14,4 +14,3 @@ A file choser dialog is presented to allow the selection of a .tar file containi
 If a ramdisk has been previously created it will be used to speed up the loading process.
 The image will be presented using the GUI and it will be returned as rMSI object.
 }
-

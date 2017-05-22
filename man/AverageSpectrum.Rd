@@ -2,7 +2,8 @@
 % Please edit documentation in R/librMSIdata.R
 \name{AverageSpectrum}
 \alias{AverageSpectrum}
-\title{Computes the average spectrum of a whole rMSI image.}
+\title{AverageSpectrum.
+Computes the average spectrum of a whole rMSI image.}
 \usage{
 AverageSpectrum(img)
 }
@@ -13,6 +14,6 @@ AverageSpectrum(img)
 A vector with the average spectrum intensities. Masses are the same as the rMSI object.
 }
 \description{
+AverageSpectrum.
 Computes the average spectrum of a whole rMSI image.
 }
-

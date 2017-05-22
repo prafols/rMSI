@@ -38,4 +38,3 @@ be encoded in an RGB color channel.}
 \description{
 Plot a mass image of a up to 3 selected ions.
 }
-

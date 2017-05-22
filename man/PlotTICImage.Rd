@@ -14,4 +14,3 @@ PlotTICImage(img, TICs = NULL, rotate = 0, scale_title = "TIC")
 \description{
 PlotTICImage.
 }
-

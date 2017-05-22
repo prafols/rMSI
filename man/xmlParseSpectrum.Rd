@@ -16,4 +16,3 @@ a named list containing all parameters of the spectrum.
 Parses an XML node in imzML format containing a single spectrum. All meaning data is returned as named list.
 Internal use only.
 }
-

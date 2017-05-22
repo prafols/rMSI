@@ -19,4 +19,3 @@ a rMSI image containing the new normalization field.
 \description{
 AppendNormalizationCoefs: Appends a new normalization coefinients to rMSI object.
 }
-

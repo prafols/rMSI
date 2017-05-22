@@ -26,4 +26,3 @@ Peaks can be specified in the same call and it will be labeled over the spectrum
 \description{
 Plot Mass Spectra in a interactive way.
 }
-

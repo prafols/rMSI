@@ -16,4 +16,3 @@ saveImageSliceAtCols(Img, Cols, dm)
 \description{
 Overwrite a part of a ramdisk in rMSI object with the provided data matrix in the specified columns.
 }
-

@@ -20,4 +20,3 @@ a list with data matrix containing the image slice, the used mass and tolerance.
 Loads a slice of an rMSI object into RAM. The slice is determined by a mass and a tolerance.
 The returned value is not a MS image, in order to obtain a plotable image the function builRasterImageFromMass must be used.
 }
-

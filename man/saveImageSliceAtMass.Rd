@@ -17,4 +17,3 @@ saveImageSliceAtMass(Img, Mass, dm)
 Overwrite a part of a ramdisk in rMSI object with the provided data matrix in the specified mass range.
 The mass range is obtained by the provided central mass and the necessary columns to fit the full data matrix in rMSI.
 }
-

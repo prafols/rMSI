@@ -17,4 +17,3 @@ the rMSI image object.
 \description{
 ConvertBin2rMSIimg.
 }
-

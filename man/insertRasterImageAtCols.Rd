@@ -17,4 +17,3 @@ insertRasterImageAtCols(Img, Cols, raster_matrix)
 A raster image provided as a matrix is inserted at given Cols with a gaussian shape.
 The raster_matrix has nrows as X direction.
 }
-

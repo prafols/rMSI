@@ -14,4 +14,3 @@ Removes a rMSI objecte ramdisk.}
 \description{
 Remove an rMSI object ramdisk
 }
-

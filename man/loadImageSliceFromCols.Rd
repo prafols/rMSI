@@ -18,4 +18,3 @@ a data matrix containing the image slice.
 Loads a slice of an rMSI object into RAM. The slice is determined by the columns specified in Cols parameter.
 The returned value is not a MS image, in order to obtain a plotable image the function builRasterImageFromCols must be used.
 }
-

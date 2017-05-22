@@ -17,4 +17,3 @@ a rMSI image containing the normalizations$AcqTic field.
 \description{
 NormalizeByAcqDegradation: Normalizes an rMSI image to compensate ionization source degradation during acquisition.
 }
-

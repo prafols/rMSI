@@ -16,4 +16,3 @@ plotParamAcqOrdered(img, Param, yAxisLabel = "Param")
 \description{
 plotParamAcqOrdered.
 }
-

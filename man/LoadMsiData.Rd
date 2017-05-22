@@ -34,4 +34,3 @@ The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set 
 \description{
 Load rMSI data from a compressed tar.
 }
-

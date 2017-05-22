@@ -18,4 +18,3 @@ insertRasterImageAtMass(Img, Mass, Tolerance, raster_matrix)
 \description{
 A raster image provided as a matrix is inserted at given Mass with a gaussian shape in the given Tolerance.
 }
-

@@ -16,4 +16,3 @@ saveImgChunkToCube(Img, Cube, dm)
 \description{
 Save a data matrix to a whole cube in rMSI object
 }
-

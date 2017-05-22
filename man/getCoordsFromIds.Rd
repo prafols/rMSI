@@ -17,4 +17,3 @@ a matrix containing the coords.
 \description{
 getCoordsFromIds Obtain images coords from a set of Ids.
 }
-

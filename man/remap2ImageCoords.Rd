@@ -20,4 +20,3 @@ the dataPos matrix remapped.
 \description{
 remap2ImageCoords.
 }
-

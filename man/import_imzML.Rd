@@ -30,4 +30,3 @@ an rMSI data object.
 \description{
 import_imzML.
 }
-

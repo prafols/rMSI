@@ -57,16 +57,17 @@
 #' @param resolution_um The image pixel size un micrometers (sorry it can not be read directly from XMASS).
 #' @param xml_file_full_path Full path to the XML file.
 #' @param txt_spectrum_path Full path to a bruker spectrum txt file to extract mass axis (optional).
+#' @param selected_img the image number to select in the XML file containing various classes.
 #' @param ... Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).
 #'
 #' @export
-importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_path, txt_spectrum_path = NULL, ...)
+importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_path, txt_spectrum_path = NULL, selected_img = 1, ...)
 {
   cat("Importing data to R session...\n")
   pt<-proc.time()
   ff_folder<-file.path(raw_data_full_path, "ffdata")
   dir.create(ff_folder)
-  raw<-.readBrukerXmassImg(raw_data_folder = raw_data_full_path, xml_file = xml_file_full_path, ff_data_folder = ff_folder, sample_spectrum_path = txt_spectrum_path, ...)
+  raw<-.readBrukerXmassImg(raw_data_folder = raw_data_full_path, xml_file = xml_file_full_path, ff_data_folder = ff_folder, sample_spectrum_path = txt_spectrum_path, selected_xml_class = selected_img, ...)
 
   pt<-proc.time() - pt
   cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
@@ -80,14 +81,60 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   #Append resolution fields to img Object
   raw$pixel_size_um <- resolution_um
 
-  #Give a name to the image
-  raw$name <- basename(xml_file_full_path)
   return(raw)
 }
 
+#' ParseBrukerXML.
+#'
+#' Reads a Bruker's xml file exported using fleximaging.
+#' Each Bruker's ROI is stored independently.
+#' A list is returned where each element in the list contains the region name and the spots strings.
+#' Only the region selected by sel_img parameter is parsed each time this function is executed.
+#' To get all regions in a XML file this function must be called for each region.
+#' The total number of regions in an XML file can be determined usin the CountImagesInBrukerXml function.
+#'
+#' @param xml_path the full path where XML file is stored.
+#'
+#' @return all spots strings arranged in a list.
+ParseBrukerXML <- function(xml_path, sel_img = 1)
+{
+  xmltop <- XML::xmlRoot(XML::xmlTreeParse(xml_path), skip = T)
+
+  #Read each class in XML, this is reading each flexImaging acq region.
+  if( sel_img %in%  1:XML::xmlSize(xmltop))
+  {
+    xmlregion <- XML::xmlChildren(xmltop[[sel_img]])
+    img_desc <- list( name = XML::xmlGetAttr(xmltop[[sel_img]], "Name"), spots = c())
+    for (i in 1:length(xmlregion))
+    {
+      img_desc$spots <- c(img_desc$spots, XML::xmlGetAttr(xmlregion[[i]], "Spot"))
+    }
+  }
+  else
+  {
+    stop("Error: the selected image number is not present in XML file.\n")
+  }
+  return(img_desc)
+}
+
+
+#' CountImagesInBrukerXml.
+#'
+#' Reads a Bruker's XML file and counts the number of regions.
+#' This method is targetd to count the number of images to import previously of reading real data.
+#'
+#' @param xml_path the full path where XML file is stored.
+#'
+#' @return an integer with the total number of images found in the XML file.
+CountImagesInBrukerXml <- function(xml_path)
+{
+  xmltop <- XML::xmlParse(xml_path)
+  xmlClinProtSpectraImport <- XML::xmlChildren(xmltop)
+  return (XML::xmlSize(XML::xmlChildren(xmlClinProtSpectraImport[[1]])))
+}
 
 #Internal function too read bruker XMASS data and create the ramdisk
-.readBrukerXmassImg<-function(raw_data_folder, xml_file, ff_data_folder, max_ff_file_size_MB = 50, sample_spectrum_path = NULL)
+.readBrukerXmassImg<-function(raw_data_folder, xml_file, ff_data_folder, max_ff_file_size_MB = 50, sample_spectrum_path = NULL, selected_xml_class = 1)
 {
   #Internal methods
   ##Stores a directory structure of raw_data
@@ -107,23 +154,6 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
       names(rawDirs)<-unlist(lapply(topDataDir ,function(x) dir(file.path(raw_data_folder, x), full.names = F)))
     }
     return(rawDirs)
-  }
-
-  #Read XML input data
-  #Returns a vector of selected spectrums in a given ROI
-  readXmlSpectraList<-function(xml_file){
-    xml_data<-XML::xmlToList(xml_file)
-    #spots<-xml_data$Class[[1]]["Spot"]
-    spots<-c()
-    for (i in 1:length(xml_data$Class))
-    {
-      if(!is.na(xml_data$Class[[i]]["Spot"]))
-      {
-        spots<-c(spots,xml_data$Class[[i]]["Spot"])
-      }
-    }
-    names(spots)<-NULL
-    return(spots)
   }
 
   #Read Spectrum acqu file
@@ -163,13 +193,13 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
 
 
   #1- Read XML input data to get a vector of spectrums
-  spectraList<-readXmlSpectraList(xml_file)
-  pb<-txtProgressBar(min = 0, max = length(spectraList), style = 3 )
+  spectraList <- ParseBrukerXML(xml_file, sel_img = selected_xml_class)
+  pb<-txtProgressBar(min = 0, max = length(spectraList$spots), style = 3 )
   #Store directory structure to avoid wasting time in dir() fuctions
-  rawDirs<-dataListing(raw_data_folder, spectraList[1])
+  rawDirs<-dataListing(raw_data_folder, spectraList$spots[1])
 
   #2- Read Spectrum acqu file and generate m/z vector or use sampel txt spectrum if it is available
-  mz_axis_acqu<-generateMzAxisFromAcquFile(file.path(rawDirs[spectraList[1]], "1", "1SRef","acqu"))
+  mz_axis_acqu<-generateMzAxisFromAcquFile(file.path(rawDirs[spectraList$spots[1]], "1", "1SRef","acqu"))
   if(!is.null(sample_spectrum_path))
   {
     mz_axis_sample<-read.table(sample_spectrum_path)[,1]
@@ -186,20 +216,20 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   }
 
   #3- Read Spectrum FID file and fill data structure if not zero intensity
-  dataPos <- matrix(NA, ncol = 2, nrow = length(spectraList))
+  dataPos <- matrix(NA, ncol = 2, nrow = length(spectraList$spots))
   colnames(dataPos)<-c("x","y")
-  dataCube<-.CreateEmptyRamdisk(length(mz_axis), length(spectraList), ff_data_folder, max_ff_file_size_MB )
+  dataCube<-.CreateEmptyRamdisk(length(mz_axis), length(spectraList$spots), ff_data_folder, max_ff_file_size_MB )
   max_nrow <- nrow(dataCube[[1]])
 
-  for(i in 1:length(spectraList))
+  for(i in 1:length(spectraList$spots))
   {
     setTxtProgressBar(pb, i)
     i_cube<-(1+((i-1) %/% max_nrow))
-    dataCube[[i_cube]][(i - (i_cube -1) * max_nrow), ]<-readFidFile(file.path(rawDirs[spectraList[i]], "1", "1SRef","fid"), length(mz_axis))
+    dataCube[[i_cube]][(i - (i_cube -1) * max_nrow), ]<-readFidFile(file.path(rawDirs[spectraList$spots[i]], "1", "1SRef","fid"), length(mz_axis))
 
     #Extract X Y Coords
-    dataPos[i,"x"]<-as.integer(strsplit(strsplit(spectraList[i],"X")[[1]][2], "Y")[[1]][1])
-    dataPos[i,"y"]<-as.integer(strsplit(strsplit(spectraList[i],"Y")[[1]][2], "X")[[1]][1])
+    dataPos[i,"x"]<-as.integer(strsplit(strsplit(spectraList$spots[i],"X")[[1]][2], "Y")[[1]][1])
+    dataPos[i,"y"]<-as.integer(strsplit(strsplit(spectraList$spots[i],"Y")[[1]][2], "X")[[1]][1])
   }
   close(pb)
 
@@ -209,7 +239,7 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   y_size <- max(dataPos[,"y"])
 
   #5- Return dataCube, mz_axis, xsize, ysize as a list of elements
-  return(list(mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos))
+  return(list(name = spectraList$name, mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos))
 }
 
 #' Import a MSI dataset from Bruker XMASS folder and a XML file using a Wizard.

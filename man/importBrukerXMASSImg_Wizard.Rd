@@ -12,4 +12,3 @@ Only spectra contained in the XML file are imported. This method will prompt the
 the data direcotry, the XML files and output data path. A rMSI compressed images are stored as .tar
 in specified output directory.
 }
-

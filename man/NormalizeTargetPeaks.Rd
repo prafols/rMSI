@@ -24,4 +24,3 @@ a rMSI image containing the normalizations$<name> field
 NormalizeTargetPeaks: Calculates the normalization of each pixel as the sum of areas of specified peaks.
 The spectra that not contains target mass peaks will be removed by normalizing them by Inf.
 }
-

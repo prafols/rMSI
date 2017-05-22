@@ -17,4 +17,3 @@ a matrix containing the loaded spectra.
 \description{
 Loads a part of a rMSI object in computer memory. The spectra to load is specified by its identifiers (Ids).
 }
-

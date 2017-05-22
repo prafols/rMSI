@@ -15,4 +15,3 @@ MSIWindow(img1, img2 = NULL)
 \description{
 Open the GUI to explore a MS image
 }
-

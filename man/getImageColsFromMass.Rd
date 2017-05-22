@@ -20,4 +20,3 @@ A list with: a Cols vector containing columns of the datacube, Mass and Toleranc
 Obtains the rMSI datacube columns that corresponds to a mass range defined by a central mass and a tolerance.
 The central mass and tolerance are also recalculated to fit acurately in the dataset mass axis.
 }
-

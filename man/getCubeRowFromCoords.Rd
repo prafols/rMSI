@@ -17,4 +17,3 @@ a list of two vectors of cube index and row index in ff data objects list corres
 \description{
 Calculates where is located the data provided by pixel coordinates. The cube index and the cube row are returned.
 }
-

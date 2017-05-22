@@ -22,4 +22,3 @@ PlotValues(posMat, values, rotate = 0, scale_title = "",
 Plot values in a image using the same methods as plotting an MS image.
 The raster position of each value is definied in posMat.
 }
-

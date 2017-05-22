@@ -16,4 +16,3 @@ saveImgChunkAtIds(Img, Ids, dm)
 \description{
 Overwrites a part of rMSI object with the provided data matrix. The part of rMSI object that is overwrited is specified by the Ids vector.
 }
-

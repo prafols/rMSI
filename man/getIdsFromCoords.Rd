@@ -17,4 +17,3 @@ a vector of identifiers corresponding to given coords.
 \description{
 Calculate the pixel identifiers from the pixel coordinates.
 }
-

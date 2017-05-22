@@ -56,7 +56,7 @@ SaveMsiData<-function(imgData, data_file)
   {
     setTxtProgressBar(pb, i)
     dm<-imgData$data[[i]][,]
-    ffObj<-ff::ff(vmode = "integer", dim = c(nrow(dm), ncol(dm)), filename =  file.path(data_dir, ffDataNames[i]))
+    ffObj<-ff::ff(vmode = attr(attr(imgData$data[[i]],"physical"), "vmode"), dim = c(nrow(dm), ncol(dm)), filename =  file.path(data_dir, ffDataNames[i]))
     ffObj[,]<-dm
     ff::ffsave(ffObj , file =  file.path(data_dir, ffDataNames[i]))
     ff::delete(ffObj)
@@ -399,6 +399,7 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
   return(img)
 }
 
+#' AverageSpectrum.
 #' Computes the average spectrum of a whole rMSI image.
 #'
 #' @param img the rMSI image object.
@@ -415,6 +416,30 @@ AverageSpectrum <- function(img)
   return(avgI)
 }
 
+#' BaseSpectrum.
+#' Computes the base spectrum of a whole rMSI image where the intensity value
+#' for each mass bin is calculated as the maxium of all mass channels.
+#'
+#' @param img the rMSI image object.
+#'
+#' @return A vector with the base spectrum intensities. Masses are the same as the rMSI object.
+#' @export
+#'
+#' @examples
+BaseSpectrum <- function(img)
+{
+  cat("Calculating Base Spectrum...\n")
+  pb <- txtProgressBar(min = 0, max = length(img$data), style = 3)
+  maxSub <- rep(0, length(img$mass))
+  for( i in 1:length(img$data))
+  {
+    setTxtProgressBar(pb, i)
+    maxSub <- maxSub + apply(img$data[[i]][,], 2, max)
+  }
+  close(pb)
+  return(maxSub)
+}
+
 #' SortIDsByAcquisition: Order the rMSI pixel IDs according the acqusition sequence (first acquired pixel is the first one).
 #'
 #' @param img a rMSI image.
@@ -429,6 +454,63 @@ SortIDsByAcquisition <- function(img)
   idxArray <- idxArray[order(idxArray[,"y"], idxArray[,"x"]), ]
   return(idxArray[,"id"])
 }
+
+
+#' PlotClusterImage.
+#' Plot a segmentation image with the user-given clusters.
+#'
+#' @param posMat a two columns matrix where first column ara the x coodrinates of values and second column the y coordinates.
+#' @param clusters a vector with integer number according the cluster of each pixel.
+#' @param rotate rotation to apply.
+#' @param pixel_size_um the pixel resolution in um.
+#'
+#' @return a vector with the used color for each cluster sorted according clustering numering in assending order.
+#' @export
+#'
+PlotClusterImage <- function( posMat, clusters,  rotate = 0,  pixel_size_um = 100 )
+{
+  img <- list()
+  img$pos <- posMat
+  colnames(img$pos) <- c("x", "y")
+  img$size <- c(max(img$pos[ ,"x"]), max(img$pos[ ,"y"]))
+  names(img$size) <- c("x", "y")
+  img$pixel_size_um <- pixel_size_um
+
+  #Prepare image matrix
+  zplots<-matrix(0, nrow=img$size["x"], ncol=img$size["y"]) #Now I'm using a zero instead of NA to display a completely black background
+  for( i in 1:nrow(img$pos))
+  {
+    zplots[img$pos[ i , "x" ], img$pos[ i , "y" ]] <- clusters[i]
+  }
+
+  #Create the raster
+  my_raster <- raster::raster( nrow = ncol(zplots), ncol = nrow(zplots), xmn= 0, xmx= nrow(zplots), ymn= 0, ymx= ncol(zplots))
+  raster::values(my_raster) <- as.vector(zplots)
+  rm(zplots)
+
+  #Put zplots matrix and some metadata in a list
+  img_sgn <- list(raster = my_raster, mass = "", tolerance = 0, cal_resolution = img$pixel_size_um)
+  rm(my_raster)
+
+  raster_RGB<-.BuildSingleIonRGBImage(img_sgn, XResLevel = 3, light = 5)
+  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F)
+
+  #Get the colors used for clusters as a plotable form (RGB code) using the same rMSI internal function as raster image
+  colras <- raster::raster( nrow = 1, ncol = 1+length(unique(clusters)))
+  raster::values(colras) <- sort(c(0, unique(clusters)))
+  rgbColRas <- .ReMappingIntensity2HSV(colras, value_multiplier = 5)
+  clusterColors <- c()
+  Rchannel <- raster::values(rgbColRas$layer.1)
+  Gchannel <- raster::values(rgbColRas$layer.2)
+  Bchannel <- raster::values(rgbColRas$layer.3)
+  for( i in 1:length(unique(clusters))) #I'm avoiding the fist values because is the zero used to draw the background
+  {
+    clusterColors <- c(clusterColors, rgb( Rchannel[i + 1], Gchannel[i + 1], Bchannel[i + 1], 255, maxColorValue = 255))
+  }
+
+  return(clusterColors)
+}
+
 
 #' PlotValues.
 #'

@@ -18,4 +18,3 @@ a named data frame containing pixels positions in image (x, y) and spectra poisi
 Extracts all important information to read the imzML binary file from the XML run node.
 Internal use only.
 }
-

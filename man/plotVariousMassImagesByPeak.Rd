@@ -29,4 +29,3 @@ If only one value is supplied, then all image will be rotated the same.}
 \description{
 Plots a image using various MS image objects and the same intensity scale for every MS image.
 }
-

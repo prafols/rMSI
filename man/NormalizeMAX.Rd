@@ -17,4 +17,3 @@ a rMSI image containing the normalizations$MAX field or MAXne if remove_empty_pi
 \description{
 NormalizeMAX: Calculates the MAX normalizatin of each pixel as the maximum of all intensities.
 }
-

@@ -17,4 +17,3 @@ a rMSI image containing the normalizations$TIC field or TICne if remove_empty_pi
 \description{
 NormalizeTIC: Calculates the TIC normalizatin of each pixel as the sum of all intensities.
 }
-

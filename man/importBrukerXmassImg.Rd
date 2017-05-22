@@ -5,7 +5,7 @@
 \title{Import a MSI dataset from Bruker XMASS folder and a XML file.}
 \usage{
 importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path,
-  txt_spectrum_path = NULL, ...)
+  txt_spectrum_path = NULL, selected_img = 1, ...)
 }
 \arguments{
 \item{raw_data_full_path}{Where the Bruker XMASS data is located.}
@@ -16,6 +16,8 @@ importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path,
 
 \item{txt_spectrum_path}{Full path to a bruker spectrum txt file to extract mass axis (optional).}
 
+\item{selected_img}{the image number to select in the XML file containing various classes.}
+
 \item{...}{Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).}
 }
 \description{
@@ -24,4 +26,3 @@ Only spectra contained in the XML file are imported. The ramdisk will be created
 directory as a collection of ff files with the maximum specified size (50 MB is the default setting).
 The rMSI object pointing to ramdisk and containing RAM stored variables is returned.
 }
-

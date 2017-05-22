@@ -26,4 +26,3 @@ a rMSI image containing the normalizations$<name> field
 NormalizeByAcqDegradationOnTargetPeaks: Calculates the normalization of each pixel as the sum of areas of specified peaks.
 Each normalization coeficient is smoothed by its neighbours to compensate for ionization degradation during acqusition.
 }
-

@@ -14,4 +14,3 @@ SaveMsiData(imgData, data_file)
 \description{
 Save a rMSI object to disk in a compressed .tar file.
 }
-

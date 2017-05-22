@@ -15,4 +15,3 @@ a vector of ID's ordered acording acquisiton.
 \description{
 SortIDsByAcquisition: Order the rMSI pixel IDs according the acqusition sequence (first acquired pixel is the first one).
 }
-
