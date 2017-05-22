@@ -810,7 +810,7 @@
   Tbl_spotList<-gWidgets2::gtable( data.frame(ID,X,Y, Colour = meanSpectrumColor), container = Grp_Tbl, multiple = T, chosen.col = 1)
   size( Tbl_spotList )<- c(120, -1)
   ##Set table style using colors
-  RGtk2::gtkTreeViewSetGridLines(getToolkitWidget(Tbl_spotList), 3)
+  RGtk2::gtkTreeViewSetGridLines(getToolkitWidget(Tbl_spotList), as.integer(3))
   RGtk2::gtkCellLayoutSetAttributes(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0),
                              gtkCellLayoutGetCells(gtkTreeViewGetColumn(getToolkitWidget(Tbl_spotList), 0))[[1]],
                              background = 3
