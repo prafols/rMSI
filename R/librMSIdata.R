@@ -284,6 +284,7 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
 #' @export
 DeleteRamdisk<-function(img)
 {
+  lapply(img$data, function(x){ ff::close.ff(x) })
   ramdisk_path <- dirname(attr(attributes(img$data[[1]])$physical, "filename"))
   ramdisk_path_splited <- unlist(strsplit(ramdisk_path, "/"))
   ramdisk_path <- ""
