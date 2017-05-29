@@ -426,7 +426,6 @@ AverageSpectrum <- function(img)
 #' @return A vector with the base spectrum intensities. Masses are the same as the rMSI object.
 #' @export
 #'
-#' @examples
 BaseSpectrum <- function(img)
 {
   cat("Calculating Base Spectrum...\n")

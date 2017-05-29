@@ -6,7 +6,7 @@ Date: 2015-11-30
 Author: Pere Rafols Soler
 Maintainer: Pere Rafols Soler<pere.rafols@urv.cat>
 Description: More about what it does (maybe more than one line)
-License: What license is it under?
+License: GPL3
 LazyData: TRUE
 Imports:
     XML (>= 3.98),
@@ -20,4 +20,5 @@ Imports:
     sp (>= 1.2-0),
     digest (>= 0.6.9),
     Rcpp (>= 0.12.2)
+LinkingTo: Rcpp
 RoxygenNote: 6.0.1

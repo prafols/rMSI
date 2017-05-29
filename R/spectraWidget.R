@@ -32,7 +32,7 @@
 #'
 #' @export
 #'
-plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_intensity = NULL, ref_mass = NULL, col = "" )
+plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_intensity = NULL, ref_mass = NULL, col = "")
 {
   if( !exists( x = ".SpectraWidget", mode = "environment") )
   {
@@ -51,7 +51,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   if( !is.null(mass) && !is.null(intensity) )
   {
     .SpectraWidget$AddSpectra( mass_data = mass, intensity_data = intensity,
-                             mass_peaks = peaks_mass, intensity_peaks = peaks_intensity, col = col )
+                             mass_peaks = peaks_mass, intensity_peaks = peaks_intensity, col = col)
   }
 
   if( !is.null(ref_mass) )
@@ -131,9 +131,9 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   #A spectrum is created with a defined mass and intensity. This two params are not modifiable.
   #The original color must be also specified, but this param can be changed after.
   #A spectrum can also provide peaks. This can be added/modified latter.
-  CreateSpectrumObj <- function (mass, intensity, color, mass_peaks = NULL, intensity_peaks = NULL, active = T )
+  CreateSpectrumObj <- function (mass, intensity, color, mass_peaks = NULL, intensity_peaks = NULL, active = T)
   {
-    return(list(mass = mass, intensity = intensity, color = color, mass_peaks = mass_peaks, intensity_peaks = intensity_peaks, enabled = active ))
+    return(list(mass = mass, intensity = intensity, color = color, mass_peaks = mass_peaks, intensity_peaks = intensity_peaks, enabled = active))
   }
 
   #Set spectrum color
@@ -231,7 +231,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   }
 
   #Add spectrum data
-  AddSpectra <- function( mass_data, intensity_data, mass_peaks = NULL, intensity_peaks = NULL, col = "", name = "", add_enabled = T )
+  AddSpectra <- function( mass_data, intensity_data, mass_peaks = NULL, intensity_peaks = NULL, col = "", name = "", add_enabled = T)
   {
     if( length(this$spectra_data) >= this$MAX_SPECTRA_LIMIT)
     {
@@ -255,7 +255,6 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       }
     }
     this$spectra_data[[as.character(name)]]<-this$CreateSpectrumObj(mass_data, intensity_data, col, mass_peaks, intensity_peaks, add_enabled)
-
     this$data_mass_range <- c(min(sapply(this$spectra_data, function(x){ return( x$mass[1] ) })),max(sapply(this$spectra_data, function(x){ return( x$mass[length(x$mass)] ) })))
 
     #Set Spin_massSel range properly
@@ -377,7 +376,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
 
       #Reduce spectra data size to speed-up ploting
       mass_range <- this$mz_lim
-      npoints <- 2*gWidgets2::size(this$plot_device)["width"]
+      npoints <- 10*gWidgets2::size(this$plot_device)["width"]
 
       #Visible before plot() forces the target divice for ploting
       visible(this$plot_device)<-TRUE
@@ -419,50 +418,13 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         {
           if( this$spectra_data[[li]]$enabled)
           {
-            #Work with a copy which is much more fastter than accesing a pointer trought R.oo package
-            mz_copy<-this$spectra_data[[li]]$mass
-            int_copy <- this$spectra_data[[li]]$intensity
 
-            imin<-which(mz_copy <=  mass_range[1], arr.ind = T)
-            imax<-which(mz_copy >=  mass_range[2], arr.ind = T)
-
-            #Limiting to real mass range
-            if(length(imin) == 0)
+            #Plot the spectrum
+            plotData <- ReduceDataPointsC(this$spectra_data[[li]]$mass, this$spectra_data[[li]]$intensity, this$mz_lim[1], this$mz_lim[2], npoints)
+            lines(x = plotData$mass, y = plotData$intensity, col= this$spectra_data[[li]]$color)
+            if(length(plotData$mass) <= 200)
             {
-              imin<-1
-            }
-            if(length(imax) == 0)
-            {
-              imax<-length(mz_copy)
-            }
-            imin<-imin[length(imin)]
-            imax<-imax[1]
-
-            #Interpolation
-            if(imax - imin +1 > npoints)
-            {
-              new_axes<-approx(imin:imax, mz_copy[imin:imax], n = npoints) #mz axes interpolation
-              mzData<-new_axes$y
-              dst.vect<-(new_axes$x[-1] - new_axes$x[-length(new_axes$x)])/2
-              dst.vect<-c(0, dst.vect, 0) #Add sides
-              inData<-c()
-
-              for(i in 1:length(mzData))
-              {
-                inMax<-max(int_copy[ceiling(new_axes$x[i] - dst.vect[i]):floor(new_axes$x[i] + dst.vect[i+1])])
-                inData<-c(inData, inMax)
-              }
-            }
-            else
-            {
-              mzData<-mz_copy[imin:imax]
-              inData<-int_copy[imin:imax]
-            }
-
-            lines(x = mzData, y = inData, col= this$spectra_data[[li]]$color)
-            if(length(mzData) <= 200)
-            {
-              points(x = mzData, y = inData, col= this$spectra_data[[li]]$color, pch = 20)
+              points(x = plotData$mass, y = plotData$intensity, col= this$spectra_data[[li]]$color, pch = 20)
             }
 
             #Plot labels
