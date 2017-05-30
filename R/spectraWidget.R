@@ -115,7 +115,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   CurrentSelTool <- "Zoom" #Stores the curren state of the sel tool, can be: Zoom, Red, Green and Blue
   MAX_SPECTRA_LIMIT <- max_spectra_limit #Maximum number of spectra that can be added
   ReDraw <- F #Signal when spectra must be redraw
-  MAX_MASS_SEL_RANGE <- 4 #Max range of masses to allow selection (in Da)
+  MAX_MASS_SEL_RANGE <- 200 #Max range of masses to allow selection (in data points)
   ReDrawRedImg <- F
   ReDrawGreenImg <- F
   ReDrawBlueImg <- F
@@ -529,7 +529,15 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       }
 
       #Limit selection to 5 Da to avoid selecting large parts of spectra and filling RAM
-      if(mz_tol*2 > this$MAX_MASS_SEL_RANGE )
+      if( length(this$spectra_data) == 0)
+      {
+        cat("No spectra to select\n")
+        return(TRUE)
+      }
+      
+      dpSelL <- which.min(abs(this$spectra_data[[1]]$mass - (mz_sel - mz_tol)))
+      dpSelR <- which.min(abs(this$spectra_data[[1]]$mass - (mz_sel + mz_tol)))
+      if(( dpSelR - dpSelL ) > this$MAX_MASS_SEL_RANGE )
       {
         cat(paste("Ion selection in a range of", mz_tol*2, "Da has been aborted. To large data sector.\n"))
         return(TRUE)
@@ -660,7 +668,30 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
         this$MouseWheelFunction<-2
       }
     }
-
+    else if(evt[[4]][["keyval"]] == 114)
+    {
+      #r key press
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        gWidgets2::svalue(this$Btn_SelRedTool) <- T
+      }
+    }
+    else if(evt[[4]][["keyval"]] == 103)
+    {
+      #g key press
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        gWidgets2::svalue(this$Btn_SelGreenTool) <- T
+      }
+    }
+    else if(evt[[4]][["keyval"]] == 98)
+    {
+      #b key press
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        gWidgets2::svalue(this$Btn_SelBlueTool) <- T
+      }
+    }
     return(FALSE) #The key event requires this return to allow keyboard continue working for other widgets as spin buttons
   }
 
@@ -679,6 +710,30 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       if(this$MouseWheelFunction == 2)
       {
         this$MouseWheelFunction<-0
+      }
+    }
+    else if(evt[[4]][["keyval"]] == 114)
+    {
+      #r key press
+      if(!is.null(this$Btn_SelRedTool))
+      {
+        gWidgets2::svalue(this$Btn_ZoomTool) <- T
+      }
+    }
+    else if(evt[[4]][["keyval"]] == 103)
+    {
+      #g key press
+      if(!is.null(this$Btn_SelGreenTool))
+      {
+        gWidgets2::svalue(this$Btn_ZoomTool) <- T
+      }
+    }
+    else if(evt[[4]][["keyval"]] == 98)
+    {
+      #b key press
+      if(!is.null(this$Btn_SelBlueTool))
+      {
+        gWidgets2::svalue(this$Btn_ZoomTool) <- T
       }
     }
     return(FALSE) #The key event requires this return to allow keyboard continue working for other widgets as spin buttons
@@ -1042,7 +1097,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     Lbl_massSel <- gWidgets2::glabel("m/z:", container = Grp_Buttons)
     Spin_massSel <- gWidgets2::gspinbutton( from = 0, to = 1, value = 0, digits = 4, by = 0.1, container =  Grp_Buttons, handler = this$MassSelSpinChanged)
     Lbl_TolSel <- gWidgets2::glabel("+/-", container = Grp_Buttons)
-    Spin_TolSel <- gWidgets2::gspinbutton( from = 0, to = MAX_MASS_SEL_RANGE, value = 0.1, digits = 4, by = 0.01, container =  Grp_Buttons, handler = this$TolSelSpinChanged)
+    Spin_TolSel <- gWidgets2::gspinbutton( from = 0, to = 500, value = 0.1, digits = 4, by = 0.01, container =  Grp_Buttons, handler = this$TolSelSpinChanged)
     gWidgets2::visible(Lbl_massSel) <- F
     gWidgets2::visible(Spin_massSel) <- F
     gWidgets2::visible(Lbl_TolSel) <- F

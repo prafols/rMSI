@@ -4,10 +4,14 @@
 \alias{xmlParseSpectra}
 \title{xmlParseSpectra.}
 \usage{
-xmlParseSpectra(xmlRunNode, fun_progress = NULL)
+xmlParseSpectra(xmlRunNode, mzArrayRef, inArrayRef, fun_progress = NULL)
 }
 \arguments{
 \item{xmlRunNode}{an XML node containing the imzML run tree.}
+
+\item{mzArrayRef}{a string with the value declared to search for mz arrays.}
+
+\item{inArrayRef}{a string with the value declared to search for intensity arrays.}
 
 \item{fun_progress}{a callback to use another progress bar instead of the internaly used text pbar.}
 }

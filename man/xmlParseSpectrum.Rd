@@ -4,10 +4,14 @@
 \alias{xmlParseSpectrum}
 \title{xmlParseSpectrum.}
 \usage{
-xmlParseSpectrum(xmlSingleSpectrum)
+xmlParseSpectrum(xmlSingleSpectrum, mzSRef, inSRef)
 }
 \arguments{
 \item{xmlSingleSpectrum}{a xml node containing data for a single spectrum.}
+
+\item{mzSRef}{a string with the naming reference used to search mz array.}
+
+\item{inSRef}{a string with the naming reference used to search intensity array.}
 }
 \value{
 a named list containing all parameters of the spectrum.

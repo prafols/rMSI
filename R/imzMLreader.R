@@ -44,6 +44,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   {
     pb<-txtProgressBar(min = 0, max = 100, style = 3 )
     fun_progress <- setPbarValue
+    cat("\n")
   }
   else
   {
@@ -154,6 +155,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
 
   #8- Close the bin file connection
   close(bincon)
+  cat("\n")
 
   #9- Compute image size and arrange coords to avoid holes
   datacube$pos <- remap2ImageCoords(datacube$pos)
@@ -211,27 +213,26 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
   continuous_mode <- NULL
   for( i in 1:(XML::xmlSize(xmlFDesc$fileContent)))
   {
-    name <- XML::xmlGetAttr(xmlFDesc$fileContent[[i]], "name")
     id <- XML::xmlGetAttr(xmlFDesc$fileContent[[i]], "accession")
     value <- XML::xmlGetAttr(xmlFDesc$fileContent[[i]], "value")
 
-    if(name == "universally unique identifier" && id == "IMS:1000080")
+    if(id == "IMS:1000080")
     {
       UUID <- toupper(paste(unlist(strsplit(unlist(strsplit(unlist(strsplit(value, "{", fixed = T)), "}", fixed = T)), "-", fixed = T)), collapse = ""))
     }
-    if( name == "ibd SHA-1" && id == "IMS:1000091")
+    if( id == "IMS:1000091")
     {
       SHA <- toupper(value)
     }
-    if( name == "ibd MD5" && id == "IMS:1000090")
+    if( id == "IMS:1000090")
     {
       MD5 <- toupper(value)
     }
-    if( name == "continuous" && id == "IMS:1000030")
+    if( id == "IMS:1000030")
     {
       continuous_mode <- T
     }
-    if( name == "processed" && id == "IMS:1000031")
+    if( id == "IMS:1000031")
     {
       continuous_mode <- F
     }
@@ -263,7 +264,7 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
   bChecked <- F
   if( !is.null(SHA))
   {
-    cat("Checking binary data checksum using SHA-1 key... ")
+    cat("\nChecking binary data checksum using SHA-1 key... ")
     res <- toupper(digest::digest( fpath_bin, algo = "sha1", file = T))
     if( res == SHA )
     {
@@ -273,7 +274,9 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
     else
     {
       cat(paste("NOK\nChecksums don't match\nXML key:", SHA, "\nBinary file key:", res,"\n"))
-      .controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+      #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+      #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
+      cat("WARNING: MS data my be corrupt!\n")
     }
   }
   if( !is.null(MD5))
@@ -288,7 +291,9 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
     else
     {
       cat(paste("NOK\nChecksums don't match\nXML key:", MD5, "\nBinary file key:", res,"\n"))
-      .controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+      #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+      #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
+      cat("WARNING: MS data my be corrupt!\n")
     }
   }
   if(!bChecked)
@@ -302,26 +307,29 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
     no_compression <- F
     units <- NULL
     dataType <- NULL
+    isMassArray <- F
+    isIntensityArray <- F
     xmlSubDataType <- XML::xmlChildren(xmlArrNode)
     for( j in 1:(XML::xmlSize(xmlSubDataType)))
     {
-      name <- XML::xmlGetAttr(xmlSubDataType[[j]], "name")
       id <- XML::xmlGetAttr(xmlSubDataType[[j]], "accession")
       value <- XML::xmlGetAttr(xmlSubDataType[[j]], "value")
 
-      if(name == "no compression" && id == "MS:1000576") #test compression
+      if( id == "MS:1000576") #test compression
       {
         no_compression <- T
       }
 
-      if(name == "m/z array" && id == "MS:1000514") #m/z array units
+      if( id == "MS:1000514") #m/z array units
       {
-        units <-  XML::xmlGetAttr(xmlSubDataType[[j]], "unitName")
+        isMassArray <- T
+        units <-  XML::xmlGetAttr(xmlSubDataType[[j]], "unitAccession")
       }
 
-      if(name == "intensity array" && id == "MS:1000515") #intensity array units
+      if( id == "MS:1000515") #intensity array units
       {
-        units <-  XML::xmlGetAttr(xmlSubDataType[[j]], "unitName")
+        isIntensityArray <- T
+        units <-  XML::xmlGetAttr(xmlSubDataType[[j]], "unitAccession")
       }
 
       #8 bits integer data array
@@ -331,31 +339,32 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
       #TODO This is not encoded in mzML CV obo file but is specified as valid in imzML spec!
 
       #32 bits integer data array
-      if(name == "32-bit integer" && id == "MS:1000519")
+      if(id == "MS:1000519")
       {
         dataType <- "int"
       }
 
       #64 bits integer data array
-      if(name == "64-bit integer" && id == "MS:1000522")
+      if(id == "MS:1000522")
       {
         dataType <- "long"
       }
 
       #32 bits float data array
-      if(name == "32-bit float" && id == "MS:1000521")
+      if(id == "MS:1000521")
       {
         dataType <- "float"
       }
 
       #64 bits double data array
-      if(name == "64-bit float" && id == "MS:1000523")
+      if(id == "MS:1000523")
       {
         dataType <- "double"
       }
 
     }
-    return(list( no_compression = no_compression, units = units, dataType = dataType ))
+    return(list( no_compression = no_compression, units = units, dataType = dataType, 
+                 massArray = isMassArray, intensityArray = isIntensityArray ))
   }
 
   mzArrayDesc <- NULL
@@ -363,15 +372,18 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
   xmlDataType <- XML::xmlChildren( xmlch$referenceableParamGroupList)
   for ( i in 1:(XML::xmlSize(xmlDataType)))
   {
-    if ( XML::xmlGetAttr(xmlDataType[[i]], "id") == "mzArray")
+    auxArrayDesc <- parseXmlArrayDataType(xmlDataType[[i]])
+    auxArrayDesc$ref <- XML::xmlGetAttr(xmlDataType[[i]], "id")
+    
+    if(auxArrayDesc$massArray)
     {
-      mzArrayDesc <- parseXmlArrayDataType(xmlDataType[[i]])
+      mzArrayDesc <- auxArrayDesc
     }
-
-    if ( XML::xmlGetAttr(xmlDataType[[i]], "id") == "intensityArray")
+    if(auxArrayDesc$intensityArray)
     {
-      intArrayDesc <- parseXmlArrayDataType(xmlDataType[[i]])
+      intArrayDesc <- auxArrayDesc
     }
+    rm(auxArrayDesc)
   }
 
   #Check for emty data
@@ -382,8 +394,8 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
   }
   if( is.null(intArrayDesc$units ))
   {
-    cat("\nWarning: No intensity array units declared. Assuming number of counts as default unit.\n") #Just display a wrining because some implementation do not provide data units for intensity array
-    intArrayDesc$units <- "number of counts"
+    cat("\nWarning: No intensity array units declared. Assuming number of counts as default unit.\n") #Just display a warining because some implementation do not provide data units for intensity array
+    intArrayDesc$units <- "MS:1000131"
   }
   if( is.null(mzArrayDesc$dataType))
   {
@@ -405,14 +417,14 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
     .controlled_loadAbort("Data is compressed, compressed imzML images are still not supported for rMSI\n", close_signal)
   }
 
-  if (mzArrayDesc$units != "m/z")
+  if (mzArrayDesc$units != "MS:1000040")
   {
     .controlled_loadAbort("m/z Array is not in m/z format, rMSI only supports m/z units\n", close_signal)
   }
 
-  if( intArrayDesc$units != "number of counts")
+  if( intArrayDesc$units != "MS:1000131")
   {
-    .controlled_loadAbort("intensity Arrays are not in number of counts units, rMSI does not support it\n", close_signal)
+    .controlled_loadAbort("intensity Arrays are not in number of detector counts, rMSI does not support it\n", close_signal)
   }
 
   #Obtain pixel resolution (I'm reading directly the accession becasue I've found some mismatch beetween obo and imzML example)
@@ -428,7 +440,7 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
   }
 
   #Obtain the RUN data
-  imgData <- xmlParseSpectra(XML::xmlChildren(xmlch$run), fun_progress = fun_progress)
+  imgData <- xmlParseSpectra(XML::xmlChildren(xmlch$run), mzArrayDesc$ref, intArrayDesc$ref,  fun_progress = fun_progress)
 
   return( list( UUID = UUID, continuous_mode = continuous_mode,
                 compression_mz = !mzArrayDesc$no_compression, compression_int = !intArrayDesc$no_compression,
@@ -443,10 +455,12 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
 #'
 #' @param xmlRunNode an XML node containing the imzML run tree.
 #' @param fun_progress a callback to use another progress bar instead of the internaly used text pbar.
+#' @param mzArrayRef a string with the value declared to search for mz arrays.
+#' @param inArrayRef a string with the value declared to search for intensity arrays.
 #'
 #' @return a named data frame containing pixels positions in image (x, y) and spectra poisitions in binary file (offsets).
 #'
-xmlParseSpectra <- function (xmlRunNode, fun_progress = NULL)
+xmlParseSpectra <- function (xmlRunNode, mzArrayRef, inArrayRef, fun_progress = NULL)
 {
   updatePbar <- function( value )
   {
@@ -475,7 +489,7 @@ xmlParseSpectra <- function (xmlRunNode, fun_progress = NULL)
   pp<-0
   for( i in 1:(XML::xmlSize(xmlRunNode$spectrumList)))
   {
-    imgData[i, ] <- unlist(xmlParseSpectrum(xmlRunNode$spectrumList[[i]]))
+    imgData[i, ] <- unlist(xmlParseSpectrum(xmlRunNode$spectrumList[[i]], mzArrayRef, inArrayRef))
     pp_ant<-pp
     pp<-pp+ppStep
     if(round(pp) > round(pp_ant))
@@ -489,7 +503,7 @@ xmlParseSpectra <- function (xmlRunNode, fun_progress = NULL)
     close(pb)
   }
   pt<-proc.time() - pt
-  cat(paste("imzML XML parse time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+  cat(paste("\nimzML XML parse time:",round(pt["elapsed"], digits = 1),"seconds\n"))
   return( imgData )
 }
 
@@ -499,10 +513,12 @@ xmlParseSpectra <- function (xmlRunNode, fun_progress = NULL)
 #' Internal use only.
 #'
 #' @param xmlSingleSpectrum a xml node containing data for a single spectrum.
+#' @param mzSRef a string with the naming reference used to search mz array.
+#' @param inSRef a string with the naming reference used to search intensity array.
 #'
 #' @return a named list containing all parameters of the spectrum.
 #'
-xmlParseSpectrum <- function( xmlSingleSpectrum )
+xmlParseSpectrum <- function( xmlSingleSpectrum, mzSRef, inSRef)
 {
   #Read child data in spectrum node
   ttscan <- XML::xmlChildren(xmlSingleSpectrum)
@@ -522,11 +538,11 @@ xmlParseSpectrum <- function( xmlSingleSpectrum )
   spectrumInfo <- list (x = NULL, y = NULL, mzLength = NULL, mzOffset = NULL, intLength = NULL, intOffset = NULL)
   for( i in 1:(XML::xmlSize(ttscanPosXY) ))
   {
-    if(XML::xmlGetAttr(ttscanPosXY[[i]], "name") ==  "position x")
+    if(XML::xmlGetAttr(ttscanPosXY[[i]], "accession") == "IMS:1000050") #position x
     {
       spectrumInfo$x <- as.numeric(XML::xmlGetAttr(ttscanPosXY[[i]], "value"))
     }
-    if(XML::xmlGetAttr(ttscanPosXY[[i]], "name") ==  "position y")
+    if(XML::xmlGetAttr(ttscanPosXY[[i]], "accession") ==  "IMS:1000051") #position y
     {
       spectrumInfo$y <- as.numeric(XML::xmlGetAttr(ttscanPosXY[[i]], "value"))
     }
@@ -546,28 +562,28 @@ xmlParseSpectrum <- function( xmlSingleSpectrum )
 
     for( j in 1:(XML::xmlSize(subNode)) )
     {
-      name <- XML::xmlGetAttr(subNode[[j]], "name")
+      access <- XML::xmlGetAttr(subNode[[j]], "accession")
       val <- as.numeric(XML::xmlGetAttr(subNode[[j]], "value"))
 
-      if (subNodeRef == "mzArray")
+      if (subNodeRef == mzSRef)
       {
-        if( name == "external array length")
+        if( access == "IMS:1000103") #external array length
         {
           spectrumInfo$mzLength <- val
         }
-        if( name == "external offset")
+        if( access == "IMS:1000102") #external offset
         {
           spectrumInfo$mzOffset <- val
         }
       }
 
-      if (subNodeRef == "intensityArray")
+      if (subNodeRef == inSRef)
       {
-        if( name == "external array length")
+        if( access == "IMS:1000103")  #external array length
         {
           spectrumInfo$intLength <- val
         }
-        if( name == "external offset")
+        if( access == "IMS:1000102") #external offset
         {
           spectrumInfo$intOffset <- val
         }
