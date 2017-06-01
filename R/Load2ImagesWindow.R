@@ -40,8 +40,7 @@ LoadTwoMsImages <- function( )
     {
       return ()
     }
-
-    gWidgets2::svalue(h$action) <- fname
+    RGtk2::gtkEntrySetText(gWidgets2::getToolkitWidget(h$action), fname)
   }
 
   cancelClicked <- function(h, ...)
@@ -74,7 +73,7 @@ LoadTwoMsImages <- function( )
     if( file.exists(fpath1) )
     {
       this$pbar$setTitle("Loading image 1")
-      this$img1_obj<-LoadMsiData(data_file = fpath1, restore_path = file.path(dirname(fpath1), paste("ramdisk",basename(fpath1), sep = "_")), fun_progress = this$pbar$setValue, fun_label = this$pbar$setTitle, close_signal = this$pbar$close)
+      this$img1_obj<-LoadMsiData(data_file = fpath1, restore_path = file.path(dirname(fpath1), paste("ramdisk",basename(fpath1), sep = "_")), fun_progress = this$pbar$setValue, fun_label = this$pbar$setTitle, close_signal = this$pbar$close, imzMLChecksum = F)
       this$pbar$setValue(100)
     }
     else
@@ -89,7 +88,7 @@ LoadTwoMsImages <- function( )
     if( file.exists(fpath2) )
     {
       this$pbar$setTitle("Loading image 2")
-      this$img2_obj<-LoadMsiData(data_file = fpath2, restore_path = file.path(dirname(fpath2), paste("ramdisk",basename(fpath2), sep = "_")), fun_progress = this$pbar$setValue, fun_label = this$pbar$setTitle, close_signal = this$pbar$close)
+      this$img2_obj<-LoadMsiData(data_file = fpath2, restore_path = file.path(dirname(fpath2), paste("ramdisk",basename(fpath2), sep = "_")), fun_progress = this$pbar$setValue, fun_label = this$pbar$setTitle, close_signal = this$pbar$close, imzMLChecksum = F)
       this$pbar$setValue(100)
     }
     else

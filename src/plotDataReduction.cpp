@@ -69,7 +69,7 @@ List ReduceDataPointsC(NumericVector mass, NumericVector intensity, double massM
     binID = binID < 0 ? 0 : binID;
     binID = binID > (N - 1) ? (N - 1) : binID;
       
-    if( intensity[i] > inData[binID]  )
+    if( intensity[i] >= inData[binID]  )
     {
       inData[binID] = intensity[i];
       mzData[binID] = mass[i];

@@ -25,6 +25,7 @@
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
 #' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
 #' @param close_signal function to be called if loading process is abored.
+#' @param verifyChecksum if the binary file checksum must be verified, it can be disabled for convenice with really big files.
 #'
 #'  Imports an imzML image to an rMSI data object.
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
@@ -32,7 +33,7 @@
 #' @return an rMSI data object.
 #' @export
 #'
-import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL, fun_text = NULL, close_signal = NULL)
+import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL, fun_text = NULL, close_signal = NULL, verifyChecksum = T)
 {
   setPbarValue<-function(progress)
   {
@@ -52,12 +53,17 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   }
 
   #1- Parse XML data
-  if(!is.null(fun_text))
+  if(is.null(fun_text))
+  {
+    cat("Parsing XML data in imzML file...")
+  }
+  else
   {
     fun_text("Parsing XML data in imzML file...")
   }
-  xmlRes <- imzMLparse( imzML_File, ibd_File, fun_progress =  fun_progress, close_signal = close_signal)
-
+  
+  xmlRes <- imzMLparse( imzML_File, ibd_File, fun_progress =  fun_progress, close_signal = close_signal, verifyChecksum = verifyChecksum)
+  
   #2- Create a connection to read binary file
   bincon <- file(description = ibd_File, open = "rb")
 
@@ -82,38 +88,110 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   }
 
   #4- Obtain de m/z axis (this is only valid for imzML continuous mode)
+  pt<-proc.time()
   if(xmlRes$mz_dataType == "int" || xmlRes$mz_dataType == "long")
   {
-    readDataType <- integer()
+    readDataTypeMz <- integer()
   }
   if(xmlRes$mz_dataType == "float" || xmlRes$mz_dataType == "double")
   {
-    readDataType <- numeric()
+    readDataTypeMz <- numeric()
   }
-  mzAxis <- readBin(bincon, readDataType, xmlRes$run_data[1, "mzLength"], size = sizeInBytesFromDataType(xmlRes$mz_dataType), signed = T)
+  bytes2ReadMz <- sizeInBytesFromDataType(xmlRes$mz_dataType)
+  
+  if(xmlRes$continuous_mode)
+  {
+    mzAxis <- readBin(bincon, readDataTypeMz, xmlRes$run_data[1, "mzLength"], size = bytes2ReadMz, signed = T)
+  }
+  else
+  {
+    #Processed mode, so a common mass axis must be calculated and stored in mzAxis var
+    cat("Calculating the new mass axis...\n")
+    if(!is.null(fun_text))
+    {
+      fun_text("Process mode, re-calculating mass axis...")
+    }
+    ppStep<-100/nrow(xmlRes$run_data)
+    pp<-0
+    #Update progress bar
+    if( !fun_progress(pp) )
+    {
+      return(NULL) #progress bar function must return true if the loading process is to be continued.
+    }
+    
+    #Get the spectrometer resolving using the mass axis with more points
+    seli <- which.max(xmlRes$run_data$mzLength)
+    seek(bincon, rw = "read", where = xmlRes$run_data[seli, "mzOffset"] )
+    mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[seli, "mzLength"], size = bytes2ReadMz, signed = T)
+    mzdd <- unique(mzdd) #Avoid duplicates to avoid an infinte loop
+    resPow <- abs(min(mzdd[-1] - mzdd[-length(mzdd)]))
+    mzAxis <- c() #Where the new mass axis will be stored
+    massRanges <- data.frame( min = rep(NA, nrow(xmlRes$run_data)),  max = rep(NA, nrow(xmlRes$run_data)))
+    
+    for( i in 1:nrow(xmlRes$run_data))
+    {
+      #Read mass axis for the current spectrum 
+      seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
+      mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
+      
+      #Calculateing a common mass axis
+      massRanges$min[i] <- mzdd[1]
+      massRanges$max[i] <- mzdd[length(mzdd)]
+      mzAxis <- sort(unique(c(mzAxis, mzdd)))
+      slops <- mzAxis[-1] - mzAxis[-length(mzAxis)]
+      cis <- which(slops < resPow)
+      if(length(cis)>0)
+      {
+        mzAxis <- mzAxis[-cis]
+      }
+      
+      #Update progress bar
+      pp_ant<-pp
+      pp<-pp+ppStep
+      if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
+      {
+        #Update progress bar
+        if( !fun_progress(pp) )
+        {
+          return(NULL) #progress bar function must return true if the loading process is to be continued.
+        }
+      }
+    }
+    
+    #And finally trim the mass axis to represent the average axis in the dataset
+    medianMin <- median(massRanges$min)
+    medianMax <- median(massRanges$max)
+    
+    idL <- which.min(abs(mzAxis - medianMin))
+    idR <- which.min(abs(mzAxis - medianMax))
+    mzAxis <- mzAxis[idL:idR]
+  }
+  pt<-proc.time() - pt
+  cat(paste("\nMass axis calculation time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+  cat(paste("The re-sampled mass axis contains", length(mzAxis), "data points\n"))
 
   #5- Map imzML possible data types to ff packages available data types
   if(xmlRes$int_dataType == "int")
   {
     ffDataType <- "integer" #32 bit signed integer with NA.
-    readDataType <- integer()
+    readDataTypeInt <- integer()
   }
   if(xmlRes$int_dataType == "long")
   {
     ffDataType <- "single" #32 bit signed integer is not available in ff so I map it to 32 bits float to allow enough range.
-    readDataType <- integer()
+    readDataTypeInt <- integer()
   }
   if(xmlRes$int_dataType == "float")
   {
     ffDataType <- "single"
-    readDataType <- numeric()
+    readDataTypeInt <- numeric()
   }
   if(xmlRes$int_dataType == "double")
   {
     ffDataType <- "double"
-    readDataType <- numeric()
+    readDataTypeInt <- numeric()
   }
-  bytes2Read <- sizeInBytesFromDataType(xmlRes$int_dataType)
+  bytes2ReadInt <- sizeInBytesFromDataType(xmlRes$int_dataType)
 
   #6- Create the ramdisk
   if(!is.null(fun_text))
@@ -127,19 +205,50 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
                                data_type = ffDataType)
 
   #7- Read all spectra
-  binReadOffset <- 16 + ((xmlRes$run_data[1, "mzLength"]) * sizeInBytesFromDataType(xmlRes$mz_dataType))
+  pt <- proc.time()
   cat("\nReading spectra from binary file...\n")
   ppStep<-100/nrow(xmlRes$run_data)
   pp<-0
-  for( i in 1:nrow(xmlRes$run_data))
+  #Update progress bar
+  if( !fun_progress(pp) )
   {
-    iCol <- which(xmlRes$run_data[, "intOffset"] == binReadOffset)
-    dd <- readBin(bincon, readDataType, xmlRes$run_data[iCol, "intLength"], size = bytes2Read, signed = T)
-    binReadOffset <- binReadOffset + (bytes2Read * xmlRes$run_data[iCol, "intLength"])
+    return(NULL) #progress bar function must return true if the loading process is to be continued.
+  }
+  cat("#DBG: Entring ibd reading loop...\n") #TODO DBG trap to remove
+  for(i in 1:nrow(xmlRes$run_data))
+  {
+    #Read intensity of current spectrum
+    cat(paste0("#DBG i=", i, "/", nrow(xmlRes$run_data), " ")) #TODO DBG trap to remove
+    seek(bincon, rw = "read", where = xmlRes$run_data[i, "intOffset"] )
+    dd <- readBin(bincon, readDataTypeInt, xmlRes$run_data[i, "intLength"], size = bytes2ReadInt, signed = T)
+    
+    cat("intOk ") #TODO DBG trap to remove
+    
+    if(!xmlRes$continuous_mode)
+    {
+      #Read mass axis for the current spectrum 
+      seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
+      mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
+      
+      cat("mzOk ") #TODO DBG trap to remove
+      
+      #Apply re-sampling
+      dd <- (approx( x = mzdd, y = dd, xout = mzAxis))$y
+      dd[which(is.na(dd))] <- 0 #Remove any possible NA
+      
+      cat("approxOk ") #TODO DBG trap to remove
+    }
+    
+    #Store the intensities to the ramdisk
     saveImgChunkAtIds(datacube, Ids =  i, dm = matrix(dd, nrow = 1, ncol = length(dd)))
-    datacube$pos[i, "x"] <- xmlRes$run_data[iCol, "x"]
-    datacube$pos[i, "y"] <- xmlRes$run_data[iCol, "y"]
-
+    
+    cat("storeOk ") #TODO DBG trap to remove
+    
+    datacube$pos[i, "x"] <- xmlRes$run_data[i, "x"]
+    datacube$pos[i, "y"] <- xmlRes$run_data[i, "y"]
+    
+    cat("posOk\n") #TODO DBG trap to remove
+    
     #Update progress bar
     pp_ant<-pp
     pp<-pp+ppStep
@@ -152,6 +261,16 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       }
     }
   }
+  
+  cat("#DBG: IBD reading complete\n") #TODO DBG trap to remove
+  pt<-proc.time() - pt
+  
+  cat("#DBG: time calc complete\n") #TODO DBG trap to remove
+  
+  ### TODO amb les dades d 200GB la RAM es consumeix completament (64 GB) abans de mostrar aquest missatge
+  ### Pero mentres va important la RAM va molt be, un consum menor a 1 GB i constant, es quan arriba al 100%
+  ### comensa a creixa a saco fins k SO ho fa parar
+  cat(paste("\nBinary file reading time:",round(pt["elapsed"], digits = 1),"seconds\n"))
 
   #8- Close the bin file connection
   close(bincon)
@@ -188,6 +307,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
 #' @param fpath_bin full path to ibd file (binary data).
 #' @param fun_progress callback to a pbar function.
 #' @param close_signal function to call if error.
+#' @param verifyChecksum if the binary file checksum must be verified, it can be disabled for convenice with really big files.
 #'
 #' @return a named list containing all relevant information for rMSI data object.
 #' UUID: A string containing the UUID to be verified also in binary file.
@@ -199,7 +319,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
 #' pixel_size_um: per pixel resolution in micrometers.
 #' run_data: a data frame containing information of pixel location in image ans offsets in binary data file.
 #'
-imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal = NULL)
+imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal = NULL, verifyChecksum = T)
 {
   xmld <- XML::xmlTreeParse(fpath_xml)
   xmltop <- XML::xmlRoot(xmld)
@@ -254,53 +374,47 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
     .controlled_loadAbort("imzML XML parese ERROR\n", close_signal)
   }
 
-  #Check data in continuos mode, processed is currently not supported for rMSI
-  if( !continuous_mode )
-  {
-    .controlled_loadAbort("Binary data is in imzML processed mode. Sorry this mode is not supported yet\n", close_signal)
-  }
-
   #Check the checksum
-  bChecked <- F
-  if( !is.null(SHA))
+  if(verifyChecksum)
   {
-    cat("\nChecking binary data checksum using SHA-1 key... ")
-    res <- toupper(digest::digest( fpath_bin, algo = "sha1", file = T))
-    if( res == SHA )
+    if( !is.null(SHA))
     {
-      cat("OK\n")
-      bChecked <- T
+      cat("\nChecking binary data checksum using SHA-1 key... ")
+      res <- toupper(digest::digest( fpath_bin, algo = "sha1", file = T))
+      if( res == SHA )
+      {
+        cat("OK\n")
+      }
+      else
+      {
+        cat(paste("NOK\nChecksums don't match\nXML key:", SHA, "\nBinary file key:", res,"\n"))
+        #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+        #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
+        cat("WARNING: MS data my be corrupt!\n")
+      }
     }
-    else
+    if( !is.null(MD5))
     {
-      cat(paste("NOK\nChecksums don't match\nXML key:", SHA, "\nBinary file key:", res,"\n"))
-      #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
-      #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
-      cat("WARNING: MS data my be corrupt!\n")
+      cat("Checking binary data checksum using MD5 key... ")
+      res <- toupper(digest::digest( fpath_bin, algo = "md5", file = T))
+      if( res == MD5 )
+      {
+        cat("OK\n")
+      }
+      else
+      {
+        cat(paste("NOK\nChecksums don't match\nXML key:", MD5, "\nBinary file key:", res,"\n"))
+        #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+        #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
+        cat("WARNING: MS data my be corrupt!\n")
+      }
     }
   }
-  if( !is.null(MD5))
+  else
   {
-    cat("Checking binary data checksum using MD5 key... ")
-    res <- toupper(digest::digest( fpath_bin, algo = "md5", file = T))
-    if( res == MD5 )
-    {
-      cat("OK\n")
-      bChecked <- T
-    }
-    else
-    {
-      cat(paste("NOK\nChecksums don't match\nXML key:", MD5, "\nBinary file key:", res,"\n"))
-      #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
-      #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
-      cat("WARNING: MS data my be corrupt!\n")
-    }
+    cat("WARNING: Checksum validation is disabled, data may be corrupt!\n")
   }
-  if(!bChecked)
-  {
-    cat("WARNING: No checksum available to test data integrity\n")
-  }
-
+  
   #Obtain data size per bin
   parseXmlArrayDataType <- function(xmlArrNode)
   {
@@ -313,7 +427,6 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
     for( j in 1:(XML::xmlSize(xmlSubDataType)))
     {
       id <- XML::xmlGetAttr(xmlSubDataType[[j]], "accession")
-      value <- XML::xmlGetAttr(xmlSubDataType[[j]], "value")
 
       if( id == "MS:1000576") #test compression
       {
@@ -339,13 +452,13 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
       #TODO This is not encoded in mzML CV obo file but is specified as valid in imzML spec!
 
       #32 bits integer data array
-      if(id == "MS:1000519")
+      if(id == "IMS:1000141")
       {
         dataType <- "int"
       }
 
       #64 bits integer data array
-      if(id == "MS:1000522")
+      if(id == "IMS:1000142")
       {
         dataType <- "long"
       }

@@ -80,6 +80,7 @@ SaveMsiData<-function(imgData, data_file)
 #' @param ff_overwrite Tell ff to overwrite or not current ramdisk files.
 #' @param fun_label This is a callback function to update the progress bar dialog text.
 #' @param close_signal function to be called if the loading process is aborted.
+#' @param imzMLChecksum if the binary file checksum must be verified, it can be disabled for convenice with really big files.
 #'
 #' @return an rMSI object pointing to ramdisk stored data
 #'
@@ -91,7 +92,7 @@ SaveMsiData<-function(imgData, data_file)
 #' The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
 #'
 #' @export
-LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F, fun_label = NULL, close_signal = NULL)
+LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F, fun_label = NULL, close_signal = NULL, imzMLChecksum = F)
 {
   cat("Loading Image...\n")
   pt<-proc.time()
@@ -114,7 +115,7 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   fileExtension <- as.character(fileExtension[length(fileExtension)])
   if( fileExtension == "imzML")
   {
-    return(import_imzML(data_file, ramdisk_path = restore_path, fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal))
+    return(import_imzML(data_file, ramdisk_path = restore_path, fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum))
   }
   else if(fileExtension == "tar")
   {

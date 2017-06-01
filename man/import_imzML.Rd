@@ -6,7 +6,7 @@
 \usage{
 import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File),
   ".ibd", sep = ""), ramdisk_path, fun_progress = NULL, fun_text = NULL,
-  close_signal = NULL)
+  close_signal = NULL, verifyChecksum = T)
 }
 \arguments{
 \item{imzML_File}{full path to .imzML file.}
@@ -19,7 +19,9 @@ import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File),
 
 \item{fun_text}{This is a callback function to update the label widget of loading data. See details for more information.}
 
-\item{close_signal}{function to be called if loading process is abored.
+\item{close_signal}{function to be called if loading process is abored.}
+
+\item{verifyChecksum}{if the binary file checksum must be verified, it can be disabled for convenice with really big files.
 
  Imports an imzML image to an rMSI data object.
  It is recomanded to use rMSI::LoadMsiData directly instead of this function.}
