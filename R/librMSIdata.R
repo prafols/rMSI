@@ -412,9 +412,15 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
 AverageSpectrum <- function(img)
 {
   cat("Calculating Average Spectrum...\n")
-  avgI<-apply(matrix(unlist(lapply(img$data, function(x){ ff::ffrowapply(colSums(x[i1:i2,,drop=FALSE]), X=x, RETURN = TRUE, CFUN = "csum", FF_RETURN = FALSE) })), nrow = length(img$data), byrow = T), 2, sum)
-  avgI<-avgI/( sum(unlist(lapply(img$data, nrow))) )
-
+  pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
+  avgI <- rep(0, length(img$mass))
+  for( i in 1:length(img$data))
+  {
+    setTxtProgressBar(pbavg, i)
+    avgI <- avgI +  colSums(img$data[[i]][,])
+  }
+  avgI <- avgI/nrow(img$pos)
+  close(pbavg)
   return(avgI)
 }
 
