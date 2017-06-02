@@ -134,7 +134,7 @@ CountImagesInBrukerXml <- function(xml_path)
 }
 
 #Internal function too read bruker XMASS data and create the ramdisk
-.readBrukerXmassImg<-function(raw_data_folder, xml_file, ff_data_folder, max_ff_file_size_MB = 50, sample_spectrum_path = NULL, selected_xml_class = 1)
+.readBrukerXmassImg<-function(raw_data_folder, xml_file, ff_data_folder, sample_spectrum_path = NULL, selected_xml_class = 1)
 {
   #Internal methods
   ##Stores a directory structure of raw_data
@@ -218,7 +218,7 @@ CountImagesInBrukerXml <- function(xml_path)
   #3- Read Spectrum FID file and fill data structure if not zero intensity
   dataPos <- matrix(NA, ncol = 2, nrow = length(spectraList$spots))
   colnames(dataPos)<-c("x","y")
-  dataCube<-.CreateEmptyRamdisk(length(mz_axis), length(spectraList$spots), ff_data_folder, max_ff_file_size_MB )
+  dataCube<-.CreateEmptyRamdisk(length(mz_axis), length(spectraList$spots), ff_data_folder )
   max_nrow <- nrow(dataCube[[1]])
 
   for(i in 1:length(spectraList$spots))

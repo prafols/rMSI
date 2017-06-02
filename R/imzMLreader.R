@@ -214,41 +214,30 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   {
     return(NULL) #progress bar function must return true if the loading process is to be continued.
   }
-  cat("#DBG: Entring ibd reading loop...\n") #TODO DBG trap to remove
+
   for(i in 1:nrow(xmlRes$run_data))
   {
     #Read intensity of current spectrum
-    cat(paste0("#DBG i=", i, "/", nrow(xmlRes$run_data), " ")) #TODO DBG trap to remove
     seek(bincon, rw = "read", where = xmlRes$run_data[i, "intOffset"] )
     dd <- readBin(bincon, readDataTypeInt, xmlRes$run_data[i, "intLength"], size = bytes2ReadInt, signed = T)
-    
-    cat("intOk ") #TODO DBG trap to remove
-    
+
     if(!xmlRes$continuous_mode)
     {
       #Read mass axis for the current spectrum 
       seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
       mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
       
-      cat("mzOk ") #TODO DBG trap to remove
-      
       #Apply re-sampling
       dd <- (approx( x = mzdd, y = dd, xout = mzAxis))$y
       dd[which(is.na(dd))] <- 0 #Remove any possible NA
-      
-      cat("approxOk ") #TODO DBG trap to remove
     }
     
     #Store the intensities to the ramdisk
     saveImgChunkAtIds(datacube, Ids =  i, dm = matrix(dd, nrow = 1, ncol = length(dd)))
-    
-    cat("storeOk ") #TODO DBG trap to remove
-    
+
     datacube$pos[i, "x"] <- xmlRes$run_data[i, "x"]
     datacube$pos[i, "y"] <- xmlRes$run_data[i, "y"]
-    
-    cat("posOk\n") #TODO DBG trap to remove
-    
+
     #Update progress bar
     pp_ant<-pp
     pp<-pp+ppStep
@@ -261,15 +250,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       }
     }
   }
-  
-  cat("#DBG: IBD reading complete\n") #TODO DBG trap to remove
   pt<-proc.time() - pt
-  
-  cat("#DBG: time calc complete\n") #TODO DBG trap to remove
-  
-  ### TODO amb les dades d 200GB la RAM es consumeix completament (64 GB) abans de mostrar aquest missatge
-  ### Pero mentres va important la RAM va molt be, un consum menor a 1 GB i constant, es quan arriba al 100%
-  ### comensa a creixa a saco fins k SO ho fa parar
   cat(paste("\nBinary file reading time:",round(pt["elapsed"], digits = 1),"seconds\n"))
 
   #8- Close the bin file connection

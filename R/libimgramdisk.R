@@ -384,12 +384,21 @@ builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NU
 
   dm <- loadImageSliceFromCols(Img, Cols)
   zplots<-matrix(0, nrow=Img$size["x"], ncol=Img$size["y"]) #Now I'm using a zero instead of NA to display a completely black background
-  pixel_values<-getPixelValuesFromImageSlice(dm, fmethod)
+  pixel_values<-getPixelValuesFromImageSlice(dm, fmethod) #TODO akesta crida fa una funcio apply aqui dintre peligru?...
 
+  #TODO crec que es pot fer sense el bucle.. accedint directamet a la matriu com un vector i omplint-le
   for( i in 1:nrow(Img$pos))
   {
     zplots[Img$pos[ i , "x" ], Img$pos[ i , "y" ]] <- pixel_values[i] / Normalization[i]
   }
+
+  #Seria aixi?.... noop... aixi no funciona... es corrop tot
+  #zplots[Img$pos[  , "x" ], Img$pos[  , "y" ]] <- pixel_values / Normalization
+  
+  #La idea canyera seria:
+  # 1- Accedir a la matriu com a vector o sigui: 
+  # zplots[matVectorIndexes] <- pixel_values / Normalization
+  # 2- Has de calcular els index (matVectorIndexes) correctes x accedir a la matriu de forma que les dades siguin coerehnts
 
   return( zplots )
 }
@@ -454,7 +463,7 @@ insertRasterImageAtMass<-function( Img, Mass, Tolerance, raster_matrix)
 }
 
 #Internal method to create an empty ramdisk of specified size
-.CreateEmptyRamdisk<-function(num_of_columns, num_of_spectrums, ff_data_folder, max_ff_file_size_MB = 50, vmode_type = "integer")
+.CreateEmptyRamdisk<-function(num_of_columns, num_of_spectrums, ff_data_folder, max_ff_file_size_MB = 200, vmode_type = "integer")
 {
   #Bytes per data point
   Bpdp <- NULL
