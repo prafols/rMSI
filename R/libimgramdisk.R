@@ -241,6 +241,7 @@ loadImageSliceFromCols<-function(Img, Cols)
       dm[ ptr:(ptr + nrow(Img$data[[i]]) - 1), ]<-Img$data[[i]][,Cols]
       ptr <- ptr + nrow(Img$data[[i]])
   }
+
   return(dm)
 }
 
@@ -341,12 +342,6 @@ saveImageSliceAtMass<-function(Img, Mass, dm)
   saveImageSliceAtCols(Img, sel_cols, dm)
 }
 
-#Private method to obtain pixels values from image slice data matrix dm
-getPixelValuesFromImageSlice <- function(dm, method)
-{
-  pixel_values <- apply(dm, 1, method)
-}
-
 #' Build a image slice from specified datacube columns.
 #'
 #' Builds a image from the selected columns in the rMSI object. The image is returned arranged in a matrix containing each pixel value.
@@ -375,31 +370,30 @@ builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NU
   {
     stop(paste("The specified method", method, "is invalid\n"))
   }
-
+  
   #Set no normalization if is null
   if(is.null(Normalization))
   {
     Normalization <- rep(1, nrow(Img$pos))
   }
-
-  dm <- loadImageSliceFromCols(Img, Cols)
-  zplots<-matrix(0, nrow=Img$size["x"], ncol=Img$size["y"]) #Now I'm using a zero instead of NA to display a completely black background
-  pixel_values<-getPixelValuesFromImageSlice(dm, fmethod) #TODO akesta crida fa una funcio apply aqui dintre peligru?...
-
-  #TODO crec que es pot fer sense el bucle.. accedint directamet a la matriu com un vector i omplint-le
-  for( i in 1:nrow(Img$pos))
-  {
-    zplots[Img$pos[ i , "x" ], Img$pos[ i , "y" ]] <- pixel_values[i] / Normalization[i]
-  }
-
-  #Seria aixi?.... noop... aixi no funciona... es corrop tot
-  #zplots[Img$pos[  , "x" ], Img$pos[  , "y" ]] <- pixel_values / Normalization
   
-  #La idea canyera seria:
-  # 1- Accedir a la matriu com a vector o sigui: 
-  # zplots[matVectorIndexes] <- pixel_values / Normalization
-  # 2- Has de calcular els index (matVectorIndexes) correctes x accedir a la matriu de forma que les dades siguin coerehnts
-
+  zplots<-matrix(0, nrow=Img$size["x"], ncol=Img$size["y"])#Now I'm using a zero instead of NA to display a completely black background
+  for( i in 1:length(Img$data))
+  {
+    #Preload data from hdd for faster access in the next loop
+    dm <- Img$data[[i]][ , Cols]
+    
+    for( j in 1:nrow(Img$data[[i]]))
+    {
+      #Calculate the img ID corresponding to current cube and row
+      idCurr <- nrow(Img$data[[1]]) * (i - 1) + j
+      
+      #Fill the raster matrix
+      zplots[Img$pos[ idCurr , "x" ], Img$pos[ idCurr , "y" ]] <- fmethod( dm[j, ]  ) / Normalization[idCurr]
+    }
+    
+  }
+  
   return( zplots )
 }
 

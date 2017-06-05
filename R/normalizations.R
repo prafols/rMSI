@@ -16,7 +16,7 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ############################################################################
 
-#' NormalizeTIC: Calculates the TIC normalizatin of each pixel as the sum of all intensities.
+#' NormalizeTIC: Calculates the TIC normalizatin of each pixel as the sum of all intensities and scaled according the number of data points.
 #'
 #' @param img the rMSI image object.
 #' @param remove_empty_pixels boolean detailing if pixels detected to not contain data must be removed from normalization (smaller than mean-*sd).
@@ -35,6 +35,7 @@ NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
     TICs <- c(TICs, rowSums(img$data[[i]][,]))
     setTxtProgressBar(pb, i)
   }
+  TICs <- TICs/length(img$mass)
   close(pb)
 
   if(remove_empty_pixels)
@@ -49,6 +50,42 @@ NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
   }
   return(img)
 }
+
+#' NormalizeRMS: Calculates the RMS normalizatin of each pixel as root mean square all intensities.
+#'
+#' @param img the rMSI image object.
+#' @param remove_empty_pixels boolean detailing if pixels detected to not contain data must be removed from normalization (smaller than mean-*sd).
+#'
+#' @return  a rMSI image containing the normalizations$RMS field or RMSne if remove_empty_pixels is true.
+#' @export
+#'
+NormalizeRMS <- function(img, remove_empty_pixels = FALSE)
+{
+  cat("RMS normalization...\n")
+  pb<-txtProgressBar(min = 0, max = length(img$data), style = 3 )
+  setTxtProgressBar(pb, 0)
+  RMSs <- c()
+  for( i in 1:length(img$data))
+  {
+    RMSs <- c(RMSs, sqrt(rowSums(  (img$data[[i]][,])^2 ) ))
+    setTxtProgressBar(pb, i)
+  }
+  RMSs <- RMSs / sqrt(length(img$mass))
+  close(pb)
+  
+  if(remove_empty_pixels)
+  {
+    minallowedRMS <- mean(RMSs) - sd(RMSs)
+    RMSs[which(RMSs < minallowedRMS)] <- Inf #Remove pixels divinding them by infinite
+    img <- AppendNormalizationCoefs(img, "RMSne", RMSs)
+  }
+  else
+  {
+    img <- AppendNormalizationCoefs(img, "RMS", RMSs)
+  }
+  return(img)
+}
+
 
 #' NormalizeMAX: Calculates the MAX normalizatin of each pixel as the maximum of all intensities.
 #'
