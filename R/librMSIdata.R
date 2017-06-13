@@ -36,6 +36,11 @@ SaveMsiData<-function(imgData, data_file)
   save(sizeObj, file = file.path(data_dir, "size.ImgR")) #Save size Object
   posObj<-imgData$pos
   save(posObj, file = file.path(data_dir, "pos.ImgR")) #Save pos Object
+  if(!is.null(imgData$posMotors))
+  {
+    posMotorsObj<-imgData$posMotors
+    save(posMotorsObj, file = file.path(data_dir, "posMotors.ImgR")) #Save posMotors Object
+  }
   meanSpcData<-imgData$mean
   save(meanSpcData, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
   resolutionObj<-imgData$pixel_size_um
@@ -173,6 +178,10 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
   load(file.path(img_path, "mass.ImgR"))
   load(file.path(img_path, "size.ImgR"))
   load(file.path(img_path, "pos.ImgR"))
+  if( file.exists(file.path(img_path, "posMotors.ImgR")))
+  {
+    load(file.path(img_path, "posMotors.ImgR"))
+  }
   load(file.path(img_path, "mean.SpcR"))
   load(file.path(img_path, "ffnames.ImgR"))
   if(file.exists(file.path(img_path, "pixel_size_um.ImgR")))
@@ -220,6 +229,10 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
 
   lapply(spectra, ff::open.ff)
   datacube<-list(name = basename(data_file), mass = massObj,  size = sizeObj,  pos = posObj, pixel_size_um = resolutionObj, mean = meanSpcData, data = spectra)
+  if(!is.null(posMotorsObj))
+  {
+    datacube$posMotors <- posMotorsObj
+  }
   if(!is.null(normalizationsObj))
   {
     datacube$normalizations <- normalizationsObj
@@ -288,13 +301,24 @@ DeleteRamdisk<-function(img)
   lapply(img$data, function(x){ ff::close.ff(x) })
   ramdisk_path <- dirname(attr(attributes(img$data[[1]])$physical, "filename"))
   ramdisk_path_splited <- unlist(strsplit(ramdisk_path, "/"))
-  ramdisk_path <- ""
-  for( i in 1:length(ramdisk_path_splited))
+  if(.Platform$OS.type == "unix")
   {
-    ramdisk_path<-file.path(ramdisk_path, ramdisk_path_splited[i])
-    if( length(grep("ramdisk_", ramdisk_path_splited[i])) > 0 )
+    ramdisk_path <- "/"
+  }
+  else
+  {
+    ramdisk_path <- ""
+  }
+  ramdisk_path <- paste0(ramdisk_path,ramdisk_path_splited[1])
+  if(length(ramdisk_path_splited) > 1)
+  {
+    for( i in 2:length(ramdisk_path_splited))
     {
-      break;
+      ramdisk_path<-file.path(ramdisk_path, ramdisk_path_splited[i])
+      if( length(grep("ramdisk_", ramdisk_path_splited[i])) > 0 )
+      {
+        break;
+      }
     }
   }
   unlink(ramdisk_path, recursive = T)
@@ -832,3 +856,118 @@ remap2ImageCoords <- function(dataPos)
   }
   stop(text)
 }
+
+#' ReadBrukerRoiXML.
+#' 
+#' Reads a Bruker ROI XML file and matches it to an rMSI image object.
+#' A list of rMSI ID's contained in each Bruker's ROI will be returned.
+#'
+#' @param img an rMSI MS image object.
+#' @param xml_file a full path to a Bruker XML ROI file.
+#'
+#' @return a list containing lists of ID's for each ROI.
+#' @export
+#'
+ReadBrukerRoiXML <- function(img, xml_file)
+{
+  if( is.null(img$posMotors))
+  {
+    stop("ERROR: image posMotros matrix not available.\nYou need to re-import MS data using a recent verison of rMSI.\n")
+  }
+  
+  roi_count <- CountImagesInBrukerXml(xml_file)
+  lstRois <- list()
+  imPosMat <- complex( real = img$posMotors[, "x"], imaginary = img$posMotors[, "y"])
+  
+  for( i in 1:roi_count)
+  {
+    cat(paste0("Parsing ROI ", i, " of ", roi_count, "\n"))
+    spectraList <- ParseBrukerXML(xml_file, sel_img = i)
+    lstRois[[i]] <- list(name = spectraList$name, id = rep(0,length(spectraList$spots)))
+    for( j in 1:length(spectraList$spots))
+    {
+      #Extract original X Y Bruker Coords
+      origX <-as.integer(strsplit(strsplit(spectraList$spots[j],"X")[[1]][2], "Y")[[1]][1])
+      origY <-as.integer(strsplit(strsplit(spectraList$spots[j],"Y")[[1]][2], "X")[[1]][1])
+      imCoord <- complex(real = origX, imaginary = origY)
+      
+      #Look for this Bruker coords in image pos matrix
+      matchXY <- which(imPosMat == imCoord)
+      if( length(matchXY) > 0)
+      {
+        lstRois[[i]]$id[j] <- matchXY[1]
+        if(  length(matchXY) > 1 )
+        {
+          cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", origX, " , y", origY, " are duplicated.\n" ))
+        }
+      }
+      else
+      {
+        cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", origX, " , y", origY, " not found in image.\n" ))
+      }
+      
+    }
+  }
+  
+  return(lstRois)
+}
+
+
+#' CreateSubDataset.
+#' 
+#' Creates a new rMSI image object from sub-set of selected pixels by ID's.
+#'
+#' @param img the original rMSI object.
+#' @param id a vector of ID's to retain in the sub data set.
+#' @param ramdisk_path a full disk path where the new ramdisk will be stored.
+#'
+#' @return the sub rMSI object.
+#' @export
+#'
+CreateSubDataset <- function(img, id, ramdisk_path)
+{
+  cat("Creating the sub image...\n")
+  
+  if(!dir.exists(ramdisk_path))
+  {
+    dir.create(ramdisk_path, showWarnings = F, recursive = T)
+  }
+  
+  pb <- txtProgressBar(min = 0, max = length(id), style = 3)
+  subImg <- CreateEmptyImage(num_of_pixels = length(id), 
+                             mass_axis = img$mass, 
+                             pixel_resolution = img$pixel_size_um, 
+                             img_name = paste0(img$name, "_sub"), 
+                             ramdisk_folder = ramdisk_path, 
+                             data_type = attr(attr(img$data[[1]], "physical"), "vmode") )
+  
+  subImg$pos <- img$pos[id, ]
+  if(!is.null(img$posMotors))
+  {
+    subImg$posMotors <- img$posMotors[id, ]
+  }
+  if( !is.null(img$normalizations))
+  {
+    subImg$normalizations <- img$normalizations
+    for( i in 1:length(subImg$normalizations))
+    {
+      subImg$normalizations[[i]] <- subImg$normalizations[[i]][id]
+    }
+  }
+  
+  #Copy data on given id list
+  for( i in 1:length(id))
+  {
+    setTxtProgressBar(pb, i)
+    dm <- loadImgChunkFromIds(img, id[i])
+    saveImgChunkAtIds(subImg, Ids = i, dm)
+  }
+  close(pb)
+  
+  subImg$size <- c( max( subImg$pos[, "x"] ), max( subImg$pos[, "y"] ))
+  names(subImg$size) <- c("x", "y")
+  
+  subImg$mean <- AverageSpectrum(subImg)
+  return(subImg)
+}
+

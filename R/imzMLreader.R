@@ -258,6 +258,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   cat("\n")
 
   #9- Compute image size and arrange coords to avoid holes
+  datacube$posMotors <- datacube$pos
   datacube$pos <- remap2ImageCoords(datacube$pos)
   datacube$size["x"] <- max(datacube$pos[,"x"])
   datacube$size["y"] <- max(datacube$pos[,"y"])

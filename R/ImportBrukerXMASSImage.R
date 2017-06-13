@@ -234,12 +234,13 @@ CountImagesInBrukerXml <- function(xml_path)
   close(pb)
 
   #4- Remap motor coords to image coords
+  BrukerPos <- dataPos
   dataPos <- remap2ImageCoords(dataPos)
   x_size <- max(dataPos[,"x"])
   y_size <- max(dataPos[,"y"])
 
   #5- Return dataCube, mz_axis, xsize, ysize as a list of elements
-  return(list(name = spectraList$name, mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos))
+  return(list(name = spectraList$name, mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos, posMotors = BrukerPos))
 }
 
 #' Import a MSI dataset from Bruker XMASS folder and a XML file using a Wizard.
