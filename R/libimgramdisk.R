@@ -377,6 +377,12 @@ builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NU
     Normalization <- rep(1, nrow(Img$pos))
   }
   
+  #Avoid dimension error when a single column is selected
+  if(length(Cols) == 1)
+  {
+    Cols <- c(Cols, Cols)
+  }
+  
   zplots<-matrix(0, nrow=Img$size["x"], ncol=Img$size["y"])#Now I'm using a zero instead of NA to display a completely black background
   for( i in 1:length(Img$data))
   {

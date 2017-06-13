@@ -20,7 +20,7 @@ Then test that it is working by loading the package and executing the demo in R:
 > library(RGtk2)
 > demo(appWindow)
 ```
-If it appears a Gtk Windows then continue with the *rMSI* installation process. Otherwise, please check out the RGtk2 website for solving issues related with Gtk installation: <http://http://www.ggobi.org/rgtk2/>
+If it appears a Gtk Windows then continue with the *rMSI* installation process. Otherwise, please check out the RGtk2 website for solving issues related with Gtk installation: <http://www.ggobi.org/rgtk2/>
 
 ##### rMSI
 The simplest way to install rMSI and keep it updated is using devtools package. Install devtools from CRAN into your R session:

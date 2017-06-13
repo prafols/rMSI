@@ -179,7 +179,7 @@ MSIWindow<-function(img1, img2 = NULL)
     msiWidget2 <- .MSImagePlotWidget(in_img = img2 , parent_widget = Grp_Ims, AddSpectra_function = this$AddSpectra, GetSpectraInfo_function = this$GetPlotedSpectraInfo, ClearSpectraPlot_function = this$ClearSpectraPlot, meanSpectrumColor = "blue", widget_name = "imgRight")
   }
   spectraFrame<-gWidgets2::gframe("Spectra Viewer", container = Grp_Top,  fill = T, expand = T, spacing = 5 )
-  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F,  display_sel_red = T, display_sel_green = T, display_sel_blue = T, useInternalRedrawTimer = F)
+  spectraWidget<-.SpectraPlotWidget(parent_widget = spectraFrame, top_window_widget = window, clicFuntion = this$SpectrumClicked, showOpenFileButton = F,  display_sel_red = T, display_sel_green = T, display_sel_blue = T, display_clearall_button = T, useInternalRedrawTimer = F)
 
   ##window$widget$present()
   #RGtk2::gtkWindowMaximize(gWidgets2::getToolkitWidget(window)) #Start maximized, currently disabled to addres windows redraw issue

@@ -67,7 +67,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
 }
 
 .SpectraPlotWidget <- function( parent_widget = gWidgets2::gwindow( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T,
-                                display_sel_red = F, display_sel_green = F, display_sel_blue = F, display_sel_spins = T, max_spectra_limit = 50, useInternalRedrawTimer = T)
+                                display_sel_red = F, display_sel_green = F, display_sel_blue = F, display_sel_spins = T, display_clearall_button = F, max_spectra_limit = 50, useInternalRedrawTimer = T)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -119,6 +119,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   ReDrawRedImg <- F
   ReDrawGreenImg <- F
   ReDrawBlueImg <- F
+  UsingRGBKeyOnKeyboard <- F
 
   #Stop gtimer if widget is distroyed
   Widget_Disposed <- function (evt, ...)
@@ -313,6 +314,13 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   #Redraw MS image on parent widget in a given channel
   ReDrawParentMSI <- function()
   {
+    
+    if(this$UsingRGBKeyOnKeyboard && ( this$ReDrawRedImg || this$ReDrawGreenImg || this$ReDrawBlueImg ))
+    {
+      gWidgets2::svalue(this$Btn_ZoomTool) <- T
+      this$UsingRGBKeyOnKeyboard <- F
+    }
+    
     if(this$ReDrawRedImg) #Red
     {
       this$clicFun(1, this$SelIon_mz_R, this$SelIon_tol_R)
@@ -674,6 +682,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       if(!is.null(this$Btn_SelRedTool))
       {
         gWidgets2::svalue(this$Btn_SelRedTool) <- T
+        this$UsingRGBKeyOnKeyboard <- T
       }
     }
     else if(evt[[4]][["keyval"]] == 103)
@@ -682,6 +691,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       if(!is.null(this$Btn_SelGreenTool))
       {
         gWidgets2::svalue(this$Btn_SelGreenTool) <- T
+        this$UsingRGBKeyOnKeyboard <- T
       }
     }
     else if(evt[[4]][["keyval"]] == 98)
@@ -690,6 +700,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       if(!is.null(this$Btn_SelBlueTool))
       {
         gWidgets2::svalue(this$Btn_SelBlueTool) <- T
+        this$UsingRGBKeyOnKeyboard <- T
       }
     }
     return(FALSE) #The key event requires this return to allow keyboard continue working for other widgets as spin buttons
@@ -718,6 +729,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       if(!is.null(this$Btn_SelRedTool))
       {
         gWidgets2::svalue(this$Btn_ZoomTool) <- T
+        this$UsingRGBKeyOnKeyboard <- F
       }
     }
     else if(evt[[4]][["keyval"]] == 103)
@@ -726,6 +738,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       if(!is.null(this$Btn_SelGreenTool))
       {
         gWidgets2::svalue(this$Btn_ZoomTool) <- T
+        this$UsingRGBKeyOnKeyboard <- F
       }
     }
     else if(evt[[4]][["keyval"]] == 98)
@@ -734,6 +747,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       if(!is.null(this$Btn_SelBlueTool))
       {
         gWidgets2::svalue(this$Btn_ZoomTool) <- T
+        this$UsingRGBKeyOnKeyboard <- F
       }
     }
     return(FALSE) #The key event requires this return to allow keyboard continue working for other widgets as spin buttons
@@ -1057,7 +1071,10 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   Btn_reset_zoom<- gWidgets2::gbutton(text = "Reset Zoom", handler = this$ZoomResetClicked, action = this, container = Grp_Buttons)
   Btn_auto_zoom_mz<- gWidgets2::gbutton(text = "Auto m/z", handler = this$ZoomMzClicked, action = this, container = Grp_Buttons)
   Btn_auto_zoom_in<- gWidgets2::gbutton(text = "Auto Intensity", handler = this$ZoomInClicked, action = this, container = Grp_Buttons)
-  Btn_RemoveSpectra<- gWidgets2::gbutton(text = "Clear all", handler = this$ClearSpectraClicked, action = this, container = Grp_Buttons)
+  if(display_clearall_button)
+  {
+    Btn_RemoveSpectra<- gWidgets2::gbutton(text = "Clear all", handler = this$ClearSpectraClicked, action = this, container = Grp_Buttons)
+  }
   Btn_ZoomTool <- gWidgets2::gcheckbox("Zoom", checked = T, handler = this$ZoomToolSel, container = Grp_Buttons, use.togglebutton = F)
   gWidgets2::visible(Btn_ZoomTool) <- display_sel_red | display_sel_green | display_sel_blue #Only dispaly the zoom tool selector if at leas one sel. ion is visible
 

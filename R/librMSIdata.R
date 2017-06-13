@@ -182,6 +182,10 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
   {
     load(file.path(img_path, "posMotors.ImgR"))
   }
+  else
+  {
+    posMotorsObj <- NULL
+  }
   load(file.path(img_path, "mean.SpcR"))
   load(file.path(img_path, "ffnames.ImgR"))
   if(file.exists(file.path(img_path, "pixel_size_um.ImgR")))
@@ -933,7 +937,6 @@ CreateSubDataset <- function(img, id, ramdisk_path)
     dir.create(ramdisk_path, showWarnings = F, recursive = T)
   }
   
-  pb <- txtProgressBar(min = 0, max = length(id), style = 3)
   subImg <- CreateEmptyImage(num_of_pixels = length(id), 
                              mass_axis = img$mass, 
                              pixel_resolution = img$pixel_size_um, 
@@ -956,11 +959,15 @@ CreateSubDataset <- function(img, id, ramdisk_path)
   }
   
   #Copy data on given id list
-  for( i in 1:length(id))
+  pb <- txtProgressBar(min = 0, max = length(subImg$data), style = 3)
+  istart <- 1
+  for( i in 1:length(subImg$data))
   {
     setTxtProgressBar(pb, i)
-    dm <- loadImgChunkFromIds(img, id[i])
-    saveImgChunkAtIds(subImg, Ids = i, dm)
+    subID <- id[ istart:(istart + nrow(subImg$data[[i]]) - 1) ]
+    istart <- istart +  nrow(subImg$data[[i]])
+    dm <- loadImgChunkFromIds(img, subID)
+    subImg$data[[i]][ , ] <- dm
   }
   close(pb)
   
