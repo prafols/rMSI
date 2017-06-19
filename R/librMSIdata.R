@@ -216,6 +216,9 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
   for(i in 1:length(ffDataNames))
   {
     ff::ffload(file.path(img_path, ffDataNames[i]), rootpath = restore_path, overwrite = T)
+     #Get Hdd space back asap
+    unlink(file.path(img_path, paste0(ffDataNames[i], ".RData")))
+    unlink(file.path(img_path, paste0(ffDataNames[i], ".ffData")))
     spectra[[i]]<-ffObj
     names(spectra)[i]<-paste("ramdisk",i,".dat",sep = "")
 
