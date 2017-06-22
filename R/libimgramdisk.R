@@ -491,5 +491,6 @@ insertRasterImageAtMass<-function( Img, Mass, Tolerance, raster_matrix)
     dataCube[[i]]<-ff::ff(vmode = vmode_type, dim = c(nrows, num_of_columns), filename = file.path(ff_data_folder, paste("ramdisk",i,".dat",sep = "")))
     names(dataCube)[i]<-paste("ramdisk",i,".dat",sep = "")
   }
+  class(dataCube) <- "rMSIObj"
   return(dataCube)
 }

@@ -79,7 +79,7 @@ SaveMsiData<-function(imgData, data_file)
 
 #' Load rMSI data from a compressed tar.
 #'
-#' @param data_file The tar file containing the MS image in rMSI format.
+#' @param data_file The tar o imzML file containing the MS image in rMSI format or imzML.
 #' @param restore_path Where the ramdisk will be created.
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
 #' @param ff_overwrite Tell ff to overwrite or not current ramdisk files.
@@ -113,6 +113,7 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
 
     pt<-proc.time() - pt
     cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+    class(datacube) <- "rMSIObj"
     return(datacube)
   }
 
@@ -256,6 +257,8 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
   {
     fun_text("Done")
   }
+  
+  class(datacube) <- "rMSIObj"
   return(datacube)
 }
 
@@ -927,21 +930,25 @@ ReadBrukerRoiXML <- function(img, xml_file)
 #' @param img the original rMSI object.
 #' @param id a vector of ID's to retain in the sub data set.
 #' @param ramdisk_path a full disk path where the new ramdisk will be stored.
+#' @param new_mass a new mass axis if resampling must be used.
 #'
 #' @return the sub rMSI object.
 #' @export
 #'
-CreateSubDataset <- function(img, id, ramdisk_path)
+CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
 {
   cat("Creating the sub image...\n")
-  
+
   if(!dir.exists(ramdisk_path))
   {
     dir.create(ramdisk_path, showWarnings = F, recursive = T)
   }
   
+  #Resample data only if the supplied mass axis is different
+  bResampleData <- !identical(img$mass, new_mass)
+  
   subImg <- CreateEmptyImage(num_of_pixels = length(id), 
-                             mass_axis = img$mass, 
+                             mass_axis = new_mass, 
                              pixel_resolution = img$pixel_size_um, 
                              img_name = paste0(img$name, "_sub"), 
                              ramdisk_folder = ramdisk_path, 
@@ -970,7 +977,22 @@ CreateSubDataset <- function(img, id, ramdisk_path)
     subID <- id[ istart:(istart + nrow(subImg$data[[i]]) - 1) ]
     istart <- istart +  nrow(subImg$data[[i]])
     dm <- loadImgChunkFromIds(img, subID)
-    subImg$data[[i]][ , ] <- dm
+    
+    #Resampling...
+    if(bResampleData)
+    {
+      dmSub <- matrix(nrow = nrow(dm), ncol = length(subImg$mass))
+      for( irow in 1:nrow(dm))
+      {
+        dmSub[irow, ] <- approx(img$mass, dm[irow,], xout = subImg$mass)$y
+      }
+    }
+    else
+    {
+      dmSub <- dm
+    }
+    
+    subImg$data[[i]][ , ] <- dmSub
   }
   close(pb)
   

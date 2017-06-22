@@ -81,6 +81,7 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   #Append resolution fields to img Object
   raw$pixel_size_um <- resolution_um
 
+  class(raw) <- "rMSIObj"
   return(raw)
 }
 
@@ -94,9 +95,13 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
 #' The total number of regions in an XML file can be determined usin the CountImagesInBrukerXml function.
 #'
 #' @param xml_path the full path where XML file is stored.
+#' @param sel_img the image/roi to select in the XML file.
+#' @param roi_name_only if true, no spots are processed and only the name of the img/roi is returned.
 #'
 #' @return all spots strings arranged in a list.
-ParseBrukerXML <- function(xml_path, sel_img = 1)
+#' @export
+#' 
+ParseBrukerXML <- function(xml_path, sel_img = 1, roi_name_only = F)
 {
   xmltop <- XML::xmlRoot(XML::xmlTreeParse(xml_path), skip = T)
 
@@ -105,9 +110,12 @@ ParseBrukerXML <- function(xml_path, sel_img = 1)
   {
     xmlregion <- XML::xmlChildren(xmltop[[sel_img]])
     img_desc <- list( name = XML::xmlGetAttr(xmltop[[sel_img]], "Name"), spots = c())
-    for (i in 1:length(xmlregion))
+    if(!roi_name_only)
     {
-      img_desc$spots <- c(img_desc$spots, XML::xmlGetAttr(xmlregion[[i]], "Spot"))
+      for (i in 1:length(xmlregion))
+      {
+        img_desc$spots <- c(img_desc$spots, XML::xmlGetAttr(xmlregion[[i]], "Spot"))
+      }
     }
   }
   else

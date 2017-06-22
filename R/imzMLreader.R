@@ -279,6 +279,8 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   {
     fun_text("Done")
   }
+  
+  class(datacube) <- "rMSIObj"
   return(datacube)
 }
 

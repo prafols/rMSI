@@ -4,10 +4,14 @@
 \alias{ParseBrukerXML}
 \title{ParseBrukerXML.}
 \usage{
-ParseBrukerXML(xml_path, sel_img = 1)
+ParseBrukerXML(xml_path, sel_img = 1, roi_name_only = F)
 }
 \arguments{
 \item{xml_path}{the full path where XML file is stored.}
+
+\item{sel_img}{the image/roi to select in the XML file.}
+
+\item{roi_name_only}{if true, no spots are processed and only the name of the img/roi is returned.}
 }
 \value{
 all spots strings arranged in a list.

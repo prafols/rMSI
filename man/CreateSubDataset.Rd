@@ -4,7 +4,7 @@
 \alias{CreateSubDataset}
 \title{CreateSubDataset.}
 \usage{
-CreateSubDataset(img, id, ramdisk_path)
+CreateSubDataset(img, id, ramdisk_path, new_mass = img$mass)
 }
 \arguments{
 \item{img}{the original rMSI object.}
@@ -12,6 +12,8 @@ CreateSubDataset(img, id, ramdisk_path)
 \item{id}{a vector of ID's to retain in the sub data set.}
 
 \item{ramdisk_path}{a full disk path where the new ramdisk will be stored.}
+
+\item{new_mass}{a new mass axis if resampling must be used.}
 }
 \value{
 the sub rMSI object.

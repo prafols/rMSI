@@ -10,7 +10,7 @@ LoadMsiData(data_file, restore_path = file.path(dirname(data_file),
   imzMLChecksum = F)
 }
 \arguments{
-\item{data_file}{The tar file containing the MS image in rMSI format.}
+\item{data_file}{The tar o imzML file containing the MS image in rMSI format or imzML.}
 
 \item{restore_path}{Where the ramdisk will be created.}
 
