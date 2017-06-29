@@ -5,6 +5,18 @@
 
 using namespace Rcpp;
 
+// MergeMassAxis
+NumericVector MergeMassAxis(NumericVector mz1, NumericVector mz2);
+RcppExport SEXP rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP mz2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type mz1(mz1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mz2(mz2SEXP);
+    rcpp_result_gen = Rcpp::wrap(MergeMassAxis(mz1, mz2));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ReduceDataPointsC
 List ReduceDataPointsC(NumericVector mass, NumericVector intensity, double massMin, double massMax, int npoints);
 RcppExport SEXP rMSI_ReduceDataPointsC(SEXP massSEXP, SEXP intensitySEXP, SEXP massMinSEXP, SEXP massMaxSEXP, SEXP npointsSEXP) {

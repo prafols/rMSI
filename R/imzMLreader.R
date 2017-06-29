@@ -119,31 +119,20 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       return(NULL) #progress bar function must return true if the loading process is to be continued.
     }
     
-    #Get the spectrometer resolving using the mass axis with more points
+    #Fill the initial spectrum as the larger one
     seli <- which.max(xmlRes$run_data$mzLength)
     seek(bincon, rw = "read", where = xmlRes$run_data[seli, "mzOffset"] )
-    mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[seli, "mzLength"], size = bytes2ReadMz, signed = T)
-    mzdd <- unique(mzdd) #Avoid duplicates to avoid an infinte loop
-    resPow <- abs(min(mzdd[-1] - mzdd[-length(mzdd)]))
-    mzAxis <- c() #Where the new mass axis will be stored
-    massRanges <- data.frame( min = rep(NA, nrow(xmlRes$run_data)),  max = rep(NA, nrow(xmlRes$run_data)))
-    
+    mzAxis <- readBin(bincon, readDataTypeMz, xmlRes$run_data[seli, "mzLength"], size = bytes2ReadMz, signed = T)
+    mzAxis <- unique(mzAxis) #Avoid duplicates
     for( i in 1:nrow(xmlRes$run_data))
     {
       #Read mass axis for the current spectrum 
       seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
       mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
+      mzdd <- unique(mzdd) #Avoid duplicates
       
-      #Calculateing a common mass axis
-      massRanges$min[i] <- mzdd[1]
-      massRanges$max[i] <- mzdd[length(mzdd)]
-      mzAxis <- sort(unique(c(mzAxis, mzdd)))
-      slops <- mzAxis[-1] - mzAxis[-length(mzAxis)]
-      cis <- which(slops < resPow)
-      if(length(cis)>0)
-      {
-        mzAxis <- mzAxis[-cis]
-      }
+      #Combine the two mass axis using Cpp method
+      mzAxis <- MergeMassAxis(mzAxis, mzdd)
       
       #Update progress bar
       pp_ant<-pp
@@ -157,14 +146,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         }
       }
     }
-    
-    #And finally trim the mass axis to represent the average axis in the dataset
-    medianMin <- median(massRanges$min)
-    medianMax <- median(massRanges$max)
-    
-    idL <- which.min(abs(mzAxis - medianMin))
-    idR <- which.min(abs(mzAxis - medianMax))
-    mzAxis <- mzAxis[idL:idR]
   }
   pt<-proc.time() - pt
   cat(paste("\nMass axis calculation time:",round(pt["elapsed"], digits = 1),"seconds\n"))
@@ -220,12 +201,24 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     #Read intensity of current spectrum
     seek(bincon, rw = "read", where = xmlRes$run_data[i, "intOffset"] )
     dd <- readBin(bincon, readDataTypeInt, xmlRes$run_data[i, "intLength"], size = bytes2ReadInt, signed = T)
-
+    
     if(!xmlRes$continuous_mode)
     {
       #Read mass axis for the current spectrum 
       seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
       mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
+      
+      #Delete duplicates and possible zero-drops errors (fixing Bruker's bugs in imzML)
+      idup <- which(duplicated(mzdd))
+      if(length(idup) > 0)
+      {
+        for( i in 1:length(idup))
+        {
+          dd[idup[i] - 1] <- max( dd[idup[i]], dd[idup[i] - 1])
+        }
+        mzdd <- mzdd[-idup]
+        dd <- dd[-idup]
+      }
       
       #Apply re-sampling
       dd <- (approx( x = mzdd, y = dd, xout = mzAxis))$y
