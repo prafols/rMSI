@@ -30,6 +30,8 @@ SaveMsiData<-function(imgData, data_file)
   setwd(dirname(data_file)) #Path of the resulting .tar file
   data_dir<-file.path(dirname(data_file), "ImgData")
   dir.create(data_dir)
+  uuidObj<-imgData$uuid
+  save(uuidObj, file = file.path(data_dir, "uuid.ImgR")) #Save UUID
   massObj<-imgData$mass
   save(massObj, file = file.path(data_dir, "mass.ImgR")) #Save mass axis
   sizeObj<-imgData$size
@@ -176,6 +178,17 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
   untar(tarfile = data_file, exdir = restore_path)
   img_path<-file.path(restore_path, "ImgData")
 
+
+  if( file.exists(file.path(img_path, "uuid.ImgR") ))
+  {
+    load(file.path(img_path, "uuid.ImgR"))
+  }
+  else
+  {
+    #For compatibility with old datasets, just set no id
+    uuidObj <- ""
+  }
+  
   load(file.path(img_path, "mass.ImgR"))
   load(file.path(img_path, "size.ImgR"))
   load(file.path(img_path, "pos.ImgR"))
@@ -236,7 +249,7 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
   }
 
   lapply(spectra, ff::open.ff)
-  datacube<-list(name = basename(data_file), mass = massObj,  size = sizeObj,  pos = posObj, pixel_size_um = resolutionObj, mean = meanSpcData, data = spectra)
+  datacube<-list(name = basename(data_file), uuid = uuidObj, mass = massObj,  size = sizeObj,  pos = posObj, pixel_size_um = resolutionObj, mean = meanSpcData, data = spectra)
   if(!is.null(posMotorsObj))
   {
     datacube$posMotors <- posMotorsObj
@@ -343,6 +356,7 @@ DeleteRamdisk<-function(img)
 #' @param img_name the name for the image.
 #' @param ramdisk_folder where ramdisk will be stored.
 #' @param data_type a string determining data type used to store data.
+#' @param uuid a string containing an universal unique identifier for the image. If it is not provided it will be created using a time code.
 #'
 #' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
 #' and synthetic datasets to test and develop processing methods and tools.
@@ -359,13 +373,23 @@ DeleteRamdisk<-function(img)
 #' @return the created rMSI object
 #' @export
 #'
-CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer")
+CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer", uuid = NULL)
 {
   img<-list()
   img$name <- img_name
   img$mass <- mass_axis
   img$size <- c( x_size, y_size )
   names(img$size) <- c("x", "y")
+  
+  #Fill the UUID string
+  if(is.null(uuid))
+  {
+    img$uuid <- format(Sys.time(), "%Y%m%d%H%M%S")
+  }
+  else
+  {
+    img$uuid <- uuid  
+  }
 
   #Prepare the pos matrix
   img$pos <- matrix( ncol = 2, nrow = x_size*y_size )
@@ -386,6 +410,7 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name
   #Prepare an empty datacube
   img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder, vmode_type = data_type)
 
+  class(img) <- "rMSIObj"
   return(img)
 }
 
@@ -397,6 +422,7 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name
 #' @param img_name the name for the image.
 #' @param ramdisk_folder where ramdisk will be stored.
 #' @param data_type a string determining data type used to store data.
+#' @param uuid a string containing an universal unique identifier for the image. If it is not provided it will be created using a time code.
 #'
 #' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
 #' and synthetic datasets to test and develop processing methods and tools.
@@ -414,7 +440,7 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name
 #' @return the created rMSI object
 #' @export
 #'
-CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer")
+CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer", uuid = NULL)
 {
   img<-list()
   img$name <- img_name
@@ -422,6 +448,16 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
   img$size <- c( NA, NA )
   names(img$size) <- c("x", "y")
 
+  #Fill the UUID string
+  if(is.null(uuid))
+  {
+    img$uuid <- format(Sys.time(), "%Y%m%d%H%M%S")
+  }
+  else
+  {
+    img$uuid <- uuid  
+  }
+  
   #Prepare the pos matrix
   img$pos <- matrix( NA, ncol = 2, nrow = num_of_pixels )
   colnames(img$pos)<- c("x", "y")
@@ -431,7 +467,7 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
 
   #Prepare an empty datacube
   img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder, vmode_type = data_type)
-
+  class(img) <- "rMSIObj"
   return(img)
 }
 
@@ -952,7 +988,8 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
                              pixel_resolution = img$pixel_size_um, 
                              img_name = paste0(img$name, "_sub"), 
                              ramdisk_folder = ramdisk_path, 
-                             data_type = attr(attr(img$data[[1]], "physical"), "vmode") )
+                             data_type = attr(attr(img$data[[1]], "physical"), "vmode"), 
+                             uuid = img$uuid )
   
   subImg$pos <- img$pos[id, ]
   if(!is.null(img$posMotors))
@@ -984,7 +1021,7 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
       dmSub <- matrix(nrow = nrow(dm), ncol = length(subImg$mass))
       for( irow in 1:nrow(dm))
       {
-        dmSub[irow, ] <- approx(img$mass, dm[irow,], xout = subImg$mass)$y
+        dmSub[irow, ] <- approx(img$mass, dm[irow,], xout = subImg$mass, ties = "ordered", yleft = 0, yright = 0)$y
       }
     }
     else

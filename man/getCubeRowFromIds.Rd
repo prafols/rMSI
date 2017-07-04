@@ -12,7 +12,7 @@ getCubeRowFromIds(Img, Ids)
 \item{Ids}{Identifiers of spectra.}
 }
 \value{
-a list of two vectors of cube index and row index in ff data objects list corresponding to given coords spectra.
+a list of the same length as the total number of read cubes. Each list element contain the cube, a vector of ID's and rows.
 }
 \description{
 Calculates where is located the data provided by pixel Identifiers. The cube index and the cube row are returned.

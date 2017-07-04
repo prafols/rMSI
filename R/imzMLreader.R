@@ -183,7 +183,9 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   datacube <- CreateEmptyImage(num_of_pixels = nrow(xmlRes$run_data), mass_axis = mzAxis, pixel_resolution = xmlRes$pixel_size_um,
                                img_name = basename(imzML_File),
                                ramdisk_folder = ramdisk_path,
-                               data_type = ffDataType)
+                               data_type = ffDataType,
+                               uuid = binUUID
+                               )
 
   #7- Read all spectra
   pt <- proc.time()
@@ -221,7 +223,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       }
       
       #Apply re-sampling
-      dd <- (approx( x = mzdd, y = dd, xout = mzAxis))$y
+      dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
       dd[which(is.na(dd))] <- 0 #Remove any possible NA
     }
     

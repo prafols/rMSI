@@ -31,18 +31,33 @@
 #'
 loadImgChunkFromIds<-function(Img, Ids)
 {
-  ind <- getCubeRowFromIds(Img, Ids)
+  #Avoid duplicates
+  Ids <- unique(Ids)
+  
+  cubeRows <- getCubeRowFromIds(Img, Ids)
 
+  #Read data from ramdisk
   dM <-matrix(ncol = length(Img$mass), nrow = length(Ids))
   istart <- 1
-  istop <- 0
-  for(i in 1:length(ind))
+  for( i in 1:length(cubeRows))
   {
-    istop <- istop + length(ind[[i]]$row)
-    dM [istart:istop , ]<- Img$data[[ind[[i]]$cube]][ind[[i]]$row, ]
+    istop <- istart + length(cubeRows[[i]]$row) - 1
+    dM[istart:istop , ]<- Img$data[[cubeRows[[i]]$cube]][cubeRows[[i]]$row, ]
     istart<-istop + 1
   }
-
+  
+  #Re-order the dM matrix accordin the Ids order
+  if(nrow(dM)>1)
+  {
+    sortedIds <- unlist(lapply(cubeRows, function(x){x$id}))
+    sorted_rows <- rep(0, length(Ids))
+    for( i in 1:length(Ids))
+    {
+      sorted_rows[i] <- which( sortedIds == Ids[i] )
+    }
+    dM <- dM[ sorted_rows, ]
+  }
+  
   return(dM)
 }
 
@@ -59,14 +74,29 @@ loadImgChunkFromIds<-function(Img, Ids)
 #'
 saveImgChunkAtIds<-function(Img, Ids, dm)
 {
-  ind <- getCubeRowFromIds(Img, Ids)
+  #Avoid duplicates
+  Ids <- unique(Ids)
+  
+  cubeRows <- getCubeRowFromIds(Img, Ids)
 
-  istart <- 1
-  istop <- 0
-  for(i in 1:length(ind))
+  # sort dm for fast wrinting (cube by cube)
+  if(nrow(dm) > 1)
   {
-    istop <- istop + length(ind[[i]]$row)
-    Img$data[[ind[[i]]$cube]][ind[[i]]$row, ] <-  dm [istart:istop , ]
+    sortedIds <- unlist(lapply(cubeRows, function(x){x$id}))
+    sorted_rows <- rep(0, length(Ids))
+    for( i in 1:length(Ids))
+    {
+      sorted_rows[i] <- which( sortedIds[i] == Ids )
+    }
+    dm <- dm[ sorted_rows, ]
+  }
+  
+  # Store data
+  istart <- 1
+  for( i in 1:length(cubeRows))
+  {
+    istop <- istart + length(cubeRows[[i]]$row) - 1
+    Img$data[[cubeRows[[i]]$cube]][cubeRows[[i]]$row, ] <- dm[istart:istop , ]
     istart<-istop + 1
   }
 }
@@ -155,7 +185,7 @@ getCubeRowFromCoords<-function(Img, Coords)
 #' @param Img the rMSI object where the data is stored (ramdisk).
 #' @param Ids Identifiers of spectra.
 #'
-#' @return a list of two vectors of cube index and row index in ff data objects list corresponding to given coords spectra.
+#' @return a list of the same length as the total number of read cubes. Each list element contain the cube, a vector of ID's and rows.
 #'
 #' @export
 #'
@@ -164,27 +194,21 @@ getCubeRowFromIds<-function(Img, Ids)
   max_nrow<-nrow(Img$data[[1]])
   icube<-(1+((Ids - 1) %/% max_nrow))
   irow<- (Ids - (icube -1) * max_nrow)
-
+  
+  df.cr <- data.frame( id = Ids, cube = icube, row = irow)
+  rm(icube)
+  rm(irow)
+  df.cr <- df.cr[order(df.cr$id),] 
+  
   cls<-list()
-  cls[[1]]<- list( cube = icube[1], row = c(irow[1]))
-
-  if(length(Ids) > 1)
+  un_icube <- unique(df.cr$cube)
+  for( i in 1:length(un_icube))
   {
-    for(i in 2:length(Ids))
-    {
-      if(icube[i] == icube[i-1] )
-      {
-        #Append row
-        cls[[length(cls)]]$row <- c(cls[[length(cls)]]$row, irow[i])
-      }
-      else
-      {
-        #Add cube
-        cls[[length(cls)+1]] <- list( cube = icube[i], row = c(irow[i]))
-      }
-    }
+    selItems <- which(df.cr$cube == un_icube[i])
+    cls[[length(cls) + 1]] <- list( cube = un_icube[i],
+                                    id = df.cr$id[selItems],
+                                    row = df.cr$row[selItems])
   }
-
   return(cls)
 }
 
@@ -491,6 +515,5 @@ insertRasterImageAtMass<-function( Img, Mass, Tolerance, raster_matrix)
     dataCube[[i]]<-ff::ff(vmode = vmode_type, dim = c(nrows, num_of_columns), filename = file.path(ff_data_folder, paste("ramdisk",i,".dat",sep = "")))
     names(dataCube)[i]<-paste("ramdisk",i,".dat",sep = "")
   }
-  class(dataCube) <- "rMSIObj"
   return(dataCube)
 }
