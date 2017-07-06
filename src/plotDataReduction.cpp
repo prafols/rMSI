@@ -17,6 +17,7 @@
  **************************************************************************/
 
 #include <Rcpp.h>
+
 using namespace Rcpp;
 
 //' @importFrom Rcpp evalCpp
@@ -61,7 +62,8 @@ List ReduceDataPointsC(NumericVector mass, NumericVector intensity, double massM
   const double n = - m*((double)imin);
   
   //Process the selected mass range
-  int binID;
+  int binID = 0;
+  int binID_ant = 0;
   for(int i = imin; i <= imax; i++)
   {
     //Data reduction
@@ -69,10 +71,11 @@ List ReduceDataPointsC(NumericVector mass, NumericVector intensity, double massM
     binID = binID < 0 ? 0 : binID;
     binID = binID > (N - 1) ? (N - 1) : binID;
       
-    if( intensity[i] >= inData[binID]  )
+    if( intensity[i] >= inData[binID]  || binID != binID_ant)
     {
       inData[binID] = intensity[i];
       mzData[binID] = mass[i];
+      binID_ant = binID;
     }
   }
   
