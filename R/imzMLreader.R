@@ -198,6 +198,10 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     return(NULL) #progress bar function must return true if the loading process is to be continued.
   }
 
+  #Ramdisk data accessors for full ff matrix acces (should be faster than accessing singles spectrum)
+  currentDataCube <- 1
+  currentDataIRow <- 1
+  bufferMatrix <- matrix(nrow = nrow(datacube$data[[1]]), ncol = length(datacube$mass))
   for(i in 1:nrow(xmlRes$run_data))
   {
     #Read intensity of current spectrum
@@ -222,14 +226,28 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         dd <- dd[-idup]
       }
       
-      #Apply re-sampling
-      dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
-      dd[which(is.na(dd))] <- 0 #Remove any possible NA
+      #Apply re-sampling (only if needed...)
+      if( ! identical(mzdd, mzAxis))
+      {
+        dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
+        dd[which(is.na(dd))] <- 0 #Remove any possible NA
+      } 
     }
     
-    #Store the intensities to the ramdisk
-    saveImgChunkAtIds(datacube, Ids =  i, dm = matrix(dd, nrow = 1, ncol = length(dd)))
-
+    #Store the intensities to the ramdisk by blocks using a buffer matrix for better performance
+    bufferMatrix[currentDataIRow, ] <- dd
+    currentDataIRow <- currentDataIRow  + 1
+    if( currentDataIRow > nrow(datacube$data[[currentDataCube]]))
+    {
+      datacube$data[[currentDataCube]][,] <- bufferMatrix
+      currentDataCube <-  currentDataCube + 1
+      currentDataIRow <- 1
+      if(currentDataCube <= length(datacube$data))
+      {
+        bufferMatrix <- matrix(nrow = nrow(datacube$data[[currentDataCube]]), ncol = length(datacube$mass))
+      }
+    }
+ 
     datacube$pos[i, "x"] <- xmlRes$run_data[i, "x"]
     datacube$pos[i, "y"] <- xmlRes$run_data[i, "y"]
 

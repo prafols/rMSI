@@ -929,7 +929,7 @@ ReadBrukerRoiXML <- function(img, xml_file)
   {
     cat(paste0("Parsing ROI ", i, " of ", roi_count, "\n"))
     spectraList <- ParseBrukerXML(xml_file, sel_img = i)
-    lstRois[[i]] <- list(name = spectraList$name, id = rep(0,length(spectraList$spots)))
+    lstRois[[i]] <- list(name = spectraList$name, id = c())
     for( j in 1:length(spectraList$spots))
     {
       #Extract original X Y Bruker Coords
@@ -941,7 +941,7 @@ ReadBrukerRoiXML <- function(img, xml_file)
       matchXY <- which(imPosMat == imCoord)
       if( length(matchXY) > 0)
       {
-        lstRois[[i]]$id[j] <- matchXY[1]
+        lstRois[[i]]$id <- c( lstRois[[i]]$id, matchXY[1])
         if(  length(matchXY) > 1 )
         {
           cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", origX, " , y", origY, " are duplicated.\n" ))
