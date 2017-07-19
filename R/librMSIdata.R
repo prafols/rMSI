@@ -570,7 +570,7 @@ PlotClusterImage <- function( posMat, clusters,  rotate = 0,  pixel_size_um = 10
   rm(my_raster)
 
   raster_RGB<-.BuildSingleIonRGBImage(img_sgn, XResLevel = 3, light = 5)
-  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F)
+  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F, display_syscoords = F)
 
   #Get the colors used for clusters as a plotable form (RGB code) using the same rMSI internal function as raster image
   colras <- raster::raster( nrow = 1, ncol = 1+length(unique(clusters)))
@@ -659,7 +659,7 @@ PlotTICImage <- function(img, TICs = NULL, rotate = 0, scale_title = "TIC")
 
   layout( matrix( 2:1, ncol = 2, nrow = 1, byrow = TRUE ), widths = c(7, rep(1, 2)) )
   .plotIntensityScale(img_sgn, light =  5)
-  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F)
+  .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F, display_syscoords = F)
 }
 
 #' ConvertrMSIimg2Bin.
