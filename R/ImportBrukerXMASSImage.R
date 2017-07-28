@@ -66,7 +66,6 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
   cat("Importing data to R session...\n")
   pt<-proc.time()
   ff_folder<-file.path(raw_data_full_path, "ffdata")
-  dir.create(ff_folder)
   raw<-.readBrukerXmassImg(raw_data_folder = raw_data_full_path, xml_file = xml_file_full_path, ff_data_folder = ff_folder, sample_spectrum_path = txt_spectrum_path, selected_xml_class = selected_img, ...)
 
   pt<-proc.time() - pt
@@ -226,6 +225,10 @@ CountImagesInBrukerXml <- function(xml_path)
   #3- Read Spectrum FID file and fill data structure if not zero intensity
   dataPos <- matrix(NA, ncol = 2, nrow = length(spectraList$spots))
   colnames(dataPos)<-c("x","y")
+  
+  UUID <- format(Sys.time(), "%Y%m%d%H%M%S")
+  ff_data_folder <- file.path(ff_data_folder, paste0(UUID, "_", spectraList$name))
+  dir.create(ff_data_folder, showWarnings = F, recursive = T)
   dataCube<-.CreateEmptyRamdisk(length(mz_axis), length(spectraList$spots), ff_data_folder )
   max_nrow <- nrow(dataCube[[1]])
 
@@ -248,7 +251,7 @@ CountImagesInBrukerXml <- function(xml_path)
   y_size <- max(dataPos[,"y"])
 
   #5- Return dataCube, mz_axis, xsize, ysize as a list of elements
-  return(list(name = spectraList$name, mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos, posMotors = BrukerPos))
+  return(list(name = spectraList$name, mass = mz_axis, size = c(x = x_size, y = y_size), data = dataCube, pos=dataPos, posMotors = BrukerPos, uuid = UUID))
 }
 
 #' Import a MSI dataset from Bruker XMASS folder and a XML file using a Wizard.
