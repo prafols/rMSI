@@ -545,7 +545,7 @@ imzMLparse <- function( fpath_xml, fpath_bin, fun_progress = NULL, close_signal 
     accession <- XML::xmlGetAttr(xmlScanSettings$scanSettings[[i]], "accession")
     if( accession == "IMS:1000046")
     {
-      pixel_size_um <- as.numeric(XML::xmlGetAttr(xmlScanSettings$scanSettings[[i]], "value"))
+      pixel_size_um <- sqrt(as.numeric(XML::xmlGetAttr(xmlScanSettings$scanSettings[[i]], "value"))) #Getting the sqrt value since the newest imzML standard povides the area of the pixel in microns
     }
   }
 
