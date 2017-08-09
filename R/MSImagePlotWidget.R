@@ -81,7 +81,7 @@
     }
     else
     {
-      this$IntLimits[channel] <- NA
+      this$IntLimits[channel] <- NULL
     }
 
     mz_str <- this$mz_selected[channel]
