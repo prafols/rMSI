@@ -20,7 +20,7 @@ NULL
 #' @export
 #' 
 MergeMassAxis <- function(mz1, mz2) {
-    .Call('rMSI_MergeMassAxis', PACKAGE = 'rMSI', mz1, mz2)
+    .Call(`_rMSI_MergeMassAxis`, mz1, mz2)
 }
 
 #' @importFrom Rcpp evalCpp
@@ -28,6 +28,6 @@ MergeMassAxis <- function(mz1, mz2) {
 NULL
 
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
-    .Call('rMSI_ReduceDataPointsC', PACKAGE = 'rMSI', mass, intensity, massMin, massMax, npoints)
+    .Call(`_rMSI_ReduceDataPointsC`, mass, intensity, massMin, massMax, npoints)
 }
 

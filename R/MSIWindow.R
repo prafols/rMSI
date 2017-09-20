@@ -26,10 +26,12 @@
 #' If a ramdisk has been previously created it will be used to speed up the loading process.
 #' The image will be presented using the GUI and it will be returned as rMSI object.
 #'
+#' @param lockExecution if is set to true, R execution will be halted till GUI is closed.
+#'
 #' @return the rMSI object containing the MS image.
 #'
 #' @export
-OpenMSI<-function()
+OpenMSI<-function( lockExecution = F )
 {
   #Load data using GUI
   MSI_obj<-LoadTwoMsImages()
@@ -37,17 +39,17 @@ OpenMSI<-function()
   #Display the MSIWindow
   if( !is.null(MSI_obj$img1_obj) && is.null(MSI_obj$img2_obj) )
   {
-    MSIWindow(img1 = MSI_obj$img1_obj)
+    MSIWindow(img1 = MSI_obj$img1_obj, lockExecution = lockExecution)
   }
   if( is.null(MSI_obj$img1_obj) && !is.null(MSI_obj$img2_obj) )
   {
-    MSIWindow(img1 = MSI_obj$img2_obj)
+    MSIWindow(img1 = MSI_obj$img2_obj, lockExecution = lockExecution)
   }
   if( !is.null(MSI_obj$img1_obj) && !is.null(MSI_obj$img2_obj) )
   {
-    MSIWindow(img1 = MSI_obj$img1_obj, img2 = MSI_obj$img2_obj)
+    MSIWindow(img1 = MSI_obj$img1_obj, img2 = MSI_obj$img2_obj, lockExecution = lockExecution)
   }
-
+  
   return(list(img1 = MSI_obj$img1_obj, img2 = MSI_obj$img2_obj ))
 }
 
@@ -55,12 +57,13 @@ OpenMSI<-function()
 #' Open the GUI to explore a MS image
 #'
 #' @param img a rMSI data object
+#' @param lockExecution if is set to true, R execution will be halted till GUI is closed.
 #'
 #'  Open the GUI to explore the MS image. A MS image can be provided as a parameter.
 #'  Up to two images can be displayed at once using multiple arguments.
 #'
 #' @export
-MSIWindow<-function(img1, img2 = NULL)
+MSIWindow<-function(img1, img2 = NULL, lockExecution = F)
 {
   options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
   oldWarning<-options()$warn
@@ -235,6 +238,15 @@ MSIWindow<-function(img1, img2 = NULL)
   class(this) <- append(class(this),"MsiWindows")
   gc()
 
+  #A loop to block exectuion
+  if(lockExecution)
+  {
+    while( gWidgets2::isExtant(this$window ) )
+    {
+      Sys.sleep(0.1)
+    }
+  }
+  
   #Restore warnings level
   options(warn = oldWarning)
   rm(oldWarning)
