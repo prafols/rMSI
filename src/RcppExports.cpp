@@ -5,6 +5,17 @@
 
 using namespace Rcpp;
 
+// CimzMLParse
+List CimzMLParse(String xml_path);
+RcppExport SEXP _rMSI_CimzMLParse(SEXP xml_pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< String >::type xml_path(xml_pathSEXP);
+    rcpp_result_gen = Rcpp::wrap(CimzMLParse(xml_path));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MergeMassAxis
 NumericVector MergeMassAxis(NumericVector mz1, NumericVector mz2);
 RcppExport SEXP _rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP mz2SEXP) {
@@ -34,6 +45,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 2},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {NULL, NULL, 0}
