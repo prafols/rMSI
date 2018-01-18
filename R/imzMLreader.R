@@ -61,14 +61,50 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   {
     fun_text("Parsing XML data in imzML file...")
   }
-
   xmlRes <- CimzMLParse(path.expand(imzML_File))
   if( !is.null(xmlRes$Error))
   {
     .controlled_loadAbort(paste0(xmlRes$Error, "\n"), close_signal)
   }
-  
-  #TODO test Checksum!
+  if(verifyChecksum)
+  {
+    if( xmlRes$SHA != "" )
+    {
+      cat("\nChecking binary data checksum using SHA-1 key... ")
+      res <- toupper(digest::digest( ibd_File, algo = "sha1", file = T))
+      if( res == xmlRes$SHA )
+      {
+        cat("OK\n")
+      }
+      else
+      {
+        cat(paste("NOK\nChecksums don't match\nXML key:", xmlRes$SHA, "\nBinary file key:", res,"\n"))
+        #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+        #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
+        cat("WARNING: MS data my be corrupt!\n")
+      }
+    }
+    if( xmlRes$MD5 != "")
+    {
+      cat("Checking binary data checksum using MD5 key... ")
+      res <- toupper(digest::digest( ibd_File, algo = "md5", file = T))
+      if( res == xmlRes$MD5 )
+      {
+        cat("OK\n")
+      }
+      else
+      {
+        cat(paste("NOK\nChecksums don't match\nXML key:", xmlRes$MD5, "\nBinary file key:", res,"\n"))
+        #.controlled_loadAbort("ERROR: possible data corruption\n", close_signal)
+        #Disableing the abort, just showing a warning here as it seams that there is bug in brukers checksum imzml file...
+        cat("WARNING: MS data my be corrupt!\n")
+      }
+    }  
+  }
+  else
+  {
+    cat("WARNING: Checksum validation is disabled, data may be corrupt!\n")
+  }
   
   #2- Create a connection to read binary file
   bincon <- file(description = ibd_File, open = "rb")

@@ -52,9 +52,8 @@ List CimzMLParse( String xml_path )
   
   // Data fields
   String sUUID = "";
-  bool bMD5 = false;
-  bool bSHA = false;
-  String sChecksum = "";
+  String sMD5_Checksum = "";
+  String sSHA_Checksum = "";
   bool bContinuous;
   bool bCompressionMz = true; //an error will be raised if this reamains true by the end of xml parsing
   bool bCompressionInt = true; //an error will be raised if this reamains true by the end of xml parsing
@@ -104,18 +103,16 @@ List CimzMLParse( String xml_path )
       sUUID = value;
       bUUID_present = true;
     }
-    if( accession == "IMS:1000091")
+    if( accession == "IMS:1000091") //SHA Checksum
     {
       transform(value.begin(), value.end(), value.begin(),::toupper);
-      sChecksum = value;
-      bSHA = true;
+      sSHA_Checksum = value;
       bChecksum_present = true;
     }
-    if( accession == "IMS:1000090")
+    if( accession == "IMS:1000090") //MD5 Checksum
     {
       transform(value.begin(), value.end(), value.begin(),::toupper);
-      sChecksum = value;
-      bMD5 = true;
+      sSHA_Checksum = value;
       bChecksum_present = true;
     }
     if( accession == "IMS:1000030")
@@ -390,6 +387,8 @@ List CimzMLParse( String xml_path )
   }
   
   return List::create(Named("UUID") = sUUID , 
+                      Named("SHA") = sSHA_Checksum,
+                      Named("MD5") = sMD5_Checksum,
                       Named("continuous_mode")= bContinuous,
                       Named("compression_mz")= bCompressionMz,
                       Named("compression_int")= bCompressionInt,
