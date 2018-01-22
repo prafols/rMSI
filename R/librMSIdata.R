@@ -903,6 +903,29 @@ remap2ImageCoords <- function(dataPos)
   stop(text)
 }
 
+#' ParseBrukerXML.
+#'
+#' Reads a Bruker's xml file exported using fleximaging.
+#' A list is returned where each element in the list is named according the ROI name.
+#' Each element in the list consists in a data.frame with the pixels XY coordinates inside each ROI.
+#'
+#' @param xml_path the full path where XML file is stored.
+#'
+#' @return ROI pixel coordinates arranged in a named list.
+#' @export
+#' 
+ParseBrukerXML <- function(xml_path)
+{
+  roilst <- CparseBrukerXML(path.expand(xml_path))
+  
+  if( !is.null(roilst$Error))
+  {
+    stop(roilst$Error)
+  }
+  
+  return(roilst)
+}
+
 #' ReadBrukerRoiXML.
 #' 
 #' Reads a Bruker ROI XML file and matches it to an rMSI image object.
@@ -921,21 +944,18 @@ ReadBrukerRoiXML <- function(img, xml_file)
     stop("ERROR: image posMotros matrix not available.\nYou need to re-import MS data using a recent verison of rMSI.\n")
   }
   
-  roi_count <- CountImagesInBrukerXml(xml_file)
+  spectraListRois <- ParseBrukerXML(xml_file)
   lstRois <- list()
   imPosMat <- complex( real = img$posMotors[, "x"], imaginary = img$posMotors[, "y"])
   
-  for( i in 1:roi_count)
+  for( i in 1:length(spectraListRois))
   {
-    cat(paste0("Parsing ROI ", i, " of ", roi_count, "\n"))
-    spectraList <- ParseBrukerXML(xml_file, sel_img = i)
-    lstRois[[i]] <- list(name = spectraList$name, id = c())
-    for( j in 1:length(spectraList$spots))
+    cat(paste0("Parsing ROI ", i, " of ", length(spectraListRois), "\n"))
+    lstRois[[i]] <- list(name = names(spectraListRois)[i], id = c())
+    for( j in 1:nrow(spectraListRois[[i]]))
     {
       #Extract original X Y Bruker Coords
-      origX <-as.integer(strsplit(strsplit(spectraList$spots[j],"X")[[1]][2], "Y")[[1]][1])
-      origY <-as.integer(strsplit(strsplit(spectraList$spots[j],"Y")[[1]][2], "X")[[1]][1])
-      imCoord <- complex(real = origX, imaginary = origY)
+      imCoord <- complex(real = spectraListRois[[i]]$x[j], imaginary = spectraListRois[[i]]$y[j])
       
       #Look for this Bruker coords in image pos matrix
       matchXY <- which(imPosMat == imCoord)
@@ -944,12 +964,12 @@ ReadBrukerRoiXML <- function(img, xml_file)
         lstRois[[i]]$id <- c( lstRois[[i]]$id, matchXY[1])
         if(  length(matchXY) > 1 )
         {
-          cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", origX, " , y", origY, " are duplicated.\n" ))
+          cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", Re(imCoord), " , y", Im(imCoord), " are duplicated.\n" ))
         }
       }
       else
       {
-        cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", origX, " , y", origY, " not found in image.\n" ))
+        cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", Re(imCoord), " , y", Im(imCoord), " not found in image.\n" ))
       }
       
     }

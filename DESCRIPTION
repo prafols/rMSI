@@ -9,7 +9,6 @@ Description: More about what it does (maybe more than one line)
 License: GPL3
 LazyData: TRUE
 Imports:
-    XML (>= 3.98),
     gWidgets2 (>= 1.0),
     RGtk2 (>= 2.20.25),
     cairoDevice (>= 2.22),

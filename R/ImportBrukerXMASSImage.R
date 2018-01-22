@@ -55,7 +55,7 @@
 #'
 #' @param raw_data_full_path Where the Bruker XMASS data is located.
 #' @param resolution_um The image pixel size un micrometers (sorry it can not be read directly from XMASS).
-#' @param xml_file_full_path Full path to the XML file.
+#' @param xml_file_full_path Full path to the XML file or alternatively an already parsed xml list resulting from ParseBrukerXML() function.
 #' @param txt_spectrum_path Full path to a bruker spectrum txt file to extract mass axis (optional).
 #' @param selected_img the image number to select in the XML file containing various classes.
 #' @param ... Extra parameters to .readBrukerXmassImg ( for example max_ff_file_size_MB as max size in MB of each ff file of the ramdisk).
@@ -82,62 +82,6 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
 
   class(raw) <- "rMSIObj"
   return(raw)
-}
-
-#' ParseBrukerXML.
-#'
-#' Reads a Bruker's xml file exported using fleximaging.
-#' Each Bruker's ROI is stored independently.
-#' A list is returned where each element in the list contains the region name and the spots strings.
-#' Only the region selected by sel_img parameter is parsed each time this function is executed.
-#' To get all regions in a XML file this function must be called for each region.
-#' The total number of regions in an XML file can be determined usin the CountImagesInBrukerXml function.
-#'
-#' @param xml_path the full path where XML file is stored.
-#' @param sel_img the image/roi to select in the XML file.
-#' @param roi_name_only if true, no spots are processed and only the name of the img/roi is returned.
-#'
-#' @return all spots strings arranged in a list.
-#' @export
-#' 
-ParseBrukerXML <- function(xml_path, sel_img = 1, roi_name_only = F)
-{
-  xmltop <- XML::xmlRoot(XML::xmlTreeParse(xml_path), skip = T)
-
-  #Read each class in XML, this is reading each flexImaging acq region.
-  if( sel_img %in%  1:XML::xmlSize(xmltop))
-  {
-    xmlregion <- XML::xmlChildren(xmltop[[sel_img]])
-    img_desc <- list( name = XML::xmlGetAttr(xmltop[[sel_img]], "Name"), spots = c())
-    if(!roi_name_only)
-    {
-      for (i in 1:length(xmlregion))
-      {
-        img_desc$spots <- c(img_desc$spots, XML::xmlGetAttr(xmlregion[[i]], "Spot"))
-      }
-    }
-  }
-  else
-  {
-    stop("Error: the selected image number is not present in XML file.\n")
-  }
-  return(img_desc)
-}
-
-
-#' CountImagesInBrukerXml.
-#'
-#' Reads a Bruker's XML file and counts the number of regions.
-#' This method is targetd to count the number of images to import previously of reading real data.
-#'
-#' @param xml_path the full path where XML file is stored.
-#'
-#' @return an integer with the total number of images found in the XML file.
-CountImagesInBrukerXml <- function(xml_path)
-{
-  xmltop <- XML::xmlParse(xml_path)
-  xmlClinProtSpectraImport <- XML::xmlChildren(xmltop)
-  return (XML::xmlSize(XML::xmlChildren(xmlClinProtSpectraImport[[1]])))
 }
 
 #Internal function too read bruker XMASS data and create the ramdisk
@@ -200,7 +144,16 @@ CountImagesInBrukerXml <- function(xml_path)
 
 
   #1- Read XML input data to get a vector of spectrums
-  spectraList <- ParseBrukerXML(xml_file, sel_img = selected_xml_class)
+  if( is.character(xml_file))
+  {
+    spectraListAllRois <- ParseBrukerXML(xml_file)  
+    spectraList <- spectraListAllRois[[selected_xml_class]]
+  }
+  else
+  {
+    spectraList <- xml_file[[selected_xml_class]]
+  }
+  
   pb<-txtProgressBar(min = 0, max = length(spectraList$spots), style = 3 )
   #Store directory structure to avoid wasting time in dir() fuctions
   rawDirs<-dataListing(raw_data_folder, spectraList$spots[1])
@@ -239,8 +192,8 @@ CountImagesInBrukerXml <- function(xml_path)
     dataCube[[i_cube]][(i - (i_cube -1) * max_nrow), ]<-readFidFile(file.path(rawDirs[spectraList$spots[i]], "1", "1SRef","fid"), length(mz_axis))
 
     #Extract X Y Coords
-    dataPos[i,"x"]<-as.integer(strsplit(strsplit(spectraList$spots[i],"X")[[1]][2], "Y")[[1]][1])
-    dataPos[i,"y"]<-as.integer(strsplit(strsplit(spectraList$spots[i],"Y")[[1]][2], "X")[[1]][1])
+    dataPos[i,"x"]<- spectraList$x[i]
+    dataPos[i,"y"]<- spectraList$y[i]
   }
   close(pb)
 
