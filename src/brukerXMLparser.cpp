@@ -36,6 +36,7 @@ using namespace pugi;
 // [[Rcpp::export]]
 List CparseBrukerXML( String xml_path )
 {
+  std::string sName;
   std::string sValue;
   xml_document doc;
   xml_parse_result  result = doc.load_file(xml_path.get_cstring());
@@ -74,8 +75,8 @@ List CparseBrukerXML( String xml_path )
     }
     
     //Get ROI name
-    sValue = ROI.attribute("Name").value();
-    sRoiNames[iRoi] = sValue;
+    sName = ROI.attribute("Name").value();
+    sRoiNames[iRoi] = sName;
     
     //Parse each pixel in current ROI
     const int iNumPixelsInRoi = ROI.select_nodes("Element").size();
@@ -111,8 +112,11 @@ List CparseBrukerXML( String xml_path )
       iY[iPixel] = std::stoi( sValue.substr(yPos + 1, sValue.length() - yPos - 1) );
       iPixel++;
     }
-    //Build the dataframe
-    lstRois[iRoi] = DataFrame::create( Named("x") = iX, Named("y") = iY, Named("spots") = sSpots );
+    //Build the roi list
+    lstRois[iRoi] =  List::create( Named("name") = sName.c_str(),
+                                   Named("pos") = DataFrame::create( Named("x") = iX, Named("y") = iY),
+                                   Named("spots") = sSpots );
+      
     
     iRoi++;
   }

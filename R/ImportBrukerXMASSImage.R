@@ -192,8 +192,8 @@ importBrukerXmassImg<-function(raw_data_full_path, resolution_um, xml_file_full_
     dataCube[[i_cube]][(i - (i_cube -1) * max_nrow), ]<-readFidFile(file.path(rawDirs[spectraList$spots[i]], "1", "1SRef","fid"), length(mz_axis))
 
     #Extract X Y Coords
-    dataPos[i,"x"]<- spectraList$x[i]
-    dataPos[i,"y"]<- spectraList$y[i]
+    dataPos[i,"x"]<- spectraList$pos$x[i]
+    dataPos[i,"y"]<- spectraList$pos$y[i]
   }
   close(pb)
 
