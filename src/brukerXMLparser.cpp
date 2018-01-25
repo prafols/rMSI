@@ -19,6 +19,7 @@
 #include "pugixml.hpp"
 #include <Rcpp.h>
 #include <string>
+#include <stdlib.h>   //for the atoi function
 
 using namespace Rcpp;
 using namespace pugi;
@@ -108,8 +109,8 @@ List CparseBrukerXML( String xml_path )
       }
       
       //Parse pixel coordinates
-      iX[iPixel] = std::stoi( sValue.substr(xPos + 1, yPos - xPos - 1) );
-      iY[iPixel] = std::stoi( sValue.substr(yPos + 1, sValue.length() - yPos - 1) );
+      iX[iPixel] = atoi( sValue.substr(xPos + 1, yPos - xPos - 1).c_str() );
+      iY[iPixel] = atoi( sValue.substr(yPos + 1, sValue.length() - yPos - 1).c_str() );
       iPixel++;
     }
     //Build the roi list
