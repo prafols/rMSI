@@ -952,7 +952,7 @@ ReadBrukerRoiXML <- function(img, xml_file)
   {
     cat(paste0("Parsing ROI ", i, " of ", length(spectraListRois), "\n"))
     lstRois[[i]] <- list(name = spectraListRois[[i]]$name, id = c())
-    for( j in 1:nrow(spectraListRois[[i]]))
+    for( j in 1:nrow(spectraListRois[[i]]$pos))
     {
       #Extract original X Y Bruker Coords
       imCoord <- complex(real = spectraListRois[[i]]$pos$x[j], imaginary = spectraListRois[[i]]$pos$y[j])
