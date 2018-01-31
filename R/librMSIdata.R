@@ -1011,7 +1011,8 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
                              data_type = attr(attr(img$data[[1]], "physical"), "vmode"), 
                              uuid = img$uuid )
   
-  subImg$pos <- img$pos[id, ]
+  subImg$pos <- remap2ImageCoords( img$pos[id, ] )
+  
   if(!is.null(img$posMotors))
   {
     subImg$posMotors <- img$posMotors[id, ]
