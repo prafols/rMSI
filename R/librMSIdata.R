@@ -482,16 +482,20 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
 AverageSpectrum <- function(img)
 {
   cat("Calculating Average Spectrum...\n")
-  pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
-  avgI <- rep(0, length(img$mass))
-  for( i in 1:length(img$data))
-  {
-    setTxtProgressBar(pbavg, i)
-    avgI <- avgI +  colSums(img$data[[i]][,])
+  if(!PackageChecker("rMSIproc","0.1"))
+    {
+    pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
+    avgI <- rep(0, length(img$mass))
+    for( i in 1:length(img$data))
+    {
+      setTxtProgressBar(pbavg, i)
+      avgI <- avgI +  colSums(img$data[[i]][,])
+    }
+    avgI <- avgI/nrow(img$pos)
+    close(pbavg)
+    return(avgI)
   }
-  avgI <- avgI/nrow(img$pos)
-  close(pbavg)
-  return(avgI)
+  return(rMSIproc::MTAverageSpectrum(img))
 }
 
 #' BaseSpectrum.
@@ -1060,4 +1064,35 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
   subImg$mean <- AverageSpectrum(subImg)
   return(subImg)
 }
+
+#' PackageChecker.
+#' 
+#' Creates a new rMSI image object from sub-set of selected pixels by ID's.
+#'
+#' @param PackageName the name of the package to be checked.
+#' @param PackageVersion the minimum version of the package required.
+#'
+#' @return boolean.
+#' @export
+#'
+PackageChecker <- function(PackageName,PackageVersion)
+{
+  info<-sessionInfo()
+  
+  if (length(info$otherPkgs)==0)  #Looking for other packages
+  {
+    return(FALSE)
+  }
+  
+  for (a in 1:length(info$otherPkgs)) 
+  {
+    if ((names(info$otherPkgs[a]) == PackageName) & 
+        (info$otherPkgs[[a]]$Version >= PackageVersion))
+    {
+      return(TRUE)
+    }
+  }
+  return(FALSE)
+}
+
 
