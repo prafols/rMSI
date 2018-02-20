@@ -1067,7 +1067,7 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
 
 #' PackageChecker.
 #' 
-#' Creates a new rMSI image object from sub-set of selected pixels by ID's.
+#' Cheks if there is the specified package in the correct version in the user library.
 #'
 #' @param PackageName the name of the package to be checked.
 #' @param PackageVersion the minimum version of the package required.
