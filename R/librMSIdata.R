@@ -971,8 +971,10 @@ ReadBrukerRoiXML <- function(img, xml_file)
       {
         cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", Re(imCoord), " , y", Im(imCoord), " not found in image.\n" ))
       }
-      
     }
+    
+    #Sort ID's by assending order to get a faster disk access time
+    lstRois[[i]]$id <- sort( lstRois[[i]]$id, decreasing = F)
   }
   
   return(lstRois)

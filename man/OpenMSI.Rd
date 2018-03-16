@@ -4,7 +4,10 @@
 \alias{OpenMSI}
 \title{Open a MS image from Hdd directly allowing the user to chose it from a file dialog.}
 \usage{
-OpenMSI()
+OpenMSI(lockExecution = F)
+}
+\arguments{
+\item{lockExecution}{if is set to true, R execution will be halted till GUI is closed.}
 }
 \value{
 the rMSI object containing the MS image.

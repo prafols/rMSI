@@ -19,6 +19,10 @@ CimzMLParse <- function(xml_path) {
     .Call(`_rMSI_CimzMLParse`, xml_path)
 }
 
+CimzMLStore <- function(fname, imgInfo) {
+    .Call(`_rMSI_CimzMLStore`, fname, imgInfo)
+}
+
 #' @importFrom Rcpp evalCpp
 #' @useDynLib rMSI, .registration = TRUE
 NULL

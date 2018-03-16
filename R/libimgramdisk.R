@@ -231,6 +231,25 @@ getIdsFromCoords<-function(Img, Coords)
   return(Ids)
 }
 
+#' Obtain the image Identifiers from a given set of images motor coords
+#'
+#' Calculate the pixel identifiers from the pixel motor coordinates.
+#'
+#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param MotorCoords a coords vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.
+#'
+#' @return a vector of identifiers corresponding to given coords.
+#'
+#'
+#' @export
+#'
+getIdsFromMotorCoords<-function(Img, MotorCoords)
+{
+  Zpos <-complex(real = Img$posMotors[,"x"], imaginary = Img$posMotors[,"y"]) #Convert positions to a complex numbers
+  Ids<-unlist(sapply(MotorCoords, function(x) { which(Zpos == x) }))
+  return(Ids)
+}
+
 #' getCoordsFromIds Obtain images coords from a set of Ids.
 #'
 #' @param Img the rMSI object where the data is stored (ramdisk).

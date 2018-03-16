@@ -12,7 +12,7 @@ importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path,
 
 \item{resolution_um}{The image pixel size un micrometers (sorry it can not be read directly from XMASS).}
 
-\item{xml_file_full_path}{Full path to the XML file.}
+\item{xml_file_full_path}{Full path to the XML file or alternatively an already parsed xml list resulting from ParseBrukerXML() function.}
 
 \item{txt_spectrum_path}{Full path to a bruker spectrum txt file to extract mass axis (optional).}
 

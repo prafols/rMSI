@@ -27,6 +27,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// CimzMLStore
+bool CimzMLStore(String fname, List imgInfo);
+RcppExport SEXP _rMSI_CimzMLStore(SEXP fnameSEXP, SEXP imgInfoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< String >::type fname(fnameSEXP);
+    Rcpp::traits::input_parameter< List >::type imgInfo(imgInfoSEXP);
+    rcpp_result_gen = Rcpp::wrap(CimzMLStore(fname, imgInfo));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MergeMassAxis
 NumericVector MergeMassAxis(NumericVector mz1, NumericVector mz2);
 RcppExport SEXP _rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP mz2SEXP) {
@@ -58,6 +70,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
+    {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 2},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {NULL, NULL, 0}

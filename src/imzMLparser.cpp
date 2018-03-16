@@ -421,3 +421,76 @@ List CimzMLParse( String xml_path )
                                                              Named("intOffset") = iintOffset)
                       );
 }
+
+// imzML imgInfo data structure:
+// $UUID a String object with the UUID
+// $continuous_mode a boolean which is true if spectra in continuous mode
+// $compression_mz a boolean indicating wheher data is compressed or not
+// $compression_int a boolean indicating wheher data is compressed or not
+// $mz_dataType a String with the data type: "float", "int"... etc...
+// $int_dataType a String with the data type: "float", "int"... etc...
+// $pixel_size_um a double with the pixel area? check this...
+// $run_data a data.frane with the columns: x, y, mzLength, mzOffset, intLength, intOffset
+//
+// full path to xml_path must be specified... R function path.expand() can be used 4 this
+// [[Rcpp::export]]
+bool CimzMLStore( String fname, List imgInfo )
+{
+  //Reusable pugi variables
+  pugi::xml_node cvParam;
+  
+  // empty xml document with custom declaration node
+  pugi::xml_document doc;
+  pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
+  decl.append_attribute("version") = "1.0";
+  decl.append_attribute("encoding") = "UTF-8";
+  decl.append_attribute("standalone") = "no";
+  
+  //mzML top level node
+  pugi::xml_node node_mzML = doc.append_child("mzML");
+  node_mzML.append_attribute("version") =  "1.1";
+  node_mzML.append_attribute("xmlns") = "http://psi.hupo.org/ms/mzml";
+  node_mzML.append_attribute("xmlns:xsi") = "http://www.w3.org/2001/XMLSchema-instance";
+  node_mzML.append_attribute("xsi:schemaLocation") = "http://psi.hupo.org/ms/mzml http://psidev.info/files/ms/mzML/xsd/mzML1.1.0_idx.xsd";
+
+  //cvList top node
+  pugi::xml_node node_cvList = node_mzML.append_child("cvList");
+  node_cvList.append_attribute("count") = "3";
+  pugi::xml_node node_cv = node_cvList.append_child("cv");
+  node_cv.append_attribute("id") = "MS";
+  node_cv.append_attribute("fullName") = "Proteomics Standards Initiative Mass Spectrometry Ontology";
+  node_cv.append_attribute("version") = "1.3.1";
+  node_cv.append_attribute("URI") = "http://psidev.info/ms/mzML/psi-ms.obo";
+  node_cv = node_cvList.append_child("cv");
+  node_cv.append_attribute("id") = "UO";
+  node_cv.append_attribute("fullName") = "Unit Ontology";
+  node_cv.append_attribute("version") = "1.15";
+  node_cv.append_attribute("URI") = "http://obo.cvs.sourceforge.net/obo/obo/ontology/phenotype/unit.obo";
+  node_cv = node_cvList.append_child("cv");
+  node_cv.append_attribute("id") = "IMS";
+  node_cv.append_attribute("fullName") = "Imaging MS Ontology";
+  node_cv.append_attribute("version") = "0.9.1";
+  node_cv.append_attribute("URI") = "http://www.maldi-msi.org/download/imzml/imagingMS.obo";
+  
+  //fileDescription node
+  pugi::xml_node node_fdesc = node_mzML.append_child("fileDescription");
+  
+  //fileContent
+  pugi::xml_node fileContent = node_fdesc.append_child("fileContent");
+  cvParam = fileContent.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000080";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "universally unique identifier";
+  cvParam.append_attribute("value") = "{906c8753-47ae-43ee-8fa8-f00e6e9288fa}"; //TODO set UUID from input data List parsing the string to add the {} chars
+  
+  /*
+  //TODO i'm working here...
+    <cvParam accession="IMS:1000031" cvRef="IMS" name="processed"/>
+    <cvParam accession="IMS:1000090" cvRef="IMS" name="ibd MD5" value="8783D5A6FA45448806D3D871B99DE3F"/>
+    <cvParam accession="MS:1000294" cvRef="MS" name="mass spectrum"/>
+  */
+
+  
+  // save document to file
+  return(doc.save_file(fname.get_cstring(), "\t", pugi::format_default, pugi::encoding_utf8 ) );
+}
