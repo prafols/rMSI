@@ -482,16 +482,30 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
 AverageSpectrum <- function(img)
 {
   cat("Calculating Average Spectrum...\n")
-  pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
-  avgI <- rep(0, length(img$mass))
-  for( i in 1:length(img$data))
-  {
-    setTxtProgressBar(pbavg, i)
-    avgI <- avgI +  colSums(img$data[[i]][,])
-  }
-  avgI <- avgI/nrow(img$pos)
-  close(pbavg)
-  return(avgI)
+  avgSpectrum <- tryCatch(
+    {
+      return(rMSIproc::AverageSpectrum(img))
+    },
+    warning = function(war)
+    {
+        print(paste("WARNING in rMSI AverageSpectrum calling rMSIproc::AverageSpectrum: ",war))
+        return(NULL)
+    }, 
+    error = function(err) 
+    {
+      #No rMSIproc::AverageSpectrum present... so using rMSI slow average
+      pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
+      avgI <- rep(0, length(img$mass))
+      for( i in 1:length(img$data))
+      {
+        setTxtProgressBar(pbavg, i)
+        avgI <- avgI +  colSums(img$data[[i]][,])
+      }
+      avgI <- avgI/nrow(img$pos)
+      close(pbavg)
+      return(avgI)
+    })
+  return(avgSpectrum)
 }
 
 #' BaseSpectrum.
@@ -1062,4 +1076,3 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
   subImg$mean <- AverageSpectrum(subImg)
   return(subImg)
 }
-
