@@ -4,13 +4,15 @@
 \alias{MSIWindow}
 \title{Open the GUI to explore a MS image}
 \usage{
-MSIWindow(img1, img2 = NULL)
+MSIWindow(img1, img2 = NULL, lockExecution = F)
 }
 \arguments{
-\item{img}{a rMSI data object
+\item{lockExecution}{if is set to true, R execution will be halted till GUI is closed.
 
  Open the GUI to explore the MS image. A MS image can be provided as a parameter.
  Up to two images can be displayed at once using multiple arguments.}
+
+\item{img}{a rMSI data object}
 }
 \description{
 Open the GUI to explore a MS image

@@ -482,20 +482,30 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
 AverageSpectrum <- function(img)
 {
   cat("Calculating Average Spectrum...\n")
-  if(!PackageChecker("rMSIproc","0.1"))
+  avgSpectrum <- tryCatch(
     {
-    pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
-    avgI <- rep(0, length(img$mass))
-    for( i in 1:length(img$data))
+      return(rMSIproc::AverageSpectrum(img))
+    },
+    warning = function(war)
     {
-      setTxtProgressBar(pbavg, i)
-      avgI <- avgI +  colSums(img$data[[i]][,])
-    }
-    avgI <- avgI/nrow(img$pos)
-    close(pbavg)
-    return(avgI)
-  }
-  return(rMSIproc::MTAverageSpectrum(img))
+        print(paste("WARNING in rMSI AverageSpectrum calling rMSIproc::AverageSpectrum: ",war))
+        return(NULL)
+    }, 
+    error = function(err) 
+    {
+      #No rMSIproc::AverageSpectrum present... so using rMSI slow average
+      pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
+      avgI <- rep(0, length(img$mass))
+      for( i in 1:length(img$data))
+      {
+        setTxtProgressBar(pbavg, i)
+        avgI <- avgI +  colSums(img$data[[i]][,])
+      }
+      avgI <- avgI/nrow(img$pos)
+      close(pbavg)
+      return(avgI)
+    })
+  return(avgSpectrum)
 }
 
 #' BaseSpectrum.
@@ -1064,35 +1074,3 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
   subImg$mean <- AverageSpectrum(subImg)
   return(subImg)
 }
-
-#' PackageChecker.
-#' 
-#' Cheks if there is the specified package in the correct version in the user library.
-#'
-#' @param PackageName the name of the package to be checked.
-#' @param PackageVersion the minimum version of the package required.
-#'
-#' @return boolean.
-#' @export
-#'
-PackageChecker <- function(PackageName,PackageVersion)
-{
-  info<-sessionInfo()
-  
-  if (length(info$otherPkgs)==0)  #Looking for other packages
-  {
-    return(FALSE)
-  }
-  
-  for (a in 1:length(info$otherPkgs)) 
-  {
-    if ((names(info$otherPkgs[a]) == PackageName) & 
-        (info$otherPkgs[[a]]$Version >= PackageVersion))
-    {
-      return(TRUE)
-    }
-  }
-  return(FALSE)
-}
-
-
