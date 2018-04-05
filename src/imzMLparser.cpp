@@ -20,8 +20,10 @@
 #include <Rcpp.h>
 #include <string>
 #include <cstring>
-#include <algorithm> //To get the transform() function
+#include <algorithm> //To get the transform(), min_element(), max_element() functions
 #include <cmath>
+#include <libgen.h> //TO get basename() and dirname()
+#include <sstream>
 using namespace Rcpp;
 using namespace pugi;
 
@@ -422,6 +424,54 @@ List CimzMLParse( String xml_path )
                       );
 }
 
+
+//Append the cvParam node according the data type to a current xml_node specified by a pointer.
+//Return the number of bytes used to encode each datapoint or -1 if error.
+int AppendimzMLDataTypeNode(const std::string sDataType, pugi::xml_node *imzMLnode)
+{
+  pugi::xml_node cvParam;
+  int encodingByteSize = -1;
+  
+  if( sDataType.compare("int") == 0 )
+  {
+    cvParam = imzMLnode->append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000141";
+    cvParam.append_attribute("cvRef") = "MS";
+    cvParam.append_attribute("name") = "32-bit integer";
+    encodingByteSize = 4;
+  }
+  else if( sDataType.compare("long") == 0 )
+  {
+    cvParam = imzMLnode->append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000142";
+    cvParam.append_attribute("cvRef") = "MS";
+    cvParam.append_attribute("name") = "64-bit integer";
+    encodingByteSize = 8;
+  }
+  else if( sDataType.compare("float") == 0 )
+  {
+    cvParam = imzMLnode->append_child("cvParam");
+    cvParam.append_attribute("accession") = "MS:1000521";
+    cvParam.append_attribute("cvRef") = "MS";
+    cvParam.append_attribute("name") = "32-bit float";
+    encodingByteSize = 4;
+  }
+  else if( sDataType.compare("double") == 0 )
+  {
+    cvParam = imzMLnode->append_child("cvParam");
+    cvParam.append_attribute("accession") = "MS:1000523";
+    cvParam.append_attribute("cvRef") = "MS";
+    cvParam.append_attribute("name") = "64-bit float";
+    encodingByteSize = 8;
+  }
+  else
+  {
+    stop("Error: No valid imzML data type\n");
+  }
+  
+  return encodingByteSize;
+}
+
 // imzML imgInfo data structure:
 // $UUID a String object with the UUID
 // $continuous_mode a boolean which is true if spectra in continuous mode
@@ -438,6 +488,9 @@ bool CimzMLStore( String fname, List imgInfo )
 {
   //Reusable pugi variables
   pugi::xml_node cvParam;
+ 
+  //Extract the RunData Matrix for fast access
+  DataFrame runMat = as<DataFrame>(imgInfo["run_data"]);
   
   // empty xml document with custom declaration node
   pugi::xml_document doc;
@@ -481,16 +534,403 @@ bool CimzMLStore( String fname, List imgInfo )
   cvParam.append_attribute("accession") = "IMS:1000080";
   cvParam.append_attribute("cvRef") = "IMS";
   cvParam.append_attribute("name") = "universally unique identifier";
-  cvParam.append_attribute("value") = "{906c8753-47ae-43ee-8fa8-f00e6e9288fa}"; //TODO set UUID from input data List parsing the string to add the {} chars
   
-  /*
-  //TODO i'm working here...
-    <cvParam accession="IMS:1000031" cvRef="IMS" name="processed"/>
-    <cvParam accession="IMS:1000090" cvRef="IMS" name="ibd MD5" value="8783D5A6FA45448806D3D871B99DE3F"/>
-    <cvParam accession="MS:1000294" cvRef="MS" name="mass spectrum"/>
-  */
+  std::string sUUIDorig = (std::string)as<String>(imgInfo["UUID"]);
+  std::string sUUIDparsed = "{";
+  sUUIDparsed += sUUIDorig.substr(0, 8);
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUIDorig.substr(8, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUIDorig.substr(12, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUIDorig.substr(16, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUIDorig.substr(20, 12); 
+  sUUIDparsed += "}";
+  cvParam.append_attribute("value") = sUUIDparsed.c_str();
+  cvParam = fileContent.append_child("cvParam");
+  if( as<bool>(imgInfo["continuous_mode"]) )
+  {
+    cvParam.append_attribute("accession") = "IMS:1000030";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "continuous";
+  }
+  else
+  {
+    cvParam.append_attribute("accession") = "IMS:1000031";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "processed";
+  }
+
+  if( ((std::string)as<String>(imgInfo["MD5"])).length() > 0 )
+  {
+    cvParam = fileContent.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000090";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "ibd MD5";
+    cvParam.append_attribute("value") = as<String>(imgInfo["MD5"]).get_cstring();
+  }
+  
+  if( ((std::string)as<String>(imgInfo["SHA"])).length() > 0)
+  {
+    cvParam = fileContent.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000091";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "ibd SHA-1";
+    cvParam.append_attribute("value") = as<String>(imgInfo["SHA"]).get_cstring();
+  }
+  
+  cvParam = fileContent.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000294";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "mass spectrum";
+  
+  //sourceFileList
+  pugi::xml_node srcFileLst = node_fdesc.append_child("sourceFileList");
+  srcFileLst.append_attribute("count") = "1";
+  pugi::xml_node srcFile = srcFileLst.append_child("sourceFile");
+  srcFile.append_attribute("id") = "sourceFile0";
+  
+  //Dirname and Basenme must be copied to strings since the POSIX fucntions may modify the content of the char pointer.
+  std::string sDirname = fname.get_cstring();
+  sDirname = dirname((char*)sDirname.c_str());
+  std::string sBasename = fname.get_cstring();
+  sBasename = basename((char*)sBasename.c_str());
+  srcFile.append_attribute("location") = sDirname.c_str();
+  srcFile.append_attribute("name") = sBasename.c_str();
+  
+  cvParam = srcFile.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000560";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "mass spectrometer file format";
+  cvParam.append_attribute("value") = "rMSI exported imzML";
+  
+  cvParam = srcFile.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1002333";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "conversion software";
+
+  //contact info.
+  pugi::xml_node node_contact = node_fdesc.append_child("contact");
+  cvParam = node_contact.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000586";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "contact name";
+  cvParam.append_attribute("value") = "Pere Rafols";
+  
+  cvParam = node_contact.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000590";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "contact affiliation";
+  cvParam.append_attribute("value") = "Universitat Rovira i Virgili";
+  
+  cvParam = node_contact.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000589";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "contact email";
+  cvParam.append_attribute("value") = "pere.rafols@urv.cat";
+  
+  //referenceableParamGroupList
+  pugi::xml_node refParamGrpLst = node_mzML.append_child("referenceableParamGroupList");
+  refParamGrpLst.append_attribute("count") = "2";
+  
+  //The MZ Array
+  pugi::xml_node refParamGrpMzArray = refParamGrpLst.append_child("referenceableParamGroup");
+  refParamGrpMzArray.append_attribute("id") = "mzArray";
+  cvParam = refParamGrpMzArray.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000514";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "m/z array";
+  cvParam.append_attribute("unitAccession") = "MS:1000040";
+  cvParam.append_attribute("unitCvRef") = "MS";
+  cvParam.append_attribute("unitName") = "m/z";
+  int mzEncodingBytes = AppendimzMLDataTypeNode(as<String>(imgInfo["mz_dataType"]).get_cstring(), &refParamGrpMzArray);
+  if( as<bool>(imgInfo["compression_mz"]) )
+  {
+    stop("Error: binary data compression is not supported\n");
+  }
+  else
+  {
+    cvParam = refParamGrpMzArray.append_child("cvParam");
+    cvParam.append_attribute("accession") = "MS:1000576";
+    cvParam.append_attribute("cvRef") = "MS";
+    cvParam.append_attribute("name") = "no compression";
+  }
+  cvParam = refParamGrpMzArray.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000101";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "external data";
+  cvParam.append_attribute("value") = "true";
+  
+  //The Intensities Array
+  pugi::xml_node refParamGrpIntArray = refParamGrpLst.append_child("referenceableParamGroup");
+  refParamGrpIntArray.append_attribute("id") = "intensityArray";
+  cvParam = refParamGrpIntArray.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000515";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "intensity array";
+  cvParam.append_attribute("unitAccession") = "MS:1000131";
+  cvParam.append_attribute("unitCvRef") = "MS";
+  cvParam.append_attribute("unitName") = "number of detector counts";
+  int intEncodingBytes = AppendimzMLDataTypeNode(as<String>(imgInfo["int_dataType"]).get_cstring(), &refParamGrpIntArray);
+  if( as<bool>(imgInfo["compression_int"]) )
+  {
+    stop("Error: binary data compression is not supported\n");
+  }
+  else
+  {
+    cvParam = refParamGrpIntArray.append_child("cvParam");
+    cvParam.append_attribute("accession") = "MS:1000576";
+    cvParam.append_attribute("cvRef") = "MS";
+    cvParam.append_attribute("name") = "no compression";
+  }
+  cvParam = refParamGrpIntArray.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000101";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "external data";
+  cvParam.append_attribute("value") = "true";
+  
+  //sampleList
+  pugi::xml_node node_sampleLst = node_mzML.append_child("sampleList");
+  node_sampleLst.append_attribute("count") = "1";
+  pugi::xml_node node_sample = node_sampleLst.append_child("sample");
+  node_sample.append_attribute("id") = "sample1";
+  node_sample.append_attribute("name") = "Sample1";
+  cvParam = node_sample.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000001";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "sample number";
+  cvParam.append_attribute("value") = "1";
+  
+  //softwareList
+  pugi::xml_node node_softLst = node_mzML.append_child("softwareList");
+  node_softLst.append_attribute("count") = "1";
+  pugi::xml_node node_soft = node_softLst.append_child("software");
+  node_soft.append_attribute("id") = "rMSI";
+  node_soft.append_attribute("version") = "0.8";
+  cvParam = node_soft.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000799";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "custom unreleased software tool";
+  cvParam.append_attribute("value") = "rMSI";
 
   
-  // save document to file
+  //scanSettingsList
+  pugi::xml_node node_scanSetLst = node_mzML.append_child("scanSettingsList");
+  node_scanSetLst.append_attribute("count") = "1";
+  pugi::xml_node node_scanSet = node_scanSetLst.append_child("scanSettings");
+  node_scanSet.append_attribute("id") = "scanSettings0";
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000401";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "top down";
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000413";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "flyback";
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000491";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "linescan left right";
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000480";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "horizontal line scan";
+  
+  IntegerVector xCoords = runMat["x"];
+  int maxXCoord = *std::max_element( xCoords.begin(), xCoords.end()); //Using the max in coords as Bruker is using it this way... no matter if there is an offset. 
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000042";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "max count of pixels x";
+  cvParam.append_attribute("value") = maxXCoord;
+  
+  IntegerVector yCoords = runMat["y"];
+  int maxYCoord = *std::max_element( yCoords.begin(), yCoords.end());  //Using the max in coords as Bruker is using it this way... no matter if there is an offset.
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000043";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "max count of pixels y";
+  cvParam.append_attribute("value") = maxYCoord;
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000044";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "max dimension x";
+  cvParam.append_attribute("unitAccession") = "UO:0000017";
+  cvParam.append_attribute("unitCvRef") = "UO";
+  cvParam.append_attribute("unitName") = "micrometer";
+  cvParam.append_attribute("value") = round((double)maxXCoord * as<double>(imgInfo["pixel_size_um"]));
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000045";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "max dimension y";
+  cvParam.append_attribute("unitAccession") = "UO:0000017";
+  cvParam.append_attribute("unitCvRef") = "UO";
+  cvParam.append_attribute("unitName") = "micrometer";
+  cvParam.append_attribute("value") = round((double)maxYCoord * as<double>(imgInfo["pixel_size_um"]));
+    
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000053";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "absolute position offset x";
+  cvParam.append_attribute("unitAccession") = "UO:0000017";
+  cvParam.append_attribute("unitCvRef") = "UO";
+  cvParam.append_attribute("unitName") = "micrometer";
+  cvParam.append_attribute("value") = "0";
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000054";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "absolute position offset y";
+  cvParam.append_attribute("unitAccession") = "UO:0000017";
+  cvParam.append_attribute("unitCvRef") = "UO";
+  cvParam.append_attribute("unitName") = "micrometer";
+  cvParam.append_attribute("value") = "0";
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000046";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "pixel size";
+  cvParam.append_attribute("value") = pow(as<double>(imgInfo["pixel_size_um"]), 2.0);
+  
+  //instrumentConfigurationList, just declaring it was a file exported from rMSI
+  pugi::xml_node node_instrtLst = node_mzML.append_child("instrumentConfigurationList");
+  node_instrtLst.append_attribute("count") = "1";
+  pugi::xml_node node_instrCfg = node_instrtLst.append_child("instrumentConfiguration");
+  node_instrCfg.append_attribute("id") = "instrumentConfiguration0";
+  
+  //dataProcessingList
+  pugi::xml_node node_dataProcLst = node_mzML.append_child("dataProcessingList");
+  node_dataProcLst.append_attribute("count") = "1";
+  pugi::xml_node node_dataProc = node_dataProcLst.append_child("dataProcessing");
+  node_dataProc.append_attribute("id") = "dataProcessing0";
+  pugi::xml_node node_procMethod = node_dataProc.append_child("processingMethod");
+  node_procMethod.append_attribute("order") = "0";
+  node_procMethod.append_attribute("softwareRef") = "software0";
+  cvParam = node_procMethod.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000544";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "Conversion to mzML";
+  
+  //Run data
+  int total_num_pixels = (int) runMat.nrows();
+  pugi::xml_node node_run = node_mzML.append_child("run");
+  node_run.append_attribute("defaultInstrumentConfigurationRef") = "instrumentConfiguration0";
+  node_run.append_attribute("id") = "run0";
+  node_run.append_attribute("sampleRef") = "sample1";
+  pugi::xml_node node_spectrumLst = node_run.append_child("spectrumList");
+  node_spectrumLst.append_attribute("count") = total_num_pixels;
+  node_spectrumLst.append_attribute("defaultDataProcessingRef") = "dataProcessing0";
+  
+  std::stringstream ssParser; //Auxiliar string to parse scans
+  //Copy to numeric to access it using a long long range 
+  NumericVector v_mzLength = runMat["mzLength"];
+  NumericVector v_mzOffset = runMat["mzOffset"];
+  NumericVector v_intLength = runMat["intLength"];
+  NumericVector v_intOffset = runMat["intOffset"];
+  
+  pugi::xml_node node_spectrum; //Reusable spectrum node
+  pugi::xml_node node_refParamGrpRef; //Reusable referenceableParamGroupRef node
+  pugi::xml_node node_scanLst; //Reusable scanList node
+  pugi::xml_node node_scan; //Reusable scan node
+  pugi::xml_node node_binDataLst; //Reusable binaryDataArrayList node
+  pugi::xml_node node_binData; //Reusable binaryDataArray node
+  pugi::xml_node  node_binary; //Reusable binary node
+  for( int i = 0; i < total_num_pixels; i++)
+  {
+    //Rcout<<"Parsing pixel "<<i <<" of "<< total_num_pixels << "\n";
+    ssParser.str("");
+    ssParser << "Scan=" <<i;
+    node_spectrum = node_spectrumLst.append_child("spectrum");
+    node_spectrum.append_attribute("defaultArrayLength") = "0";
+    node_spectrum.append_attribute("id") = ssParser.str().c_str();
+    node_spectrum.append_attribute("index") = i;
+    
+    node_refParamGrpRef = node_spectrum.append_child("referenceableParamGroupRef");
+    node_refParamGrpRef.append_attribute("ref") = "spectrum";
+    
+    node_scanLst = node_spectrum.append_child("scanList");
+    node_scanLst.append_attribute("count") = "1";
+    cvParam = node_scanLst.append_child("cvParam");
+    cvParam.append_attribute("accession") = "MS:1000795";
+    cvParam.append_attribute("cvRef") = "MS";
+    cvParam.append_attribute("name") = "no combination";
+    
+    node_scan =  node_scanLst.append_child("scan");
+    node_scan.append_attribute("instrumentConfigurationRef") = "instrumentConfiguration0";
+    cvParam = node_scan.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000050";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "position x";
+    cvParam.append_attribute("value") = xCoords[i];
+    cvParam = node_scan.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000051";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "position y";
+    cvParam.append_attribute("value") = yCoords[i];
+    
+    node_binDataLst = node_spectrum.append_child("binaryDataArrayList");
+    node_binDataLst.append_attribute("count") = "2";
+    
+    //MZ array
+    node_binData = node_binDataLst.append_child("binaryDataArray");
+    node_binData.append_attribute("encodedLength") = "0";
+    node_refParamGrpRef = node_binData.append_child("referenceableParamGroupRef");
+    node_refParamGrpRef.append_attribute("ref") = "mzArray";
+    
+    cvParam = node_binData.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000103";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "external array length";
+    cvParam.append_attribute("value") = (unsigned long long)v_mzLength[i];
+    
+    cvParam = node_binData.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000104";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "external encoded length";
+    cvParam.append_attribute("value") = (unsigned long long) (mzEncodingBytes*v_mzLength[i]);
+    
+    cvParam = node_binData.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000102";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "external offset";
+    cvParam.append_attribute("value") = (unsigned long long)v_mzOffset[i];
+    
+    node_binary = node_binData.append_child("binary");
+    
+    //INT array
+    node_binData = node_binDataLst.append_child("binaryDataArray");
+    node_binData.append_attribute("encodedLength") = "0";
+    node_refParamGrpRef = node_binData.append_child("referenceableParamGroupRef");
+    node_refParamGrpRef.append_attribute("ref") = "intensityArray";
+    
+    cvParam = node_binData.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000103";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "external array length";
+    cvParam.append_attribute("value") = (unsigned long long)v_intLength[i];
+    
+    cvParam = node_binData.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000104";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "external encoded length";
+    cvParam.append_attribute("value") = (unsigned long long)(intEncodingBytes*v_intLength[i]);
+    
+    cvParam = node_binData.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000102";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "external offset";
+    cvParam.append_attribute("value") = (unsigned long long)v_intOffset[i];
+    
+    node_binary = node_binData.append_child("binary");
+  }
+  
+ // save document to file
   return(doc.save_file(fname.get_cstring(), "\t", pugi::format_default, pugi::encoding_utf8 ) );
 }

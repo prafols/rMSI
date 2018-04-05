@@ -4,12 +4,19 @@
 \alias{PlotTICImage}
 \title{PlotTICImage.}
 \usage{
-PlotTICImage(img, TICs = NULL, rotate = 0, scale_title = "TIC")
+PlotTICImage(img, TICs = NULL, rotate = 0, scale_title = "TIC",
+  vlight = 5)
 }
 \arguments{
 \item{img}{an rMSI object.}
 
 \item{TICs}{a vector of TIC values ordered acording pos array in img object.}
+
+\item{rotate}{image rotation in degrees, possible values are: 0, 90, 180 and 270.}
+
+\item{scale_title}{the title to show in scale axis (TIC by default).}
+
+\item{vlight}{the lighting of the plotted image.}
 }
 \description{
 PlotTICImage.

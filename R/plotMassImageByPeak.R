@@ -443,17 +443,17 @@
   #Add the main title
   if(max_int == 0)
   {
-    mtext("Channel Disabled", side = 2, line = -1, cex = 0.8, adj = 0.5  )
+    mtext("Channel Disabled", side = 2, line = 0, cex = 0.8, adj = 0.5  )
   }
   else
   {
     if(is.character(img$mass))
     {
-      mtext(img$mass, side = 2, line = -1, cex = 0.8, adj = 0.5  )
+      mtext(img$mass, side = 2, line = 0, cex = 0.8, adj = 0.5  )
     }
     else
     {
-      mtext(sprintf("m/z: %0.3f+/-%0.2f Da", img$mass, img$tolerance), side = 2, line = -1, cex = 0.8, adj = 0.5  )
+      mtext(sprintf("m/z: %0.4f+/-%0.3f Da", img$mass, img$tolerance), side = 2, line = 0, cex = 0.8, adj = 0.5  )
     }
   }
 }

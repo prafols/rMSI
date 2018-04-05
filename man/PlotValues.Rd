@@ -5,7 +5,7 @@
 \title{PlotValues.}
 \usage{
 PlotValues(posMat, values, rotate = 0, scale_title = "",
-  pixel_size_um = 100)
+  pixel_size_um = 100, vlight = 5)
 }
 \arguments{
 \item{posMat}{a two columns matrix where first column ara the x coodrinates of values and second column the y coordinates.}
@@ -17,6 +17,8 @@ PlotValues(posMat, values, rotate = 0, scale_title = "",
 \item{scale_title}{a text label for the color scale.}
 
 \item{pixel_size_um}{the pixel resolution in um.}
+
+\item{vlight}{the lighting of the plotted image.}
 }
 \description{
 Plot values in a image using the same methods as plotting an MS image.
