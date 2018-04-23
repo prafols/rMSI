@@ -88,6 +88,8 @@ SaveMsiData<-function(imgData, data_file)
 #' @param fun_label This is a callback function to update the progress bar dialog text.
 #' @param close_signal function to be called if the loading process is aborted.
 #' @param imzMLChecksum if the binary file checksum must be verified, it can be disabled for convenice with really big files.
+#' @param imzMLRename the image name, if NULL a default name based on the file name will be used.
+#' @param imzMLSubCoords a Complex vector with the motors coordinates to be included in the ramdisk, if NULL all positions will be used.
 #'
 #' @return an rMSI object pointing to ramdisk stored data
 #'
@@ -99,7 +101,7 @@ SaveMsiData<-function(imgData, data_file)
 #' The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
 #'
 #' @export
-LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F, fun_label = NULL, close_signal = NULL, imzMLChecksum = F)
+LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F, fun_label = NULL, close_signal = NULL, imzMLChecksum = F, imzMLRename = NULL, imzMLSubCoords = NULL)
 {
   cat("Loading Image...\n")
   pt<-proc.time()
@@ -123,7 +125,7 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   fileExtension <- as.character(fileExtension[length(fileExtension)])
   if( fileExtension == "imzML")
   {
-    return(import_imzML(data_file, ramdisk_path = restore_path, fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum))
+    return(import_imzML(data_file, ramdisk_path = restore_path, fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum, subImg_rename = imzMLRename, subImg_Coords = imzMLSubCoords))
   }
   else if(fileExtension == "tar")
   {
@@ -969,7 +971,7 @@ ReadBrukerRoiXML <- function(img, xml_file)
   for( i in 1:length(spectraListRois))
   {
     cat(paste0("Parsing ROI ", i, " of ", length(spectraListRois), "\n"))
-    lstRois[[i]] <- list(name = spectraListRois[[i]]$name, id = c())
+    lstRoisAux <- list(name = spectraListRois[[i]]$name, id = c())
     for( j in 1:nrow(spectraListRois[[i]]$pos))
     {
       #Extract original X Y Bruker Coords
@@ -979,20 +981,23 @@ ReadBrukerRoiXML <- function(img, xml_file)
       matchXY <- which(imPosMat == imCoord)
       if( length(matchXY) > 0)
       {
-        lstRois[[i]]$id <- c( lstRois[[i]]$id, matchXY[1])
+        lstRoisAux$id <- c( lstRoisAux$id, matchXY[1])
         if(  length(matchXY) > 1 )
         {
-          cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", Re(imCoord), " , y", Im(imCoord), " are duplicated.\n" ))
+          cat(paste0("WARNING: roi ", spectraListRois[[i]]$name, " coordinates x", Re(imCoord), " , y", Im(imCoord), " are duplicated.\n" ))
         }
-      }
-      else
-      {
-        cat(paste0("WARNING: roi ",spectraList$name, " coordinates x", Re(imCoord), " , y", Im(imCoord), " not found in image.\n" ))
       }
     }
     
-    #Sort ID's by assending order to get a faster disk access time
-    lstRois[[i]]$id <- sort( lstRois[[i]]$id, decreasing = F)
+    if( length( lstRoisAux$id ) > 0 )
+    {
+      lstRoisAux$id <- sort( lstRoisAux$id, decreasing = F) #Sort ID's by assending order to get a faster disk access time
+      lstRois[[(length(lstRois) + 1)]] <- lstRoisAux
+    }
+    else
+    {
+      cat(paste0("WARNING: deleting roi ",  spectraListRois[[i]]$name, " because it does not contain any pixel in the image.\n" ))
+    }
   }
   
   return(lstRois)
@@ -1114,8 +1119,18 @@ ROIAverageSpectra <- function( img, roi_list )
     for( ir in 1:length(roi_cubes))
     {
       idCube <- which(unlist(lapply(roi_cubes[[ir]], function(x){ x$cube})) == ic, arr.ind = T)
-      idRows <- roi_cubes[[ir]][[idCube]]$row
-      rois_avg[[ir]]$mean <- rois_avg[[ir]]$mean + apply(dm[idRows,], 2, sum)
+      if( length(idCube) > 0 )
+      {
+        idRows <- roi_cubes[[ir]][[idCube]]$row
+        if(length(idRows) > 1)
+        {
+          rois_avg[[ir]]$mean <- rois_avg[[ir]]$mean + apply(dm[idRows,], 2, sum)
+        }
+        else
+        {
+          rois_avg[[ir]]$mean <- rois_avg[[ir]]$mean + dm[idRows,]
+        }
+      }
     }
     
     LastId <- current_ids[length(current_ids)]

@@ -26,6 +26,8 @@
 #' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
 #' @param close_signal function to be called if loading process is abored.
 #' @param verifyChecksum if the binary file checksum must be verified, it can be disabled for convenice with really big files.
+#' @param subImg_rename alternative image name, a new ramdisk will be created with the given name.
+#' @param subImg_Coords a Complex vector with the motors coordinates to be included in the ramdisk.
 #'
 #'  Imports an imzML image to an rMSI data object.
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
@@ -33,7 +35,7 @@
 #' @return an rMSI data object.
 #' @export
 #'
-import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL, fun_text = NULL, close_signal = NULL, verifyChecksum = T)
+import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL, fun_text = NULL, close_signal = NULL, verifyChecksum = T, subImg_rename = NULL, subImg_Coords = NULL)
 {
   setPbarValue<-function(progress)
   {
@@ -104,6 +106,19 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   else
   {
     cat("WARNING: Checksum validation is disabled, data may be corrupt!\n")
+  }
+  
+  #Select specific pixels in the dataset
+  if( !is.null(subImg_Coords))
+  {
+    keepIds <-  which( complex( real = xmlRes$run_data$x, imaginary = xmlRes$run_data$y) %in% subImg_Coords)
+
+    if(length(keepIds) == 0)
+    {
+      .controlled_loadAbort("ERROR: no subImg_Coords found in current imzML data.\n", close_signal)
+    }
+    
+    xmlRes$run_data <- xmlRes$run_data[keepIds,]
   }
   
   #2- Create a connection to read binary file
@@ -221,9 +236,17 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   {
     fun_text("Loading data in the ramdisk...")
   }
-  dir.create(ramdisk_path, recursive = T)
+  if( is.null(subImg_rename))
+  {
+    subImg_rename <-  basename(imzML_File)
+  }
+  else
+  {
+    ramdisk_path <- paste0(ramdisk_path, "_",subImg_rename )
+  }
+  dir.create(ramdisk_path, recursive = T, showWarnings = F)
   datacube <- CreateEmptyImage(num_of_pixels = nrow(xmlRes$run_data), mass_axis = mzAxis, pixel_resolution = xmlRes$pixel_size_um,
-                               img_name = basename(imzML_File),
+                               img_name = subImg_rename,
                                ramdisk_folder = ramdisk_path,
                                data_type = ffDataType,
                                uuid = binUUID
