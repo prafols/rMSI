@@ -36,8 +36,6 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
 {
   if( !exists( x = ".SpectraWidget", mode = "environment") )
   {
-    ###TODO: Add a left-list showing all loaded spectra. The list will also allow to disable one of them, deleting, coloring...
-    ###TODO: Yes the list will be added here because MSIWindows has its own list. So I don't want to modify spectraWidget
     #Spectra plot windows does not exists, create it
     window_spectra <- gWidgets2::gwindow ( "Spectra Plot" , visible = F , width = 750, height = 440)
     .SpectraWidget<<-.SpectraPlotWidget( parent_widget = window_spectra )
@@ -105,7 +103,6 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   mz_lim <- c(0, 1)
   in_lim <- c(0, 1)
   data_mass_range <- c() #c(min(mass_data),max(mass_data)),
-  PointerCoords <- c(0,0)
   SelIon_mz_R <- NA
   SelIon_tol_R <- NA
   SelIon_mz_G <- NA
@@ -116,6 +113,8 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   MAX_SPECTRA_LIMIT <- max_spectra_limit #Maximum number of spectra that can be added
   ReDraw <- F #Signal when spectra must be redraw
   MAX_MASS_SEL_RANGE <- 200 #Max range of masses to allow selection (in data points)
+  PLOT_MARGIN_LEFT <- 77 #Empiric value
+  PLOT_MARGIN_RIGHT <- 10 #Empiric value
   ReDrawRedImg <- F
   ReDrawGreenImg <- F
   ReDrawBlueImg <- F
@@ -581,17 +580,14 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
   {
     if(length(this$spectra_data) == 0) return()
 
-    #Update pointer
-    this$PointerCoords<-c(evt$x, evt$y)
-
     #Update Labels
     if(evt$x >= this$mz_lim[1] &&
        evt$x <= this$mz_lim[2] &&
        evt$y >= this$in_lim[1] &&
        evt$y <= this$in_lim[2])
     {
-      mz_txt<-sprintf(paste("%-",this$LABEL_LENGTH, ".4f", sep = ""), this$PointerCoords[1])
-      in_txt<-sprintf(paste("%-",this$LABEL_LENGTH, ".2e", sep = ""), this$PointerCoords[2])
+      mz_txt<-sprintf(paste("%-",this$LABEL_LENGTH, ".4f", sep = ""), evt$x)
+      in_txt<-sprintf(paste("%-",this$LABEL_LENGTH, ".2e", sep = ""), evt$y)
     }
     else
     {
@@ -639,7 +635,9 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
     else if(this$MouseWheelFunction == 1)
     {
       #Mz zooming
-      pointer.x<-this$PointerCoords[1]
+      m <- (this$mz_lim[2] - this$mz_lim[1])/(gWidgets2::size(this$plot_device)["width"] - this$PLOT_MARGIN_RIGHT - this$PLOT_MARGIN_LEFT)
+      n <- this$mz_lim[1] - (m*this$PLOT_MARGIN_LEFT)
+      pointer.x<- m*evt$x + n
       top_left <- pointer.x -  abs(0.1 + dir)*(pointer.x - this$mz_lim[1])
       top_right <- pointer.x + abs(0.1 + dir)*(this$mz_lim[2] - pointer.x)
       top_left<-max(top_left, mz_min)
