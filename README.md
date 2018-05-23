@@ -15,10 +15,9 @@ First install RGtk2 using R console:
 ```R
 > install.packages("RGtk2")
 ```
-Then test that it is working by loading the package and executing the demo in R:
+Then test that it is working by loading the package:
 ```R
 > library(RGtk2)
-> demo(appWindow)
 ```
 If it appears a Gtk Windows then continue with the *rMSI* installation process. Otherwise, please check out the RGtk2 website for solving issues related with Gtk installation: <http://www.ggobi.org/rgtk2/>
 
