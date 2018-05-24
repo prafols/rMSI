@@ -116,7 +116,7 @@ List CimzMLParse( String xml_path )
       {
         value.erase(ipos, 1);
       }
-      for( int i=0; i < value.length(); i++)
+      for( unsigned int i=0; i < value.length(); i++)
       {
         value[i] = toupper(value[i]);
       }
@@ -888,19 +888,19 @@ bool CimzMLStore( String fname, List imgInfo )
     cvParam.append_attribute("accession") = "IMS:1000103";
     cvParam.append_attribute("cvRef") = "IMS";
     cvParam.append_attribute("name") = "external array length";
-    cvParam.append_attribute("value") = (unsigned long long)v_mzLength[i];
+    cvParam.append_attribute("value") = round(v_mzLength[i]);
     
     cvParam = node_binData.append_child("cvParam");
     cvParam.append_attribute("accession") = "IMS:1000104";
     cvParam.append_attribute("cvRef") = "IMS";
     cvParam.append_attribute("name") = "external encoded length";
-    cvParam.append_attribute("value") = (unsigned long long) (mzEncodingBytes*v_mzLength[i]);
+    cvParam.append_attribute("value") = round(mzEncodingBytes*v_mzLength[i]);
     
     cvParam = node_binData.append_child("cvParam");
     cvParam.append_attribute("accession") = "IMS:1000102";
     cvParam.append_attribute("cvRef") = "IMS";
     cvParam.append_attribute("name") = "external offset";
-    cvParam.append_attribute("value") = (unsigned long long)v_mzOffset[i];
+    cvParam.append_attribute("value") = round(v_mzOffset[i]);
     
     node_binary = node_binData.append_child("binary");
     
@@ -914,19 +914,19 @@ bool CimzMLStore( String fname, List imgInfo )
     cvParam.append_attribute("accession") = "IMS:1000103";
     cvParam.append_attribute("cvRef") = "IMS";
     cvParam.append_attribute("name") = "external array length";
-    cvParam.append_attribute("value") = (unsigned long long)v_intLength[i];
+    cvParam.append_attribute("value") = round(v_intLength[i]);
     
     cvParam = node_binData.append_child("cvParam");
     cvParam.append_attribute("accession") = "IMS:1000104";
     cvParam.append_attribute("cvRef") = "IMS";
     cvParam.append_attribute("name") = "external encoded length";
-    cvParam.append_attribute("value") = (unsigned long long)(intEncodingBytes*v_intLength[i]);
+    cvParam.append_attribute("value") = round(intEncodingBytes*v_intLength[i]);
     
     cvParam = node_binData.append_child("cvParam");
     cvParam.append_attribute("accession") = "IMS:1000102";
     cvParam.append_attribute("cvRef") = "IMS";
     cvParam.append_attribute("name") = "external offset";
-    cvParam.append_attribute("value") = (unsigned long long)v_intOffset[i];
+    cvParam.append_attribute("value") = round(v_intOffset[i]);
     
     node_binary = node_binData.append_child("binary");
   }
