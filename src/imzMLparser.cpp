@@ -132,7 +132,7 @@ List CimzMLParse( String xml_path )
     if( accession == "IMS:1000090") //MD5 Checksum
     {
       transform(value.begin(), value.end(), value.begin(),::toupper);
-      sSHA_Checksum = value;
+      sMD5_Checksum = value;
       bChecksum_present = true;
     }
     if( accession == "IMS:1000030")
