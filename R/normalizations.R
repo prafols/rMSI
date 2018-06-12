@@ -37,7 +37,8 @@ NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
   }
   TICs <- TICs/length(img$mass)
   close(pb)
-
+  TICs[TICs == 0] <- 1 #Set to one (no-normalization) any possible null spectra
+  
   if(remove_empty_pixels)
   {
     minallowedTIC <- mean(TICs) - sd(TICs)
@@ -48,6 +49,7 @@ NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
   {
     img <- AppendNormalizationCoefs(img, "TIC", TICs)
   }
+  
   return(img)
 }
 
@@ -72,6 +74,7 @@ NormalizeRMS <- function(img, remove_empty_pixels = FALSE)
   }
   RMSs <- RMSs / sqrt(length(img$mass))
   close(pb)
+  RMSs[RMSs == 0] <- 1 #Set to one (no-normalization) any possible null spectra
   
   if(remove_empty_pixels)
   {
@@ -107,6 +110,7 @@ NormalizeMAX <- function(img, remove_empty_pixels = FALSE)
     setTxtProgressBar(pb, i)
   }
   close(pb)
+  MAXs[MAXs == 0] <- 1 #Set to one (no-normalization) any possible null spectra
 
   if(remove_empty_pixels)
   {
@@ -217,7 +221,7 @@ NormalizeByAcqDegradation <- function( img, winSize = 0.1 )
     smTICs[i, "TIC"] <- mean(dWind)
     #TODO pensar que fer si es NAN
   }
-
+  smTICs[smTICs == 0] <- 1 #Set to one (no-normalization) any possible null spectra
   #Order smTICs according Id's and append it to image normalization
   smTICs <- smTICs[order(smTICs[,"id"]), ]
   img <- AppendNormalizationCoefs(img, "AcqTic", smTICs[,"TIC"])
