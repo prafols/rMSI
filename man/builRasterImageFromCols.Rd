@@ -4,7 +4,8 @@
 \alias{builRasterImageFromCols}
 \title{Build a image slice from specified datacube columns.}
 \usage{
-builRasterImageFromCols(Img, Cols, method = "max", Normalization = NULL)
+builRasterImageFromCols(Img, Cols, method = "max",
+  Normalization = NULL)
 }
 \arguments{
 \item{Img}{the rMSI object where the data is stored (ramdisk).}

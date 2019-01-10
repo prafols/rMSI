@@ -191,7 +191,7 @@ List CimzMLParse( String xml_path )
         {
           if( strcmp(cvParam.attribute("unitAccession").value(), "MS:1000040") != 0 )
           {
-            return( List::create(Named("Error") = "m/z Array is not in m/z format, rMSI only supports m/z units") );
+            Rcout<<"Warning in imzML parsing: No units specified for the m/z Array, assuming m/z units\n";
           }
         }
        
@@ -199,7 +199,7 @@ List CimzMLParse( String xml_path )
         {
           if( !cvParam.attribute("value").as_bool() )
           {
-            return( List::create(Named("Error") = "imzML parse error: data must be external (stored in the ibd file)") );
+            Rcout<<"Warning in imzML parsing: No data location specified, assuming an external ibd file\n";
           }
         }
         
@@ -289,7 +289,8 @@ List CimzMLParse( String xml_path )
   //Error handling for pixel size
   if( dPixelSize == 0.0)
   {
-    return( List::create(Named("Error") = "imzML parse error: No pixel size found") );
+    Rcout<<"Warning in imzML parsing: No pixel size found!!!!!!!, assuming 1 um\n";
+    dPixelSize = 1.0;
   }
 
   //Parse binary offsets array  

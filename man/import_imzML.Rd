@@ -4,9 +4,11 @@
 \alias{import_imzML}
 \title{import_imzML.}
 \usage{
-import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File),
-  ".ibd", sep = ""), ramdisk_path, fun_progress = NULL, fun_text = NULL,
-  close_signal = NULL, verifyChecksum = T)
+import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "",
+  imzML_File), ".ibd", sep = ""), ramdisk_path, fun_progress = NULL,
+  fun_text = NULL, close_signal = NULL, verifyChecksum = F,
+  subImg_rename = NULL, subImg_Coords = NULL,
+  convertProcessed2Continuous = T)
 }
 \arguments{
 \item{imzML_File}{full path to .imzML file.}
@@ -21,7 +23,13 @@ import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File),
 
 \item{close_signal}{function to be called if loading process is abored.}
 
-\item{verifyChecksum}{if the binary file checksum must be verified, it can be disabled for convenice with really big files.
+\item{verifyChecksum}{if the binary file checksum must be verified, it is disabled by default for convenice with really big files.}
+
+\item{subImg_rename}{alternative image name, a new ramdisk will be created with the given name.}
+
+\item{subImg_Coords}{a Complex vector with the motors coordinates to be included in the ramdisk.}
+
+\item{convertProcessed2Continuous}{if true (the default) an imzML file in processed mode will be converted to a continuous mode.
 
  Imports an imzML image to an rMSI data object.
  It is recomanded to use rMSI::LoadMsiData directly instead of this function.}

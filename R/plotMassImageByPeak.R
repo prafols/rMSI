@@ -235,7 +235,7 @@
     }
 
 
-    rasterRGB <- raster::flip(raster::t(rasterRGB), direction = "y") #90º rotation
+    rasterRGB <- raster::flip(raster::t(rasterRGB), direction = "y") #90degree rotation
   }
   if( rotation == 270 )
   {
@@ -255,7 +255,7 @@
       }
     }
 
-    rasterRGB <- raster::flip(raster::t(rasterRGB), direction = "x") #270º rotation
+    rasterRGB <- raster::flip(raster::t(rasterRGB), direction = "x") #270degree rotation
   }
   if( rotation == 180 )
   {
@@ -277,7 +277,7 @@
       }
     }
 
-    rasterRGB <- raster::flip(raster::flip(rasterRGB, direction = "y"), direction = "x")#180º rotation
+    rasterRGB <- raster::flip(raster::flip(rasterRGB, direction = "y"), direction = "x")#180degree rotation
   }
 
   #Add a border pixels and plot image

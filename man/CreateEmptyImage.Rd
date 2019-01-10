@@ -2,7 +2,6 @@
 % Please edit documentation in R/librMSIdata.R
 \name{CreateEmptyImage}
 \alias{CreateEmptyImage}
-\alias{CreateEmptyImage}
 \title{Create an empty rMSI object with defined mass axis and size.}
 \usage{
 CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,

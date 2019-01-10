@@ -25,9 +25,10 @@
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
 #' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
 #' @param close_signal function to be called if loading process is abored.
-#' @param verifyChecksum if the binary file checksum must be verified, it can be disabled for convenice with really big files.
+#' @param verifyChecksum if the binary file checksum must be verified, it is disabled by default for convenice with really big files.
 #' @param subImg_rename alternative image name, a new ramdisk will be created with the given name.
 #' @param subImg_Coords a Complex vector with the motors coordinates to be included in the ramdisk.
+#' @param convertProcessed2Continuous if true (the default) an imzML file in processed mode will be converted to a continuous mode.
 #'
 #'  Imports an imzML image to an rMSI data object.
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
@@ -35,7 +36,7 @@
 #' @return an rMSI data object.
 #' @export
 #'
-import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL, fun_text = NULL, close_signal = NULL, verifyChecksum = T, subImg_rename = NULL, subImg_Coords = NULL)
+import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ), ramdisk_path,  fun_progress = NULL, fun_text = NULL, close_signal = NULL, verifyChecksum = F, subImg_rename = NULL, subImg_Coords = NULL, convertProcessed2Continuous = T)
 {
   setPbarValue<-function(progress)
   {
@@ -156,58 +157,67 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   }
   bytes2ReadMz <- sizeInBytesFromDataType(xmlRes$mz_dataType)
   
+  bCreateRamdisk <- F #Start assuming data in processed and peak list
   if(xmlRes$continuous_mode)
   {
     mzAxis <- readBin(bincon, readDataTypeMz, xmlRes$run_data[1, "mzLength"], size = bytes2ReadMz, signed = T)
+    bCreateRamdisk <- T
   }
   else
   {
-    #Processed mode, so a common mass axis must be calculated and stored in mzAxis var
-    cat("Calculating the new mass axis...\n")
-    if(!is.null(fun_text))
+    if(convertProcessed2Continuous)
     {
-      fun_text("Process mode, re-calculating mass axis...")
-    }
-    ppStep<-100/nrow(xmlRes$run_data)
-    pp<-0
-    #Update progress bar
-    if( !fun_progress(pp) )
-    {
-      return(NULL) #progress bar function must return true if the loading process is to be continued.
-    }
-    
-    #Fill the initial spectrum as the larger one
-    seli <- which.max(xmlRes$run_data$mzLength)
-    seek(bincon, rw = "read", where = xmlRes$run_data[seli, "mzOffset"] )
-    mzAxis <- readBin(bincon, readDataTypeMz, xmlRes$run_data[seli, "mzLength"], size = bytes2ReadMz, signed = T)
-    mzAxis <- unique(mzAxis) #Avoid duplicates
-    for( i in 1:nrow(xmlRes$run_data))
-    {
-      #Read mass axis for the current spectrum 
-      seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
-      mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
-      mzdd <- unique(mzdd) #Avoid duplicates
-      
-      #Combine the two mass axis using Cpp method
-      mzAxis <- MergeMassAxis(mzAxis, mzdd)
-      
-      #Update progress bar
-      pp_ant<-pp
-      pp<-pp+ppStep
-      if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
+      #Processed mode, so a common mass axis must be calculated and stored in mzAxis var
+      cat("Calculating the new mass axis...\n")
+      if(!is.null(fun_text))
       {
+        fun_text("Process mode, re-calculating mass axis...")
+      }
+      ppStep<-100/nrow(xmlRes$run_data)
+      pp<-0
+      #Update progress bar
+      if( !fun_progress(pp) )
+      {
+        return(NULL) #progress bar function must return true if the loading process is to be continued.
+      }
+      
+      #Fill the initial spectrum as the larger one
+      seli <- which.max(xmlRes$run_data$mzLength)
+      seek(bincon, rw = "read", where = xmlRes$run_data[seli, "mzOffset"] )
+      mzAxis <- readBin(bincon, readDataTypeMz, xmlRes$run_data[seli, "mzLength"], size = bytes2ReadMz, signed = T)
+      mzAxis <- unique(mzAxis) #Avoid duplicates
+      for( i in 1:nrow(xmlRes$run_data))
+      {
+        #Read mass axis for the current spectrum 
+        seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
+        mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
+        mzdd <- unique(mzdd) #Avoid duplicates
+        
+        #Combine the two mass axis using Cpp method
+        mzAxis <- MergeMassAxis(mzAxis, mzdd)
+        
         #Update progress bar
-        if( !fun_progress(pp) )
+        pp_ant<-pp
+        pp<-pp+ppStep
+        if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
         {
-          return(NULL) #progress bar function must return true if the loading process is to be continued.
+          #Update progress bar
+          if( !fun_progress(pp) )
+          {
+            return(NULL) #progress bar function must return true if the loading process is to be continued.
+          }
         }
       }
+      bCreateRamdisk <- T
     }
   }
   pt<-proc.time() - pt
-  cat(paste("\nMass axis calculation time:",round(pt["elapsed"], digits = 1),"seconds\n"))
-  cat(paste("The re-sampled mass axis contains", length(mzAxis), "data points\n"))
-
+  if(bCreateRamdisk)
+  {
+    cat(paste("\nMass axis calculation time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+    cat(paste("The re-sampled mass axis contains", length(mzAxis), "data points\n"))
+  }
+  
   #5- Map imzML possible data types to ff packages available data types
   if(xmlRes$int_dataType == "int")
   {
@@ -231,11 +241,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   }
   bytes2ReadInt <- sizeInBytesFromDataType(xmlRes$int_dataType)
 
-  #6- Create the ramdisk
-  if(!is.null(fun_text))
-  {
-    fun_text("Loading data in the ramdisk...")
-  }
+  #6- Create the ramdisk only if data is going to be coerced to continuous mode
   if( is.null(subImg_rename))
   {
     subImg_rename <-  basename(imzML_File)
@@ -244,14 +250,36 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   {
     ramdisk_path <- paste0(ramdisk_path, "_",subImg_rename )
   }
-  dir.create(ramdisk_path, recursive = T, showWarnings = F)
-  datacube <- CreateEmptyImage(num_of_pixels = nrow(xmlRes$run_data), mass_axis = mzAxis, pixel_resolution = xmlRes$pixel_size_um,
-                               img_name = subImg_rename,
-                               ramdisk_folder = ramdisk_path,
-                               data_type = ffDataType,
-                               uuid = binUUID
-                               )
-
+  if(bCreateRamdisk)
+  {
+    if(!is.null(fun_text))
+    {
+      fun_text("Loading data in the ramdisk...")
+    }
+    dir.create(ramdisk_path, recursive = T, showWarnings = F)
+    datacube <- CreateEmptyImage(num_of_pixels = nrow(xmlRes$run_data), mass_axis = mzAxis, pixel_resolution = xmlRes$pixel_size_um,
+                                 img_name = subImg_rename,
+                                 ramdisk_folder = ramdisk_path,
+                                 data_type = ffDataType,
+                                 uuid = binUUID
+                                 )
+    #Ramdisk data accessors for full ff matrix acces (should be faster than accessing singles spectrum)
+    currentDataCube <- 1
+    currentDataIRow <- 1
+    bufferMatrix <- matrix(nrow = nrow(datacube$data[[1]]), ncol = length(datacube$mass))
+  }
+  else
+  {
+    #No ramdisk is created then datacube will be a dummy list to store positions and peak lists
+    datacube <- list(name = subImg_rename, 
+                     size = c(NA,NA),
+                     uuid = binUUID,
+                     pos = matrix(NA, nrow = nrow(xmlRes$run_data), ncol = 2),
+                     pixel_size_um = xmlRes$pixel_size_um,
+                     peaks = list())
+    colnames(datacube$pos) <- c("x", "y")
+    names(datacube$size) <- c("x", "y")
+  }
   #7- Read all spectra
   pt <- proc.time()
   cat("\nReading spectra from binary file...\n")
@@ -263,10 +291,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     return(NULL) #progress bar function must return true if the loading process is to be continued.
   }
 
-  #Ramdisk data accessors for full ff matrix acces (should be faster than accessing singles spectrum)
-  currentDataCube <- 1
-  currentDataIRow <- 1
-  bufferMatrix <- matrix(nrow = nrow(datacube$data[[1]]), ncol = length(datacube$mass))
   for(i in 1:nrow(xmlRes$run_data))
   {
     #Read intensity of current spectrum
@@ -279,43 +303,52 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
       mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
       
-      #Delete duplicates and possible zero-drops errors (fixing Bruker's bugs in imzML)
-      idup <- which(duplicated(mzdd))
-      if(length(idup) > 0)
+      if(bCreateRamdisk)
       {
-        for( i in 1:length(idup))
+        #Delete duplicates and possible zero-drops errors (fixing Bruker's bugs in imzML)
+        idup <- which(duplicated(mzdd))
+        if(length(idup) > 0)
         {
-          dd[idup[i] - 1] <- max( dd[idup[i]], dd[idup[i] - 1])
+          for( i in 1:length(idup))
+          {
+            dd[idup[i] - 1] <- max( dd[idup[i]], dd[idup[i] - 1])
+          }
+          mzdd <- mzdd[-idup]
+          dd <- dd[-idup]
         }
-        mzdd <- mzdd[-idup]
-        dd <- dd[-idup]
+        
+        #Apply re-sampling (only if needed...)
+        if( ! identical(mzdd, mzAxis))
+        {
+          dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
+          dd[which(is.na(dd))] <- 0 #Remove any possible NA
+        } 
       }
-      
-      #Apply re-sampling (only if needed...)
-      if( ! identical(mzdd, mzAxis))
-      {
-        dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
-        dd[which(is.na(dd))] <- 0 #Remove any possible NA
-      } 
     }
     
-    #Store the intensities to the ramdisk by blocks using a buffer matrix for better performance
-    bufferMatrix[currentDataIRow, ] <- dd
-    currentDataIRow <- currentDataIRow  + 1
-    if( currentDataIRow > nrow(datacube$data[[currentDataCube]]))
+    if(bCreateRamdisk)
     {
-      datacube$data[[currentDataCube]][,] <- bufferMatrix
-      currentDataCube <-  currentDataCube + 1
-      currentDataIRow <- 1
-      if(currentDataCube <= length(datacube$data))
+      #Store the intensities to the ramdisk by blocks using a buffer matrix for better performance
+      bufferMatrix[currentDataIRow, ] <- dd
+      currentDataIRow <- currentDataIRow  + 1
+      if( currentDataIRow > nrow(datacube$data[[currentDataCube]]))
       {
-        bufferMatrix <- matrix(nrow = nrow(datacube$data[[currentDataCube]]), ncol = length(datacube$mass))
+        datacube$data[[currentDataCube]][,] <- bufferMatrix
+        currentDataCube <-  currentDataCube + 1
+        currentDataIRow <- 1
+        if(currentDataCube <= length(datacube$data))
+        {
+          bufferMatrix <- matrix(nrow = nrow(datacube$data[[currentDataCube]]), ncol = length(datacube$mass))
+        }
       }
     }
- 
+    else
+    {
+      datacube$peaks[[i]]<-list(mass = mzdd, intensity = dd)
+    }
     datacube$pos[i, "x"] <- xmlRes$run_data[i, "x"]
     datacube$pos[i, "y"] <- xmlRes$run_data[i, "y"]
-
+    
     #Update progress bar
     pp_ant<-pp
     pp<-pp+ppStep
@@ -341,13 +374,21 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   datacube$size["x"] <- max(datacube$pos[,"x"])
   datacube$size["y"] <- max(datacube$pos[,"y"])
 
-  #10- Compute average spectrum
-  datacube$mean <- AverageSpectrum(datacube)
-
-  #11- Save the data cube for further fast access
-  save(datacube, file = file.path(ramdisk_path, "datacube.RImg"))
-
-  #11- And it's done, just return de rMSI object
+  if(bCreateRamdisk)
+  {
+    #10- Compute average spectrum
+    datacube$mean <- AverageSpectrum(datacube)
+  
+    #11- Save the data cube for further fast access
+    save(datacube, file = file.path(ramdisk_path, "datacube.RImg"))
+    class(datacube) <- "rMSIObj"
+  }
+  else
+  {
+    class(datacube) <- "peakList"
+  }
+  
+  #12- And it's done, just return de rMSI object
   if(!is.null(pb))
   {
     close(pb)
@@ -358,6 +399,5 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     fun_text("Done")
   }
   
-  class(datacube) <- "rMSIObj"
   return(datacube)
 }

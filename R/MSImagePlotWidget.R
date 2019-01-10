@@ -20,7 +20,7 @@
 
 .MSImagePlotWidget <- function( in_img, parent_widget=gwindow ( "Default MSImagePlotWidget" , visible = FALSE ), AddSpectra_function = NULL, GetSpectraInfo_function = NULL, ClearSpectraPlot_function = NULL, meanSpectrumColor = "red", widget_name = "")
 {
-  options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
+  options(guiToolkit="RGtk2") 
   oldWarning<-options()$warn
   options(warn = -1)
 

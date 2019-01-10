@@ -16,11 +16,16 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ############################################################################
 
-#A GUI to select up to two MS images to load in rMSI data format
 
+#' LoadTwoMsImages
+#'
+#'A GUI to select up to two MS images to load in rMSI data format
+#'
+#' @return a list with the loaded rMSI objects
+#'
 LoadTwoMsImages <- function( )
 {
-  options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
+  options(guiToolkit="RGtk2") 
   oldWarning<-options()$warn
   options(warn = -1)
 

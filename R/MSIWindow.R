@@ -65,7 +65,7 @@ OpenMSI<-function( lockExecution = F )
 #' @export
 MSIWindow<-function(img1, img2 = NULL, lockExecution = F)
 {
-  options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
+  options(guiToolkit="RGtk2")
   oldWarning<-options()$warn
   options(warn = -1)
 

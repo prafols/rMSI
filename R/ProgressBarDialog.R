@@ -20,7 +20,7 @@
 
 .ProgressBarDialog <- function( Title="", parent = NULL )
 {
-  options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
+  options(guiToolkit="RGtk2") 
   oldWarning<-options()$warn
   options(warn = -1)
 

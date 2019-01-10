@@ -7,7 +7,7 @@
 LoadMsiData(data_file, restore_path = file.path(dirname(data_file),
   paste("ramdisk", basename(data_file), sep = "_")), fun_progress = NULL,
   ff_overwrite = F, fun_label = NULL, close_signal = NULL,
-  imzMLChecksum = F)
+  imzMLChecksum = F, imzMLRename = NULL, imzMLSubCoords = NULL)
 }
 \arguments{
 \item{data_file}{The tar o imzML file containing the MS image in rMSI format or imzML.}
@@ -23,6 +23,10 @@ LoadMsiData(data_file, restore_path = file.path(dirname(data_file),
 \item{close_signal}{function to be called if the loading process is aborted.}
 
 \item{imzMLChecksum}{if the binary file checksum must be verified, it can be disabled for convenice with really big files.}
+
+\item{imzMLRename}{the image name, if NULL a default name based on the file name will be used.}
+
+\item{imzMLSubCoords}{a Complex vector with the motors coordinates to be included in the ramdisk, if NULL all positions will be used.}
 }
 \value{
 an rMSI object pointing to ramdisk stored data

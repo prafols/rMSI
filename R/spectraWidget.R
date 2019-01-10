@@ -67,7 +67,7 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
 .SpectraPlotWidget <- function( parent_widget = gWidgets2::gwindow( "Default SpectraPlotWidget" , visible = FALSE ), top_window_widget = NULL,  clicFuntion = NULL, showOpenFileButton = T,
                                 display_sel_red = F, display_sel_green = F, display_sel_blue = F, display_sel_spins = T, display_clearall_button = F, max_spectra_limit = 50, useInternalRedrawTimer = T)
 {
-  options(guiToolkit="RGtk2") # Força que toolquit sigu GTK pq fas crides directes a events GTK!!!
+  options(guiToolkit="RGtk2") 
   oldWarning<-options()$warn
   options(warn = -1)
 
