@@ -24,6 +24,7 @@
 #' @export
 SaveMsiData<-function(imgData, data_file)
 {
+  current_wd <- getwd() #Keep a copy of current working directory
   cat("Saving Image...\n")
   pt<-proc.time()
 
@@ -76,6 +77,7 @@ SaveMsiData<-function(imgData, data_file)
   close(pb)
   pt<-proc.time() - pt
   cat(paste("Saving time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+  setwd(current_wd) #Restoire the original working directory
 }
 
 

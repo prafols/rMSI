@@ -106,7 +106,7 @@ NumericVector MergeMassAxis(NumericVector mz1, NumericVector mz2)
   if( iN == 0)
   {
     delete[] mzNew;
-    stop("Error: The mass axis of two vectors to merge is not compatible because they do not share a common range.");
+    return -1;
   }
   
   //Copy to a NumericVector

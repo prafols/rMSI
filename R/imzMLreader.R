@@ -186,6 +186,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       seek(bincon, rw = "read", where = xmlRes$run_data[seli, "mzOffset"] )
       mzAxis <- readBin(bincon, readDataTypeMz, xmlRes$run_data[seli, "mzLength"], size = bytes2ReadMz, signed = T)
       mzAxis <- unique(mzAxis) #Avoid duplicates
+      mzMergeErrorCount <- 0 #Count merge mass axis errors
       for( i in 1:nrow(xmlRes$run_data))
       {
         #Read mass axis for the current spectrum 
@@ -194,7 +195,15 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         mzdd <- unique(mzdd) #Avoid duplicates
         
         #Combine the two mass axis using Cpp method
-        mzAxis <- MergeMassAxis(mzAxis, mzdd)
+        resMZMerge <- MergeMassAxis(mzAxis, mzdd)
+        if(resMZMerge[1] == -1)
+        {
+          mzMergeErrorCount <- mzMergeErrorCount + 1
+        }
+        else
+        {
+          mzAxis <- resMZMerge
+        }
         
         #Update progress bar
         pp_ant<-pp
@@ -208,6 +217,13 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           }
         }
       }
+      
+      #Check the resulting mass axis looking at errors:
+      if ( mzMergeErrorCount >= nrow(xmlRes$run_data))
+      {
+        stop("Error: The mass axis of two vectors to merge is not compatible because they do not share a common range.");    
+      }
+        
       bCreateRamdisk <- T
     }
   }
