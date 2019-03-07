@@ -40,7 +40,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // MergeMassAxis
-NumericVector MergeMassAxis(NumericVector mz1, NumericVector mz2);
+List MergeMassAxis(NumericVector mz1, NumericVector mz2);
 RcppExport SEXP _rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP mz2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

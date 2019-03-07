@@ -36,11 +36,11 @@ using namespace Rcpp;
 //' @param mz1 the first mass axis to merge.
 //' @param mz2 the second mass axis to merge.
 //' 
-//' @return a common mass axis that represents mz1 and mz1 accurately.
+//' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
 //' @export
 //' 
 // [[Rcpp::export]]
-NumericVector MergeMassAxis(NumericVector mz1, NumericVector mz2)
+List MergeMassAxis(NumericVector mz1, NumericVector mz2)
 {
   int i1 = 0; //Iterator over mz1
   int i2 = 0; //Iterator over mz2
@@ -103,15 +103,17 @@ NumericVector MergeMassAxis(NumericVector mz1, NumericVector mz2)
   }
   
   //if the new mass axis is empty then mz1 and mz2 are non-overlaping vectors, so an error is raised.
+  bool bError = false;
   if( iN == 0)
   {
-    delete[] mzNew;
-    return -1;
+    bError = true;
+    iN = 1;
+    mzNew[0] = -1; //Mark as error using -1 (not possible to have an m/z value of -1)
   }
   
   //Copy to a NumericVector
   NumericVector resultMass(iN);
   memcpy(resultMass.begin(), mzNew, sizeof(double)*iN);
   delete[] mzNew;
-  return resultMass;
+  return List::create( Named("mass") = resultMass, Named("error") = bError );
 }

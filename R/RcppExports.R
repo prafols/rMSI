@@ -38,7 +38,7 @@ NULL
 #' @param mz1 the first mass axis to merge.
 #' @param mz2 the second mass axis to merge.
 #' 
-#' @return a common mass axis that represents mz1 and mz1 accurately.
+#' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
 #' @export
 #' 
 MergeMassAxis <- function(mz1, mz2) {

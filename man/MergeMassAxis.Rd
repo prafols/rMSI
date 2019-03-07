@@ -12,7 +12,7 @@ MergeMassAxis(mz1, mz2)
 \item{mz2}{the second mass axis to merge.}
 }
 \value{
-a common mass axis that represents mz1 and mz1 accurately.
+a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
 }
 \description{
 Merges two mass axis in a single one using an apropiate bin size.

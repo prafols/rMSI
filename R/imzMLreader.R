@@ -196,13 +196,13 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         
         #Combine the two mass axis using Cpp method
         resMZMerge <- MergeMassAxis(mzAxis, mzdd)
-        if(resMZMerge[1] == -1)
+        if(resMZMerge$error)
         {
           mzMergeErrorCount <- mzMergeErrorCount + 1
         }
         else
         {
-          mzAxis <- resMZMerge
+          mzAxis <- resMZMerge$mass
         }
         
         #Update progress bar
