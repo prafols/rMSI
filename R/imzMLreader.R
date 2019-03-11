@@ -336,8 +336,16 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         #Apply re-sampling (only if needed...)
         if( ! identical(mzdd, mzAxis))
         {
-          dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
-          dd[which(is.na(dd))] <- 0 #Remove any possible NA
+          if(length(mzdd) == length(dd))
+          {
+            dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
+            dd[which(is.na(dd))] <- 0 #Remove any possible NA
+          }
+          else
+          {
+            cat(paste0("WARNING: spectra at X = ", xmlRes$run_data$x[i], "  Y = ", xmlRes$run_data$y[i], " corrupt!\n" ))
+            dd <- rep(0, length(mzAxis))  
+          }
         } 
       }
     }
