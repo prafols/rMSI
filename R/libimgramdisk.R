@@ -504,35 +504,3 @@ insertRasterImageAtMass<-function( Img, Mass, Tolerance, raster_matrix)
 {
   insertRasterImageAtCols(Img, getImageColsFromMass(Img, Mass, Tolerance)$Cols, raster_matrix)
 }
-
-#Internal method to create an empty ramdisk of specified size
-.CreateEmptyRamdisk<-function(num_of_columns, num_of_spectrums, ff_data_folder, max_ff_file_size_MB = 200, vmode_type = "integer")
-{
-  #Bytes per data point
-  Bpdp <- NULL
-  if (vmode_type == "byte"){Bpdp <-1}
-  if (vmode_type == "ubyte"){Bpdp <-1}
-  if (vmode_type == "short"){Bpdp <-2}
-  if (vmode_type == "ushort"){Bpdp <-2}
-  if (vmode_type == "integer"){Bpdp <-4}
-  if (vmode_type == "single"){Bpdp <-4}
-  if (vmode_type == "double"){Bpdp <-8}
-  if (is.null(Bpdp))
-  {
-    #Raise an error if data type is not supported
-    return(NULL)
-  }
-
-  #Do not create to big files (> 50 MB by default)
-  max_nrow <- floor((max_ff_file_size_MB*1024*1024)/(Bpdp*num_of_columns))
-  max_nrow <- min(max_nrow, floor(.Machine$integer.max / (num_of_columns)))
-
-  dataCube<-list()
-  for(i in 1:ceiling(num_of_spectrums/ max_nrow))
-  {
-    nrows<-min(max_nrow, (num_of_spectrums - sum(unlist(lapply(dataCube, nrow)))))
-    dataCube[[i]]<-ff::ff(vmode = vmode_type, dim = c(nrows, num_of_columns), filename = file.path(ff_data_folder, paste("ramdisk",i,".dat",sep = "")))
-    names(dataCube)[i]<-paste("ramdisk",i,".dat",sep = "")
-  }
-  return(dataCube)
-}

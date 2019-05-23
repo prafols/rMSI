@@ -358,46 +358,36 @@ DeleteRamdisk<-function(img)
 #' @param mass_axis the mass axis.
 #' @param pixel_resolution defined pixel size in um.
 #' @param img_name the name for the image.
-#' @param ramdisk_folder where ramdisk will be stored.
-#' @param data_type a string determining data type used to store data.
+#' @param rMSIXBin_path where the rMSI files will be stored.
 #' @param uuid a string containing an universal unique identifier for the image. If it is not provided it will be created using a time code.
 #'
 #' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
 #' and synthetic datasets to test and develop processing methods and tools.
 #'
-#' data_type possible values are:
-#'  byte	  8 bit signed integer with NA.
-#'  ubyte	  8 bit unsigned integer without NA.
-#'  short   16 bit signed integer with NA.
-#'  ushort  16 bit unsigned integer without NA.
-#'  integer 32 bit signed integer with NA.
-#'  single  32 bit float.
-#'  double  64 bit float.
-#'
 #' @return the created rMSI object
 #' @export
 #'
-CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer", uuid = NULL)
+CreateEmptyImage<-function(x_size,
+                           y_size,
+                           mass_axis,
+                           pixel_resolution,
+                           img_name = "New empty image",
+                           rMSIXBin_path = getwd(),
+                           uuid = NULL)
 {
-  img<-list()
-  img$name <- img_name
-  img$mass <- mass_axis
-  img$size <- c( x_size, y_size )
-  names(img$size) <- c("x", "y")
   
-  #Fill the UUID string
-  if(is.null(uuid))
-  {
-    img$uuid <- uuid_timebased()
-  }
-  else
-  {
-    img$uuid <- uuid  
-  }
-
-  #Prepare the pos matrix
-  img$pos <- matrix( ncol = 2, nrow = x_size*y_size )
-  colnames(img$pos)<- c("x", "y")
+  #TODO: create empty image with given X Y sizes and mas axis, so this function should actually create the rMSIXBin and the imzML files!
+  #Document this and thing about the other CreateEmptyImage() image function
+  
+  
+  img <- CreateEmptyImage( num_of_pixels = x_size*y_size,
+                           mass_axis = mass_axis, 
+                           pixel_resolution = pixel_resolution, 
+                           img_name = img_name, 
+                           rMSIXBin_path = rMSIXBin_path, 
+                           uuid = uuid)
+  
+  img$size <- c( x_size, y_size )
   i <- 1
   for( xi in 1:x_size)
   {
@@ -408,13 +398,6 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name
     }
   }
 
-  img$pixel_size_um <-  pixel_resolution
-  img$mean <- rep(0, length(mass_axis))
-
-  #Prepare an empty datacube
-  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder, vmode_type = data_type)
-
-  class(img) <- "rMSIObj"
   return(img)
 }
 
@@ -424,54 +407,82 @@ CreateEmptyImage<-function(x_size, y_size, mass_axis, pixel_resolution, img_name
 #' @param mass_axis the mass axis.
 #' @param pixel_resolution defined pixel size in um.
 #' @param img_name the name for the image.
-#' @param ramdisk_folder where ramdisk will be stored.
-#' @param data_type a string determining data type used to store data.
+#' @param rMSIXBin_path where the rMSI files will be stored.
 #' @param uuid a string containing an universal unique identifier for the image. If it is not provided it will be created using a time code.
 #'
 #' Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
 #' and synthetic datasets to test and develop processing methods and tools.
 #' img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.
 #'
-#' data_type possible values are:
-#'  byte	  8 bit signed integer with NA.
-#'  ubyte	  8 bit unsigned integer without NA.
-#'  short   16 bit signed integer with NA.
-#'  ushort  16 bit unsigned integer without NA.
-#'  integer 32 bit signed integer with NA.
-#'  single  32 bit float.
-#'  double  64 bit float.
-#'
 #' @return the created rMSI object
 #' @export
 #'
-CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name = "New empty image", ramdisk_folder = getwd(), data_type = "integer", uuid = NULL)
+CreateEmptyImage<-function(num_of_pixels,
+                           mass_axis, 
+                           pixel_resolution, 
+                           img_name = "New empty image", 
+                           rMSIXBin_path = getwd(), 
+                           uuid = NULL)
 {
   img<-list()
+  class(img) <- "rMSIObj"
+  img$rMSI_format_version <- 2
   img$name <- img_name
   img$mass <- mass_axis
   img$size <- c( NA, NA )
   names(img$size) <- c("x", "y")
 
-  #Fill the UUID string
-  if(is.null(uuid))
-  {
-    img$uuid <- format(Sys.time(), "%Y%m%d%H%M%S")
-  }
-  else
-  {
-    img$uuid <- uuid  
-  }
-  
   #Prepare the pos matrix
   img$pos <- matrix( NA, ncol = 2, nrow = num_of_pixels )
+  img$posMotors <- matrix( NA, ncol = 2, nrow = num_of_pixels )
   colnames(img$pos)<- c("x", "y")
-
+  colnames(img$posMotors)<- c("x", "y")
+  
   img$pixel_size_um <-  pixel_resolution
   img$mean <- rep(0, length(mass_axis))
 
   #Prepare an empty datacube
-  img$data<-.CreateEmptyRamdisk(length(mass_axis), nrow(img$pos), ramdisk_folder, vmode_type = data_type)
-  class(img) <- "rMSIObj"
+  img$data <- list()
+  class(img$data) <- "rMSIData"
+  img$data$path <- rMSIXBin_path
+  
+  img$data$rMSIXBin <- list() 
+  class(img$data$rMSIXBin) <- "rMSIXBinData"
+  img$data$rMSIXBin$file <- NULL
+  img$data$rMSIXBin$uuid <- uuid_timebased()
+  img$data$rMSIXBin$imgStream <- data.frame( 
+                                            Scaling = rep(NA, length(mass_axis)), #The scaling factor of each m/z channel for the imgStream
+                                            ByteLength = rep(NA, length(mass_axis)), #The encoded byte length of each m/z channel image
+                                            ByteOffset = rep(NA, length(mass_axis)) #The offset in bytes of each m/z channel image in the imgStream 
+                                            )
+  class(img$data$rMSIXBin$imgStream) <- "imgStream"
+  
+  #TODO create all the rMSIXBinData remaining fields!!!!
+  
+  img$data$imzML <- list()
+  class(img$data$imzML) <- "imzMLData"
+  img$data$imzML$file <- NULL
+  if(is.null(uuid))
+  {
+    img$data$imzML$uuid <- uuid_timebased()
+  }
+  else
+  {
+    img$data$imzML$uuid <- uuid  
+  }
+  
+  #Init not availble imZML data to NULL (will be set latter outside this function)
+  img$data$imzML$SHA <- NULL
+  img$data$imzML$MD5 <- NULL
+  img$data$imzML$continuous_mode <- NULL
+  img$data$imzML$mz_dataType <- NULL
+  img$data$imzML$int_dataType <- NULL
+  img$data$imzML$run <- NULL
+
+  img$data$peaklist <- list()
+  class(img$data$peaklist) <- "peakList"
+  #The peaklist field are created outside this function.
+  
   return(img)
 }
 
@@ -1034,7 +1045,7 @@ CreateSubDataset <- function(img, id, ramdisk_path, new_mass = img$mass)
                              mass_axis = new_mass, 
                              pixel_resolution = img$pixel_size_um, 
                              img_name = paste0(img$name, "_sub"), 
-                             ramdisk_folder = ramdisk_path, 
+                             rMSIXBin_path = ramdisk_path, 
                              data_type = attr(attr(img$data[[1]], "physical"), "vmode"), 
                              uuid = img$uuid )
   

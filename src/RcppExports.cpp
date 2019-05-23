@@ -66,6 +66,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// testingLodepng
+void testingLodepng();
+RcppExport SEXP _rMSI_testingLodepng() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    testingLodepng();
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
@@ -73,6 +82,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 2},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
+    {"_rMSI_testingLodepng", (DL_FUNC) &_rMSI_testingLodepng, 0},
     {NULL, NULL, 0}
 };
 
