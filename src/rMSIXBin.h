@@ -77,6 +77,9 @@ class rMSIXBin
     
     //Encoide various Ion images to ImgStream in a single buffered execution
     void encodeMultipleIonImage2ImgStream(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount);
+    void encodeMultipleIonImage2ImgStream_continuous(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount);
+    void encodeMultipleIonImage2ImgStream_processed(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount);
+    
 };
 
 #endif

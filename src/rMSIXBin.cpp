@@ -202,10 +202,28 @@ void rMSIXBin::DeleteImgStream()
 
 void rMSIXBin::encodeMultipleIonImage2ImgStream(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
 {
-  //TODO implemnet me!
+  if(imzMLHandler->imzMLContinuous)
+  {
+    encodeMultipleIonImage2ImgStream_continuous(imzMLData, ionIndex, ionCount);
+  }
+  else
+  {
+    encodeMultipleIonImage2ImgStream_processed(imzMLData, ionIndex, ionCount);
+  }
+}
+
+void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
+{
+   //TODO implemnet me!
   //Step1, get the complete buffer from imzML: seek, binread, seek, binread... 
   
   //Step2, call the single image encoding function
+}
+
+void rMSIXBin::encodeMultipleIonImage2ImgStream_processed(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
+{
+  //TODO implement the imzML processed mode methods
+  Rcpp::Stop("TODO: The imzML processed mode is not implemented yet, sorry.");
 }
 
 void encodeSingleIonImage2ImgStream()

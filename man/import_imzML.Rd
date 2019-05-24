@@ -4,18 +4,13 @@
 \alias{import_imzML}
 \title{import_imzML.}
 \usage{
-import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "",
-  imzML_File), ".ibd", sep = ""), ramdisk_path, fun_progress = NULL,
-  fun_text = NULL, close_signal = NULL, verifyChecksum = F,
+import_imzML(imzML_File, fun_progress = NULL, fun_text = NULL,
+  close_signal = NULL, verifyChecksum = F, createImgStream = T,
   subImg_rename = NULL, subImg_Coords = NULL,
   convertProcessed2Continuous = T)
 }
 \arguments{
-\item{imzML_File}{full path to .imzML file.}
-
-\item{ibd_File}{path to the binary file (default the same as imzML file but with .ibd extension)}
-
-\item{ramdisk_path}{where the ramdisk will be created.}
+\item{imzML_File}{full path to .imzML file (the .ibd file must have the same name but with the .ibd extension).}
 
 \item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.}
 
@@ -25,9 +20,11 @@ import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "",
 
 \item{verifyChecksum}{if the binary file checksum must be verified, it is disabled by default for convenice with really big files.}
 
-\item{subImg_rename}{alternative image name, a new ramdisk will be created with the given name.}
+\item{createImgStream}{true if the ion image stream must be created.}
 
-\item{subImg_Coords}{a Complex vector with the motors coordinates to be included in the ramdisk.}
+\item{subImg_rename}{alternative image name, new rMSI files will be created with the given name.}
+
+\item{subImg_Coords}{a Complex vector with the motors coordinates to be included in the rMSI data.}
 
 \item{convertProcessed2Continuous}{if true (the default) an imzML file in processed mode will be converted to a continuous mode.
 
