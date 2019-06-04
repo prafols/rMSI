@@ -558,11 +558,15 @@ SortIDsByAcquisition <- function(img)
 #' @param clusters a vector with integer number according the cluster of each pixel.
 #' @param rotate rotation to apply.
 #' @param pixel_size_um the pixel resolution in um.
+#' @param labels_x x coordinates of text labels optionally overlaid to the plot.
+#' @param labels_y y coordinates of text labels optionally overlaid to the plot.
+#' @param labels_text text labels optionally overlaid to the plot.
 #'
 #' @return a vector with the used color for each cluster sorted according clustering numering in assending order.
 #' @export
 #'
-PlotClusterImage <- function( posMat, clusters,  rotate = 0,  pixel_size_um = 100 )
+PlotClusterImage <- function( posMat, clusters,  rotate = 0,  pixel_size_um = 100,
+                              labels_x = NULL, labels_y = NULL, labels_text = NULL)
 {
   img <- list()
   img$pos <- posMat
@@ -587,6 +591,7 @@ PlotClusterImage <- function( posMat, clusters,  rotate = 0,  pixel_size_um = 10
   img_sgn <- list(raster = my_raster, mass = "", tolerance = 0, cal_resolution = img$pixel_size_um)
   rm(my_raster)
 
+  oldPar <- par(no.readonly = T)
   raster_RGB<-.BuildSingleIonRGBImage(img_sgn, XResLevel = 3, light = 5)
   .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F, display_syscoords = F)
 
@@ -603,6 +608,9 @@ PlotClusterImage <- function( posMat, clusters,  rotate = 0,  pixel_size_um = 10
     clusterColors <- c(clusterColors, rgb( Rchannel[i + 1], Gchannel[i + 1], Bchannel[i + 1], 255, maxColorValue = 255))
   }
 
+  text( x = labels_x, y = labels_y, labels = labels_text , adj = c(0.5, 0.0))
+  par(oldPar)
+  
   return(clusterColors)
 }
 
@@ -618,10 +626,14 @@ PlotClusterImage <- function( posMat, clusters,  rotate = 0,  pixel_size_um = 10
 #' @param scale_title a text label for the color scale.
 #' @param pixel_size_um the pixel resolution in um.
 #' @param vlight the lighting of the plotted image.
+#' @param labels_x x coordinates of text labels optionally overlaid to the plot.
+#' @param labels_y y coordinates of text labels optionally overlaid to the plot.
+#' @param labels_text text labels optionally overlaid to the plot.
 #'
 #' @export
 #'
-PlotValues <- function(posMat, values, rotate = 0, scale_title = "", pixel_size_um = 100, vlight = 5)
+PlotValues <- function(posMat, values, rotate = 0, scale_title = "", pixel_size_um = 100, vlight = 5,
+                       labels_x = NULL, labels_y = NULL, labels_text = NULL)
 {
   fooImg <- list()
   fooImg$pos <- posMat
@@ -629,7 +641,7 @@ PlotValues <- function(posMat, values, rotate = 0, scale_title = "", pixel_size_
   fooImg$size <- c(max(fooImg$pos[ ,"x"]), max(fooImg$pos[ ,"y"]))
   names(fooImg$size) <- c("x", "y")
   fooImg$pixel_size_um <- pixel_size_um
-  PlotTICImage( fooImg, values, rotate, scale_title, vlight )
+  PlotTICImage( fooImg, values, rotate, scale_title, vlight, labels_x = labels_x, labels_y = labels_y, labels_text = labels_text )
 }
 
 #' PlotTICImage.
@@ -639,10 +651,14 @@ PlotValues <- function(posMat, values, rotate = 0, scale_title = "", pixel_size_
 #' @param rotate image rotation in degrees, possible values are: 0, 90, 180 and 270.
 #' @param scale_title the title to show in scale axis (TIC by default).
 #' @param vlight the lighting of the plotted image.
+#' @param labels_x x coordinates of text labels optionally overlaid to the plot.
+#' @param labels_y y coordinates of text labels optionally overlaid to the plot.
+#' @param labels_text text labels optionally overlaid to the plot.
 #'
 #' @export
 #'
-PlotTICImage <- function(img, TICs = NULL, rotate = 0, scale_title = "TIC", vlight = 5)
+PlotTICImage <- function(img, TICs = NULL, rotate = 0, scale_title = "TIC", vlight = 5, 
+                         labels_x = NULL, labels_y = NULL, labels_text = NULL)
 {
   #Calculate TICs
   if(is.null(TICs))
@@ -679,9 +695,15 @@ PlotTICImage <- function(img, TICs = NULL, rotate = 0, scale_title = "TIC", vlig
 
   raster_RGB<-.BuildSingleIonRGBImage(img_sgn, XResLevel = 3, light = vlight)
 
+  oldPar<- par(no.readonly = T)
+  
   layout( matrix( 2:1, ncol = 2, nrow = 1, byrow = TRUE ), widths = c(7, rep(1, 2)) )
   .plotIntensityScale(img_sgn, light =  5)
   .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotate, display_axes = F, display_syscoords = F)
+  
+  text( x = labels_x, y = labels_y, labels = labels_text , adj = c(0.5, 0.0))
+  
+  par(oldPar)
 }
 
 #' ConvertrMSIimg2Bin.

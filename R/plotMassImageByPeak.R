@@ -566,7 +566,8 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
     raster_RGB <-.BuildRGBImage( im_R, im_G, im_B,  XResLevel = XResLevel)
   }
 
-
+  
+  oldPar <- par(no.readonly = T)
   layout( matrix( (numberOfChannels+1):1, ncol = (1+numberOfChannels), nrow = 1, byrow = TRUE ), widths = c(7, rep(1, numberOfChannels)) )
 
   if(numberOfChannels == 1 )
@@ -584,6 +585,7 @@ plotMassImageByPeak<-function(img, mass.peak, tolerance=0.25, XResLevel = 3, Nor
   }
 
   .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = show_axes, roi_rectangle = crop_area )
+  par(oldPar)
 }
 
 .FillSimpleRaster <- function(img, values, text)
@@ -626,12 +628,15 @@ plotRGBDataOnImg <- function(img, Rvalues, Gvalues, Bvalues, RText, GText, BText
 
   raster_RGB <-.BuildRGBImage( Rraster, Graster, Braster,  XResLevel = XResLevel, light = light)
 
+  oldPar <- par(no.readonly = T)
   layout( matrix( (4:1), ncol = 4, nrow = 1, byrow = TRUE ), widths = c(7, rep(1, 3)) )
 
   .plotIntensityScale(Braster, "B" )
   .plotIntensityScale(Graster, "G" )
   .plotIntensityScale(Rraster, "R" )
   .plotMassImageRGB(raster_RGB, cal_um2pixels = img$pixel_size_um, rotation = rotation, display_axes = F)
+  
+  par(oldPar)
 }
 
 #' Plots a image using various MS image objects and the same intensity scale for every MS image.
