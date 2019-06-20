@@ -35,7 +35,7 @@ ImzMLBin::ImzMLBin(const char* ibd_fname, imzMLDataType mzType, imzMLDataType in
       break;
 
     default:
-      Rcpp::Stop("ERROR: ImzMLBin class constructor: invalid mzType ");
+      Rcpp::stop("ERROR: ImzMLBin class constructor: invalid mzType ");
       break;
   }
   
@@ -52,7 +52,7 @@ ImzMLBin::ImzMLBin(const char* ibd_fname, imzMLDataType mzType, imzMLDataType in
       break;
       
     default:
-      Rcpp::Stop("ERROR: ImzMLBin class constructor: invalid intType.\n");
+      Rcpp::stop("ERROR: ImzMLBin class constructor: invalid intType.\n");
       break;
   }
 }
@@ -63,11 +63,10 @@ ImzMLBin::~ImzMLBin()
 }
 
 template<typename T> 
-void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N);
+void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
 {
   //First, copy the data to an intermediate vector with the desired type
-  T* auxBuffer;
-  T = new T[N];
+  T* auxBuffer = new T[N];
   memcpy(auxBuffer, inBytes, sizeof(T)*N);
   
   //Finally, move the data to the double pointer
@@ -85,7 +84,7 @@ ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, imzMLDataType mzType, imzMLDat
   ibdFile.open(ibd_fname, std::fstream::in | std::ios::binary);
   if(!ibdFile.is_open())
   {
-    Rcpp::Stop("Error: ImzMLBinRead could not open the imzML ibd file.\n");
+    Rcpp::stop("ERROR: ImzMLBinRead could not open the imzML ibd file.\n"); //TODO this is not the good way to control this exception since it will create memory leaks!
   }
 }
 
@@ -160,14 +159,14 @@ ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname, imzMLDataType mzType, imzMLD
   ibdFile.open(ibd_fname, std::fstream::out | std::ios::binary); //TODO do I want ot truncate the file or just modify it?
   if(!ibdFile.is_open())
   {
-    Rcpp::Stop("Error: ImzMLBinRead could not open the imzML ibd file.\n");
+    Rcpp::stop("Error: ImzMLBinRead could not open the imzML ibd file.\n");
   }
 }
 
 ImzMLBinWrite::~ImzMLBinWrite()
 {
   //Empty desctructor
-}
+}   
 
 //TODO checkout fstream doc: http://www.cplusplus.com/reference/fstream/fstream/
 // seek operation is diferent to the ifstream!

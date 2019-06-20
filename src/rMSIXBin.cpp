@@ -113,6 +113,50 @@ void rMSIXBin::CreateImgStream()
   *imzML_intLength = (*imzMLrun)["intLength"];
   *imzML_intOffsets = (*imzMLrun)["intOffset"];
   
+  imzMLDataType mzDataType;
+  if( Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "float" )
+  {
+    mzDataType = imzMLDataType::float32;
+  }
+  else if(Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "double" )
+  {
+    mzDataType = imzMLDataType::float64;
+  }
+  else if(Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "int" )
+  {
+    mzDataType = imzMLDataType::int32;
+  }
+  else if(Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "long" )
+  {
+    mzDataType = imzMLDataType::int64;
+  }
+  else
+  {
+    //TODO throw exception invalid datatype
+  }
+  
+  imzMLDataType intDataType;
+  if( Rcpp::as<std::string>((*imzML)["int_dataType"]) == "float" )
+  {
+    intDataType = imzMLDataType::float32;
+  }
+  else if(Rcpp::as<std::string>((*imzML)["int_dataType"]) == "double" )
+  {
+    intDataType = imzMLDataType::float64;
+  }
+  else if(Rcpp::as<std::string>((*imzML)["int_dataType"]) == "int" )
+  {
+    intDataType = imzMLDataType::int32;
+  }
+  else if(Rcpp::as<std::string>((*imzML)["int_dataType"]) == "long" )
+  {
+    intDataType = imzMLDataType::int64;
+  }
+  else
+  {
+    //TODO throw exception invalid datatype
+  }
+  
   //Copy the imzMLrun to C data types
   imzMLData->iX = new unsigned int[(*imzMLrun).nrows()];
   imzMLData->iY = new unsigned int[(*imzMLrun).nrows()];
@@ -151,22 +195,25 @@ void rMSIXBin::CreateImgStream()
   unsigned int iIonImgCount = (unsigned int)(  ((double)(IONIMG_BUFFER_MB * 1024 * 1024)) / ((double)( img_width *img_height * IMG_ENCODING_BYTES + 4 )) );
 
   //Prepare file connections
-  imzMLData->ibd_file.open(sFnameImzML.c_str(), std::ios::in|std::ios::binary);
-  if (imzMLData->ibd_file.is_open())
+  try
   {
+    imzMLData->imzMLReader = new ImzMLBinRead(sFnameImzML.c_str(), mzDataType, intDataType);
+  }
+  catch(...) //TODO manage file missing excetioons!!!!
+  {
+    Rcpp::Rcout << "Error: imzML not available" << std::endl; //TODO improve this error handling in case of not having imzML data
+  }
+  
+
+    
     //TODO open the rMSIXBin binary file here and check for errors 
     //Loop to create each ion image
     for( int i = 0; i < massLength; i = i + iIonImgCount)
     {
       encodeMultipleIonImage2ImgStream(imzMLData, i, iIonImgCount); 
     }
-    //TODO close the rMSIXBin files
-    imzMLData->ibd_file.close();
-  }
-  else
-  {
-    Rcpp::Rcout << "Error: imzML not available" << std::endl; //TODO improve this error handling in case of not having imzML data
-  }
+
+
   
   
   //TODO make some Rcout to check some internal data as for example the iIonImgCount
@@ -189,6 +236,7 @@ void rMSIXBin::CreateImgStream()
   delete[] imzMLData->lmzOffset;
   delete[] imzMLData->lintLength;
   delete[] imzMLData->lintOffset;
+  delete imzMLData->imzMLReader; //By deleting the reader I also close the ibd file
   delete imzMLData;
 }
 
@@ -202,7 +250,7 @@ void rMSIXBin::DeleteImgStream()
 
 void rMSIXBin::encodeMultipleIonImage2ImgStream(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
 {
-  if(imzMLHandler->imzMLContinuous)
+  if(imzMLData->imzMLContinuous)
   {
     encodeMultipleIonImage2ImgStream_continuous(imzMLData, ionIndex, ionCount);
   }
@@ -216,14 +264,20 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(imzMLHandler* imzMLDa
 {
    //TODO implemnet me!
   //Step1, get the complete buffer from imzML: seek, binread, seek, binread... 
+  unsigned long intOffset; //TODO calculate the offset!!!!
   
-  //Step2, call the single image encoding function
+  double* buffer = new double[9999]; //TODO
+  
+  imzMLData->imzMLReader->readIntData(intOffset, ionCount, buffer ); //TODO this must be called several times! use a loop to fill
+  
+  //Step2, call the single image encoding function and store data to the rMSIbin
+  delete[] buffer;
 }
 
 void rMSIXBin::encodeMultipleIonImage2ImgStream_processed(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
 {
   //TODO implement the imzML processed mode methods
-  Rcpp::Stop("TODO: The imzML processed mode is not implemented yet, sorry.");
+  Rcpp::stop("TODO: The imzML processed mode is not implemented yet, sorry.");
 }
 
 void encodeSingleIonImage2ImgStream()

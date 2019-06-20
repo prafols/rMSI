@@ -23,6 +23,7 @@
 #include <Rcpp.h>
 #include <string>
 #include <fstream>
+#include "imzMLBin.h"
 
 class rMSIXBin
 {
@@ -54,7 +55,8 @@ class rMSIXBin
     
     typedef struct
     {
-      std::ifstream ibd_file; //the binary part of the imzML data (the XML part has been parsed already)
+      //the binary part of the imzML data (the XML part has been parsed already)
+      ImzMLBinRead* imzMLReader; //Pointer allocated, controlled and destroyed only when imzML data is being readed
       bool imzMLContinuous;
       unsigned int *iX;
       unsigned int *iY;

@@ -27,7 +27,7 @@ enum imzMLDataType
   int32, //32 bits integer  (int)
   int64, //64 bits interger (long)
   float32, //32 bits float  (float)
-  flaot64  //64 bits float  (double)
+  float64  //64 bits float  (double)
 };
 
 class ImzMLBin
