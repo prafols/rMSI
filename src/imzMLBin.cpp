@@ -17,7 +17,10 @@
  **************************************************************************/
 
 #include "imzMLBin.h"
+#include <stdexcept>
 #include <Rcpp.h>
+
+//#define __DEBUG__
 
 ImzMLBin::ImzMLBin(const char* ibd_fname, imzMLDataType mzType, imzMLDataType intType):
   mzDataType(mzType), intDataType(intType)
@@ -35,7 +38,7 @@ ImzMLBin::ImzMLBin(const char* ibd_fname, imzMLDataType mzType, imzMLDataType in
       break;
 
     default:
-      Rcpp::stop("ERROR: ImzMLBin class constructor: invalid mzType ");
+      throw std::runtime_error("ERROR: ImzMLBin class constructor: invalid mzType ");
       break;
   }
   
@@ -52,14 +55,31 @@ ImzMLBin::ImzMLBin(const char* ibd_fname, imzMLDataType mzType, imzMLDataType in
       break;
       
     default:
-      Rcpp::stop("ERROR: ImzMLBin class constructor: invalid intType.\n");
+      throw std::runtime_error("ERROR: ImzMLBin class constructor: invalid intType.\n");
       break;
   }
+  
+#ifdef __DEBUG__
+Rcpp::Rcout << "ImzMLBin() constructor end successfuly\n";
+#endif
 }
 
 ImzMLBin::~ImzMLBin()
 {
-  ibdFile.close();
+#ifdef __DEBUG__
+  Rcpp::Rcout << "ImzMLBin() destructor start...";
+#endif
+  if(ibdFile.is_open())
+  {
+    ibdFile.close();
+#ifdef __DEBUG__
+    Rcpp::Rcout << "ibdFile closed...";
+#endif
+  }
+  
+#ifdef __DEBUG__
+  Rcpp::Rcout << "ImzMLBin() destructor end successfuly\n";
+#endif
 }
 
 template<typename T> 
@@ -81,11 +101,17 @@ void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
 ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, imzMLDataType mzType, imzMLDataType intType) :
   ImzMLBin(ibd_fname, mzType, intType)
 {
+#ifdef __DEBUG__
+  Rcpp::Rcout << "ImzMLBinRead() constructor start...";
+#endif
   ibdFile.open(ibd_fname, std::fstream::in | std::ios::binary);
   if(!ibdFile.is_open())
   {
-    Rcpp::stop("ERROR: ImzMLBinRead could not open the imzML ibd file.\n"); //TODO this is not the good way to control this exception since it will create memory leaks!
+    throw std::runtime_error("ERROR: ImzMLBinRead could not open the imzML ibd file.\n"); 
   }
+#ifdef __DEBUG__
+  Rcpp::Rcout << "ImzMLBinRead() constructor end successfuly\n";
+#endif
 }
 
 ImzMLBinRead::~ImzMLBinRead()
@@ -156,10 +182,11 @@ void ImzMLBinRead::readIntData(unsigned long offset, unsigned int N, double* ptr
 ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname, imzMLDataType mzType, imzMLDataType intType) :
   ImzMLBin(ibd_fname, mzType, intType)
 {
+  
   ibdFile.open(ibd_fname, std::fstream::out | std::ios::binary); //TODO do I want ot truncate the file or just modify it?
   if(!ibdFile.is_open())
   {
-    Rcpp::stop("Error: ImzMLBinRead could not open the imzML ibd file.\n");
+    throw std::runtime_error("Error: ImzMLBinRead could not open the imzML ibd file.\n");
   }
 }
 
@@ -168,17 +195,72 @@ ImzMLBinWrite::~ImzMLBinWrite()
   //Empty desctructor
 }   
 
-//TODO checkout fstream doc: http://www.cplusplus.com/reference/fstream/fstream/
-// seek operation is diferent to the ifstream!
-
 void ImzMLBinWrite::writeMzData(unsigned long offset, unsigned int N, double* ptr )
 {
-  //TODO 
+  //TODO checkout fstream doc: http://www.cplusplus.com/reference/fstream/fstream/
+  // seek operation is diferent to the ifstream!
+    throw std::runtime_error("TODO: Not implemented yet, sorry :(");
 }
 
 void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* ptr )
 {
-  //TODO
+  //TODO checkout fstream doc: http://www.cplusplus.com/reference/fstream/fstream/
+  // seek operation is diferent to the ifstream!
+  throw std::runtime_error("TODO: Not implemented yet, sorry :(");
 }
 
-//TODO write some Rcpp exported function to test this class
+///DEBUG METHODS////////////////////////////////////////////////////////////////////////
+
+//' Testing the imzMLreader
+//' testingimzMLBinRead
+//' @param ibdFname: full path to the ibd file.
+//' @param N: number of elemetns (or data point to read).
+//' @param offset: offset in bytes at which the reading operation is started.
+//' @param read_mz: if true m/z data is readed, otherwise intensities are readed.
+// [[Rcpp::export(name=".debug_imzMLBinReader")]]
+Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz)
+{
+  Rcpp::NumericVector x(N);
+  imzMLDataType mdatatype;
+  
+  if(dataTypeString == "int")
+  {
+    mdatatype = imzMLDataType::int32;
+  }
+  else if(dataTypeString == "long")
+  {
+    mdatatype = imzMLDataType::int64;
+  }
+  else if(dataTypeString == "float")
+  {
+    mdatatype = imzMLDataType::float32;
+  }
+  else if(dataTypeString == "double")
+  {
+    mdatatype = imzMLDataType::float64;
+  }
+  else
+  {
+    throw std::runtime_error("Error: invalid dataTypeString");
+  }
+  
+  try
+  {
+    ImzMLBinRead myReader(ibdFname, mdatatype, mdatatype);
+    if(read_mz)
+    {
+      myReader.readMzData(offset, N, x.begin());  
+    }
+    else
+    {
+      myReader.readIntData(offset, N, x.begin());
+    }
+    
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::Rcout << "Catch Error: "<< e.what() << "\n";
+  }
+  
+  return x;
+}

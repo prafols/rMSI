@@ -16,6 +16,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// testingimzMLBinRead
+Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz);
+RcppExport SEXP _rMSI_testingimzMLBinRead(SEXP ibdFnameSEXP, SEXP NSEXP, SEXP offsetSEXP, SEXP dataTypeStringSEXP, SEXP read_mzSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< unsigned long >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< Rcpp::String >::type dataTypeString(dataTypeStringSEXP);
+    Rcpp::traits::input_parameter< bool >::type read_mz(read_mzSEXP);
+    rcpp_result_gen = Rcpp::wrap(testingimzMLBinRead(ibdFname, N, offset, dataTypeString, read_mz));
+    return rcpp_result_gen;
+END_RCPP
+}
 // CimzMLParse
 List CimzMLParse(String xml_path);
 RcppExport SEXP _rMSI_CimzMLParse(SEXP xml_pathSEXP) {
@@ -78,6 +93,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
+    {"_rMSI_testingimzMLBinRead", (DL_FUNC) &_rMSI_testingimzMLBinRead, 5},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 2},
