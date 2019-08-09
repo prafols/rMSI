@@ -18,21 +18,32 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <cstdlib>
+
 #include "rMSIXBin.h"
 #include "lodepng.h"
+#include "pugixml.hpp"
 
-#define IONIMG_BUFFER_MB 250 //I think 250 MB of RAM is a good balance for fast hdd operation and low memory footprint
-#define IMG_ENCODING_BYTES 2 //I think 16 bits provides with enought dynamic range (remember I also have the scaling factor)
-  
 rMSIXBin::rMSIXBin(Rcpp::List rMSIobject)
 {
   rMSIObj = new Rcpp::List();
-  Rcpp::List* data = new Rcpp::List();
-  Rcpp::List* rMSIXBin = new Rcpp::List();
+  *rMSIObj = rMSIobject;
   
-  *rMSIObj = rMSIobject; 
-  *data=(*rMSIObj)["data"]; 
-  *rMSIXBin = (*data)["rMSIXBin"];
+  irMSIFormatVersion = Rcpp::as<unsigned int>((*rMSIObj)["rMSI_format_version"]);
+  sImgName = Rcpp::as<std::string>((*rMSIObj)["name"]);
+  
+  Rcpp::List data = (*rMSIObj)["data"];
+  Rcpp::List rMSIXBinData = data["rMSIXBin"];
+  
+  //Get the UUID's rom the XML part (R  is responsible of verifying the bin part)
+  Rcpp::List imzML = data["imzML"];
+  sUUID_imzML = Rcpp::as<std::string>(imzML["uuid"]);
+  sUUID_rMSIXBin = Rcpp::as<std::string>(rMSIXBinData["uuid"]);
+  hexstring2byteuuid(sUUID_imzML, UUID_imzML);
+  hexstring2byteuuid(sUUID_rMSIXBin, UUID_rMSIXBin);
   
   Rcpp::NumericVector imgSize = (*rMSIObj)["size"]; 
   img_width = (unsigned int) imgSize["x"];
@@ -40,15 +51,28 @@ rMSIXBin::rMSIXBin(Rcpp::List rMSIobject)
   
   //File handlers to rMSIXBin
   _rMSIXBin = new rMSIXBin_Handler;
-  std::string sFnameImgStream = Rcpp::as<std::string>((*rMSIXBin)["file"]);
-  _rMSIXBin->XML_file = sFnameImgStream + ".XrMSI";
-  _rMSIXBin->Bin_file = sFnameImgStream + ".BrMSI";
+  std::string sFilePath = Rcpp::as<std::string>(data["path"]);
+  std::string sFnameImgStream = Rcpp::as<std::string>(rMSIXBinData["file"]);
+  _rMSIXBin->XML_file = sFilePath + "/" + sFnameImgStream + ".XrMSI";
+  _rMSIXBin->Bin_file = sFilePath + "/" + sFnameImgStream + ".BrMSI";
   
   //Get the mass axis
-  Rcpp::NumericVector massAxis = (*data)["mass"];
+  Rcpp::NumericVector massAxis =  (*rMSIObj)["mass"];
   massLength = massAxis.length();
   mass = new double[massLength];
   memcpy(mass, massAxis.begin(), sizeof(double)*massLength);
+  
+  //Get corrected pixels coords
+  Rcpp::NumericMatrix XYCoords = (*rMSIObj)["pos"];
+  _rMSIXBin->numOfPixels = XYCoords.nrow();
+  _rMSIXBin->iX = new unsigned int[_rMSIXBin->numOfPixels]; 
+  _rMSIXBin->iY = new unsigned int[_rMSIXBin->numOfPixels]; 
+  for(unsigned int i = 0; i < _rMSIXBin->numOfPixels; i++)
+  {
+    //Copy the R coords and change the index to make it to start by 0 instead than 1
+    _rMSIXBin->iX[i] = XYCoords(i,0) - 1;
+    _rMSIXBin->iY[i] = XYCoords(i,1) - 1;
+  }
   
   //Init the ImgStream offset/pointers
   _rMSIXBin->fScaling = new float[massLength];
@@ -57,10 +81,6 @@ rMSIXBin::rMSIXBin(Rcpp::List rMSIobject)
   
   //TODO: if there is already a ImgStream fill the vectors: fScaling, iByteLen, iByteOffset using XML data...
   //TODO I need to place the XML stuf in a new XML parser method
-  
-  
-  delete rMSIXBin;
-  delete data;
 }
 
 rMSIXBin::~rMSIXBin()
@@ -69,222 +89,504 @@ rMSIXBin::~rMSIXBin()
   delete[] _rMSIXBin->fScaling;
   delete[] _rMSIXBin->iByteLen;
   delete[] _rMSIXBin->iByteOffset;
+  delete[] _rMSIXBin->iX;
+  delete[] _rMSIXBin->iY;
   delete _rMSIXBin;
   delete rMSIObj;
 }
 
 Rcpp::List rMSIXBin::get_rMSIObj()
 {
-  return *rMSIObj;
+  return *rMSIObj; 
 }
 
-
-//TODO: What if a imgstream already exists in the binary file?
-//TODO: This is just the imgstream, other methods must be created to fill the rest of rMSIXBin data
 void rMSIXBin::CreateImgStream()
 {
+  Rcpp::List data;
+  Rcpp::List imzML;
+  Rcpp::DataFrame imgStream; 
+  Rcpp::DataFrame imzMLrun;
   
-  Rcpp::List* data = new Rcpp::List();
+  Rcpp::NumericVector imzML_mzLength;
+  Rcpp::NumericVector imzML_mzOffsets;
+  Rcpp::NumericVector imzML_intLength;
+  Rcpp::NumericVector imzML_intOffsets;
   
-  Rcpp::List* imzML = new Rcpp::List();
-  Rcpp::DataFrame* imgStream = new Rcpp::DataFrame(); 
-  Rcpp::DataFrame* imzMLrun = new Rcpp::DataFrame();
+  data=(*rMSIObj)["data"];
+  imzML = data["imzML"];
   
-  Rcpp::NumericVector* Xcoords = new Rcpp::NumericVector();
-  Rcpp::NumericVector* Ycoords = new Rcpp::NumericVector();
-  Rcpp::NumericVector* imzML_mzLength = new Rcpp::NumericVector();
-  Rcpp::NumericVector* imzML_mzOffsets = new Rcpp::NumericVector();
-  Rcpp::NumericVector* imzML_intLength = new Rcpp::NumericVector();
-  Rcpp::NumericVector* imzML_intOffsets = new Rcpp::NumericVector();
+  //Get imzML uuid from the XML part (R  is responsible of verifying the bin part)
+  hexstring2byteuuid(Rcpp::as<std::string>(imzML["uuid"]), UUID_imzML);
   
-  (*data)=(*rMSIObj)["data"]; 
-  *imzML = (*data)["imzML"];
+  std::string sFilePath = Rcpp::as<std::string>(data["path"]);
+  std::string sFnameImzML = Rcpp::as<std::string>(imzML["file"]);
+  sFnameImzML= sFilePath + "/" + sFnameImzML + ".ibd";
   
-  imzMLHandler* imzMLData = new imzMLHandler;
-  imzMLData->imzMLContinuous = (*imzML)["continuous_mode"];
-  std::string sFnameImzML = Rcpp::as<std::string>((*imzML)["file"]);
-  sFnameImzML= sFnameImzML + ".ibd";
-  
-  *imzMLrun = (*imzML)["run"];
-  *Xcoords = (*imzMLrun)["x"];
-  *Ycoords = (*imzMLrun)["y"];
-  *imzML_mzLength = (*imzMLrun)["mzLength"];
-  *imzML_mzOffsets = (*imzMLrun)["mzOffset"];
-  *imzML_intLength = (*imzMLrun)["intLength"];
-  *imzML_intOffsets = (*imzMLrun)["intOffset"];
-  
+  imzMLrun = imzML["run"];
+  imzML_mzLength = imzMLrun["mzLength"];
+  imzML_mzOffsets = imzMLrun["mzOffset"];
+  imzML_intLength = imzMLrun["intLength"];
+  imzML_intOffsets = imzMLrun["intOffset"];
+
   imzMLDataType mzDataType;
-  if( Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "float" )
+  if( Rcpp::as<std::string>(imzML["mz_dataType"]) == "float" )
   {
     mzDataType = imzMLDataType::float32;
   }
-  else if(Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "double" )
+  else if(Rcpp::as<std::string>(imzML["mz_dataType"]) == "double" )
   {
     mzDataType = imzMLDataType::float64;
   }
-  else if(Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "int" )
+  else if(Rcpp::as<std::string>(imzML["mz_dataType"]) == "int" )
   {
     mzDataType = imzMLDataType::int32;
   }
-  else if(Rcpp::as<std::string>((*imzML)["mz_dataType"]) == "long" )
+  else if(Rcpp::as<std::string>(imzML["mz_dataType"]) == "long" )
   {
     mzDataType = imzMLDataType::int64;
   }
   else
   {
-    //TODO throw exception invalid datatype
+    throw std::runtime_error("ERROR: CreateImgStream() invalid m/z datatype.\n");
   }
   
   imzMLDataType intDataType;
-  if( Rcpp::as<std::string>((*imzML)["int_dataType"]) == "float" )
+  if( Rcpp::as<std::string>(imzML["int_dataType"]) == "float" )
   {
     intDataType = imzMLDataType::float32;
   }
-  else if(Rcpp::as<std::string>((*imzML)["int_dataType"]) == "double" )
+  else if(Rcpp::as<std::string>(imzML["int_dataType"]) == "double" )
   {
     intDataType = imzMLDataType::float64;
   }
-  else if(Rcpp::as<std::string>((*imzML)["int_dataType"]) == "int" )
+  else if(Rcpp::as<std::string>(imzML["int_dataType"]) == "int" )
   {
     intDataType = imzMLDataType::int32;
   }
-  else if(Rcpp::as<std::string>((*imzML)["int_dataType"]) == "long" )
+  else if(Rcpp::as<std::string>(imzML["int_dataType"]) == "long" )
   {
     intDataType = imzMLDataType::int64;
   }
   else
   {
-    //TODO throw exception invalid datatype
+    throw std::runtime_error("ERROR: CreateImgStream() invalid intensity datatype.\n");
   }
   
-  //Copy the imzMLrun to C data types
-  imzMLData->iX = new unsigned int[(*imzMLrun).nrows()];
-  imzMLData->iY = new unsigned int[(*imzMLrun).nrows()];
-  imzMLData->lmzLength  = new unsigned long[(*imzMLrun).nrows()];
-  imzMLData->lmzOffset  = new unsigned long[(*imzMLrun).nrows()];
-  imzMLData->lintLength = new unsigned long[(*imzMLrun).nrows()];
-  imzMLData->lintOffset = new unsigned long[(*imzMLrun).nrows()];
-  
-  for(int i = 0; i < (*imzMLrun).nrows(); i++)
-  {
-    imzMLData->iX[i] = (unsigned int)(*Xcoords)[i];
-    imzMLData->iY[i] = (unsigned int)(*Ycoords)[i];
-    imzMLData->lmzLength[i] = (unsigned long)(*imzML_mzLength)[i];
-    imzMLData->lmzOffset[i] = (unsigned long)(*imzML_mzOffsets)[i];
-    imzMLData->lintLength[i] = (unsigned long)(*imzML_intLength)[i];
-    imzMLData->lintOffset[i] = (unsigned long)(*imzML_intOffsets)[i];
-  }
-  
-  //All R data related to imzML have been already copied to C data, so delete them
-  delete Xcoords;
-  delete Ycoords;
-  delete imzML_mzLength;
-  delete imzML_mzOffsets;
-  delete imzML_intLength;
-  delete imzML_intOffsets;
-  delete imzML;
-  delete imzMLrun;
-  
-
-  
-  /* iIonImgCount calculation
-  *  
-  *  bytesPerIonImg = img_width * img_height * IMG_ENCODING_BYTES + 4 (32bits float scalingFactor)
-  *  iIonImgCount = IONIMG_BUFFER_MB * 1024 * 1024 / bytesPerIonImg
-  */
-  unsigned int iIonImgCount = (unsigned int)(  ((double)(IONIMG_BUFFER_MB * 1024 * 1024)) / ((double)( img_width *img_height * IMG_ENCODING_BYTES + 4 )) );
-
-  //Prepare file connections
+  //Create and init the imzML reader
+  ImzMLBinRead* imzMLReader;
   try
   {
-    imzMLData->imzMLReader = new ImzMLBinRead(sFnameImzML.c_str(), mzDataType, intDataType);
+    imzMLReader = new ImzMLBinRead(sFnameImzML.c_str(), _rMSIXBin->numOfPixels, mzDataType, intDataType, Rcpp::as<bool>(imzML["continuous_mode"])); 
+    imzMLReader->set_mzLength(&imzML_mzLength);  
+    imzMLReader->set_mzOffset(&imzML_mzOffsets);
+    imzMLReader->set_intLength(&imzML_intLength);
+    imzMLReader->set_intOffset(&imzML_intOffsets);
   }
-  catch(...) //TODO manage file missing excetioons!!!!
+  catch(std::runtime_error &e)
   {
-    Rcpp::Rcout << "Error: imzML not available" << std::endl; //TODO improve this error handling in case of not having imzML data
+    delete imzMLReader;
+    Rcpp::stop(e.what());
   }
   
+  //Create the binary file (.BrMSI) any previous file will be deleted.
+  std::ofstream fBrMSI;
+  fBrMSI.open (_rMSIXBin->Bin_file, std::ios::out | std::ios::trunc | std::ios::binary);
+  if(!fBrMSI.is_open())
+  {
+    throw std::runtime_error("Error: rMSIXBin could not open the BrMSI file.\n");
+  }
+  char UUIDbuffer[16];
+  imzMLReader->readUUID(UUIDbuffer);
+  fBrMSI.write(UUID_imzML, 16); //Write imzML UUID;
+  fBrMSI.write(UUID_rMSIXBin, 16); //Write rMSIXBin UUID;
+  
+  fBrMSI.write((const char*)mass, sizeof(double) * massLength);
+  
+  //TODO escriure espectre mig al rMSIXbin (pots omplir amb -1 de moment i ja ho implementaras!)
+  fBrMSI.write((const char*)mass, sizeof(double) * massLength); //TODO de momen faig una copia d l'eix de massa i a correr!
 
-    
-    //TODO open the rMSIXBin binary file here and check for errors 
-    //Loop to create each ion image
-    for( int i = 0; i < massLength; i = i + iIonImgCount)
+  fBrMSI.close();
+  if(fBrMSI.fail() || fBrMSI.bad())
+  {
+    throw std::runtime_error("FATAL ERROR: ImzMLBin got fail or bad bit condition reading the imzML ibd file.\n"); 
+  }
+  
+  //Loop to create each ion image
+  /* iIonImgCount calculation
+   *  
+   *  bytesPerIonImg = img_width * img_height * ENCODING_BITS/8 + 4 (32bits float scalingFactor)
+   *  iIonImgCount = IONIMG_BUFFER_MB * 1024 * 1024 / bytesPerIonImg
+   */
+  unsigned int iIonImgCount = (unsigned int)(  ((double)(IONIMG_BUFFER_MB * 1024 * 1024)) / ((double)( img_width *img_height * ENCODING_BITS/8 + 4 )) );
+  unsigned int iRemainingIons = massLength;
+
+  try
+  {
+    unsigned int iIon = 0;
+    Rcpp::Rcout << "Encoding m/z:     ";
+    while( true )
     {
-      encodeMultipleIonImage2ImgStream(imzMLData, i, iIonImgCount); 
+      //Rcpp::Rcout << "Encoding m/z " << iIon << " of " << massLength << "\n"; //TODO millorar aixo... es mooolt lleig... potser posaro dins la funcio d encoding
+      iIonImgCount = iIonImgCount <  iRemainingIons ? iIonImgCount :  iRemainingIons;
+      encodeMultipleIonImage2ImgStream(imzMLReader, iIon, iIonImgCount);
+      iIon += iIonImgCount;
+      iRemainingIons = iRemainingIons - iIonImgCount;
+      if(iRemainingIons == 0)
+      {
+        break;
+      }
     }
+    Rcpp::Rcout << "\n";
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::Rcout << "Encoder Error, stopped\n";
+    delete imzMLReader;
+    Rcpp::stop(e.what());
+  }
 
 
-  
-  
-  //TODO make some Rcout to check some internal data as for example the iIonImgCount
-  
-  //TODO copy data back to imgStream... 
-  
-  
-  
   //TODO: pensar funcionament de la part XML del rMSIXBin, crec que el millor es el seguent:
    //1. El constructor parseja el fixer XML original (si existeix i guarda les dades)
    //2. Es modifiquen les dades correponents al ImgStream
    //3. Es sobrescriu el XML sencer amb les dades originals+les noves dades del ImgStream
-  
-  delete imgStream;
-  delete data;
-  
-  delete[] imzMLData->iX;
-  delete[] imzMLData->iY;
-  delete[] imzMLData->lmzLength;
-  delete[] imzMLData->lmzOffset;
-  delete[] imzMLData->lintLength;
-  delete[] imzMLData->lintOffset;
-  delete imzMLData->imzMLReader; //By deleting the reader I also close the ibd file
-  delete imzMLData;
-}
 
+  delete imzMLReader;
 
-void rMSIXBin::DeleteImgStream()
-{
-  //TODO: delete just the binary part correponding to the imgStream
-  //TODO: delete just the XML part correponding to the imgStream
-  
-}
-
-void rMSIXBin::encodeMultipleIonImage2ImgStream(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
-{
-  if(imzMLData->imzMLContinuous)
+  //Write the XML file
+  if(!writeXrMSIfile())
   {
-    encodeMultipleIonImage2ImgStream_continuous(imzMLData, ionIndex, ionCount);
+    Rcpp::Rcout << ".XrMSI write error, stopped\n";
+  }
+  
+}
+
+void rMSIXBin::encodeMultipleIonImage2ImgStream(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount)
+{
+  if(imzMLHandler->get_continuous())
+  {
+    encodeMultipleIonImage2ImgStream_continuous(imzMLHandler, ionIndex, ionCount);
   }
   else
   {
-    encodeMultipleIonImage2ImgStream_processed(imzMLData, ionIndex, ionCount);
+    encodeMultipleIonImage2ImgStream_processed(imzMLHandler, ionIndex, ionCount);
   }
 }
 
-void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
+//ionIndex: the ion index at which the partial encoding process is started.
+//ionCount: the number of ion images to encode at current encoding exectuion.
+void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount)
 {
-   //TODO implemnet me!
-  //Step1, get the complete buffer from imzML: seek, binread, seek, binread... 
-  unsigned long intOffset; //TODO calculate the offset!!!!
+  std::vector<double> buffer(ionCount*_rMSIXBin->numOfPixels); 
+  for(int i=0; i < _rMSIXBin->numOfPixels; i++)
+  {
+    imzMLHandler->readIntData(imzMLHandler->get_intOffset(i) + ionIndex, ionCount, buffer.data() + (i*ionCount) );
+  }
   
-  double* buffer = new double[9999]; //TODO
+  //Prepare the image buffer to encode
+  //Init with zeros, observe that non-existing MSI pixels will be zero for all spectra, so there is no need to initialize zeros each time
+  std::vector<imgstreamencoding_type> image(img_width * img_height, 0);
+  double max;
   
-  imzMLData->imzMLReader->readIntData(intOffset, ionCount, buffer ); //TODO this must be called several times! use a loop to fill
+  std::ofstream fBrMSI;
+  fBrMSI.open (_rMSIXBin->Bin_file, std::ios::out | std::ios::app | std::ios::binary);
+  if(!fBrMSI.is_open())
+  {
+    throw std::runtime_error("Error: rMSIXBin could not open the BrMSI file.\n");
+  }
   
-  //Step2, call the single image encoding function and store data to the rMSIbin
-  delete[] buffer;
+  for(unsigned int i = 0; i < ionCount; i++)
+  { 
+    coutEncodingPersentage(ionIndex + i);
+
+    //Calculate the scaling factors
+    max = 0.0;
+    for(int j=0; j < _rMSIXBin->numOfPixels; j++)
+    {
+      max = buffer[j*ionCount + i] > max ? buffer[j*ionCount + i] : max;
+    }
+    
+    _rMSIXBin->fScaling[ionIndex + i] = (float) max; //Store the scaling
+    
+    for(int j=0; j < _rMSIXBin->numOfPixels; j++)
+    {
+      image[ _rMSIXBin->iX[j]  + img_width*_rMSIXBin->iY[j] ] = ENCODING_BIT_MASK & (imgstreamencoding_type)(ENCODER_RANGE*((buffer[j*ionCount + i]/max))); //apply scalling and adjust dynamic range
+    }
+    
+    //Encode the current ion image
+    std::vector<unsigned char> png_stream;
+    unsigned encode_error = lodepng::encode(png_stream, 
+                    (const unsigned char*) image.data(), img_width, img_height,
+                    LodePNGColorType::LCT_GREY, ENCODING_BITS);
+        
+    if(encode_error)
+    {
+      std::stringstream ss; 
+      ss << "Error: rMSIXBin png encoding excepion: " << lodepng_error_text(encode_error) << "\n";
+      fBrMSI.close();
+      throw std::runtime_error(ss.str());
+    }
+    
+    //Save the current image to the imgStream on hdd
+    fBrMSI.write((const char*)((_rMSIXBin->fScaling)+ionIndex + i), sizeof(float));  
+    fBrMSI.write((const char*)png_stream.data(), png_stream.size());
+
+    //Store offsets info
+    _rMSIXBin->iByteLen[i + ionIndex] = sizeof(float) + png_stream.size(); //The encoded bytes are 1) the scaling in a float and 2) the bytes in the png
+    if((i + ionIndex) == 0)
+    {
+      //Special case, the first offset is being writen
+      //The first ion image in imgStream will be located at iByteOffset[0] positon of the .BrMSI file.
+      //So, 16 bytes for each UUID and massLength bytes for the mass axis and the average spectrum.
+      _rMSIXBin->iByteOffset[0] = 16 + 16 + sizeof(double) * massLength + sizeof(double) * massLength;
+    }
+    else
+    {
+      
+      _rMSIXBin->iByteOffset[i + ionIndex] = _rMSIXBin->iByteOffset[i + ionIndex - 1] + _rMSIXBin->iByteLen[i + ionIndex - 1]; 
+    }
+    
+    if(fBrMSI.fail() || fBrMSI.bad())
+    {
+      fBrMSI.close();
+      throw std::runtime_error("FATAL ERROR: ImzMLBin got fail or bad bit condition reading the imzML ibd file.\n"); 
+    }
+
+  }
+  fBrMSI.close();
 }
 
-void rMSIXBin::encodeMultipleIonImage2ImgStream_processed(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount)
+void rMSIXBin::encodeMultipleIonImage2ImgStream_processed(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount)
 {
   //TODO implement the imzML processed mode methods
-  Rcpp::stop("TODO: The imzML processed mode is not implemented yet, sorry.");
+  throw std::runtime_error("TODO: The imzML processed mode is not implemented yet, sorry.");
 }
 
-void encodeSingleIonImage2ImgStream()
+
+//Display the current encoded persentage on console
+void rMSIXBin::coutEncodingPersentage(unsigned int ionIndex)
 {
-  //TODO implementar, pensar paramteres i possaro dins la classe rMSIXBin
+  double pp = (double)ionIndex*100.0/((double)massLength - 1.0);
+  static double pp_ant = 0.0;
+  if( (pp - pp_ant) >= 0.9999999999  || ionIndex == 0  || ionIndex == (massLength-1))
+  {
+    Rcpp::Rcout << "\b\b\b\b" << std::fixed << std::setprecision(0) << std::setfill(' ') << std::setw(3) << pp << "%";  
+    pp_ant = pp;
+  }
 }
 
+//Write the XML file, any previous .XrMSI file will be deleted
+bool rMSIXBin::writeXrMSIfile()
+{
+  //Reusable pugi variables
+  pugi::xml_node cvParam;
+  
+  // empty xml document with custom declaration node
+  pugi::xml_document doc;
+  pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
+  decl.append_attribute("version") = "1.0";
+  decl.append_attribute("encoding") = "UTF-8";
+  decl.append_attribute("standalone") = "no";
+  
+  //mzML top level node
+  pugi::xml_node node_XrMSI = doc.append_child("XrMSI");
+  node_XrMSI.append_attribute("version") =  "1.1";
+  node_XrMSI.append_attribute("xmlns") = "http://psi.hupo.org/ms/mzml";
+  node_XrMSI.append_attribute("xmlns:xsi") = "http://www.w3.org/2001/XMLSchema-instance";
+  
+  //cvList top node
+  pugi::xml_node node_cvList = node_XrMSI.append_child("cvList");
+  node_cvList.append_attribute("count") = "3";
+  pugi::xml_node node_cv = node_cvList.append_child("cv");
+  node_cv.append_attribute("id") = "MS";
+  node_cv.append_attribute("fullName") = "Proteomics Standards Initiative Mass Spectrometry Ontology";
+  node_cv.append_attribute("version") = "1.3.1";
+  node_cv.append_attribute("URI") = "http://psidev.info/ms/mzML/psi-ms.obo";
+  node_cv = node_cvList.append_child("cv");
+  node_cv.append_attribute("id") = "UO";
+  node_cv.append_attribute("fullName") = "Unit Ontology";
+  node_cv.append_attribute("version") = "1.15";
+  node_cv.append_attribute("URI") = "http://obo.cvs.sourceforge.net/obo/obo/ontology/phenotype/unit.obo";
+  node_cv = node_cvList.append_child("cv");
+  node_cv.append_attribute("id") = "IMS";
+  node_cv.append_attribute("fullName") = "Imaging MS Ontology";
+  node_cv.append_attribute("version") = "0.9.1";
+  node_cv.append_attribute("URI") = "http://www.maldi-msi.org/download/imzml/imagingMS.obo";
+  
+  node_cv = node_cvList.append_child("cv");
+  node_cv.append_attribute("id") = "rMSI";
+  node_cv.append_attribute("imgName") = sImgName.c_str();
+  node_cv.append_attribute("version") =  irMSIFormatVersion;
+  node_cv.append_attribute("URI") = "http://github.com/prafols/rMSI";
+  
+  //fileDescription node
+  pugi::xml_node node_fdesc = node_XrMSI.append_child("fileDescription");
+  
+  //fileContent
+  pugi::xml_node fileContent = node_fdesc.append_child("fileContent");
+  
+  //Append imzML file name
+  Rcpp::List imzML = (Rcpp::as<Rcpp::List>((*rMSIObj)["data"]))["imzML"];
+  cvParam = fileContent.append_child("cvParam");
+  cvParam.append_attribute("accession") = "rMSI:1000000";
+  cvParam.append_attribute("cvRef") = "rMSI";
+  cvParam.append_attribute("name") = "imzML filename";
+  cvParam.append_attribute("value") =  (Rcpp::as<std::string>(imzML["file"])).c_str();
+  
+  //Append imzML UUID
+  cvParam = fileContent.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000080";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "universally unique identifier";
+  std::string sUUIDparsed = "{";
+  sUUIDparsed += sUUID_imzML.substr(0, 8);
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_imzML.substr(8, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_imzML.substr(12, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_imzML.substr(16, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_imzML.substr(20, 12); 
+  sUUIDparsed += "}";
+  cvParam.append_attribute("value") = sUUIDparsed.c_str();
+  
+  //Append rMSI UUID
+  cvParam = fileContent.append_child("cvParam");
+  cvParam.append_attribute("accession") = "rMSI:1000080";
+  cvParam.append_attribute("cvRef") = "rMSI";
+  cvParam.append_attribute("name") = "rMSI universally unique identifier";
+  sUUIDparsed = "{";
+  sUUIDparsed += sUUID_rMSIXBin.substr(0, 8);
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_rMSIXBin.substr(8, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_rMSIXBin.substr(12, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_rMSIXBin.substr(16, 4); 
+  sUUIDparsed += "-";
+  sUUIDparsed += sUUID_rMSIXBin.substr(20, 12); 
+  sUUIDparsed += "}";
+  cvParam.append_attribute("value") = sUUIDparsed.c_str();
+  
+  //contact info.
+  pugi::xml_node node_contact = node_fdesc.append_child("contact");
+  cvParam = node_contact.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000586";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "contact name";
+  cvParam.append_attribute("value") = "Pere Rafols";
+  
+  cvParam = node_contact.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000590";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "contact affiliation";
+  cvParam.append_attribute("value") = "Universitat Rovira i Virgili";
+  
+  cvParam = node_contact.append_child("cvParam");
+  cvParam.append_attribute("accession") = "MS:1000589";
+  cvParam.append_attribute("cvRef") = "MS";
+  cvParam.append_attribute("name") = "contact email";
+  cvParam.append_attribute("value") = "pere.rafols@urv.cat";
+  
+  //scanSettingsList
+  pugi::xml_node node_scanSetLst = node_XrMSI.append_child("scanSettingsList");
+  node_scanSetLst.append_attribute("count") = "1";
+  pugi::xml_node node_scanSet = node_scanSetLst.append_child("scanSettings");
+  node_scanSet.append_attribute("id") = "scanSettings0";
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "rMSI:1000010";
+  cvParam.append_attribute("cvRef") = "rMSI";
+  cvParam.append_attribute("name") = "max count of m/z channels";
+  cvParam.append_attribute("value") = massLength;
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000042";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "max count of pixels x";
+  cvParam.append_attribute("value") = img_width;
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000043";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "max count of pixels y";
+  cvParam.append_attribute("value") = img_height;
+  
+  cvParam = node_scanSet.append_child("cvParam");
+  cvParam.append_attribute("accession") = "IMS:1000046";
+  cvParam.append_attribute("cvRef") = "IMS";
+  cvParam.append_attribute("name") = "pixel size";
+  cvParam.append_attribute("value") = pow(Rcpp::as<double>((*rMSIObj)["pixel_size_um"]), 2.0);
+  
+  //Run data spectra list
+  pugi::xml_node node_spectrum; //Reusable spectrum node
+  pugi::xml_node node_run = node_XrMSI.append_child("run");
+  pugi::xml_node node_spectrumLst = node_run.append_child("spectrumList");
+  node_spectrumLst.append_attribute("count") = _rMSIXBin->numOfPixels;
+
+  //Get the motor coordinates
+  Rcpp::NumericMatrix XYCoordsMotors = (*rMSIObj)["posMotors"];
+
+  for( int i = 0; i <  _rMSIXBin->numOfPixels; i++)
+  {
+    //Rcout<<"Parsing pixel "<<i <<" of "<< total_num_pixels << "\n";
+    node_spectrum = node_spectrumLst.append_child("spectrum");
+    node_spectrum.append_attribute("id") = i;
+    
+    cvParam = node_spectrum.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000050";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "position x";
+    cvParam.append_attribute("value") = (int)XYCoordsMotors(i,0);
+    
+    cvParam = node_spectrum.append_child("cvParam");
+    cvParam.append_attribute("accession") = "IMS:1000051";
+    cvParam.append_attribute("cvRef") = "IMS";
+    cvParam.append_attribute("name") = "position y";
+    cvParam.append_attribute("value") = (int)XYCoordsMotors(i,1);;
+    
+    cvParam = node_spectrum.append_child("cvParam");
+    cvParam.append_attribute("accession") = "rMSI:1000050";
+    cvParam.append_attribute("cvRef") = "rMSI";
+    cvParam.append_attribute("name") = "corrected position x";
+    cvParam.append_attribute("value") = _rMSIXBin->iX[i];
+    
+    cvParam = node_spectrum.append_child("cvParam");
+    cvParam.append_attribute("accession") = "rMSI:1000051";
+    cvParam.append_attribute("cvRef") = "rMSI";
+    cvParam.append_attribute("name") = "corrected position y";
+    cvParam.append_attribute("value") = _rMSIXBin->iY[i];
+  }
+  
+  //Run data: imgStream
+  pugi::xml_node node_ionimg; //Reusable ionimg node
+  pugi::xml_node node_imgStream = node_run.append_child("imgStreamList");
+  node_imgStream.append_attribute("count") = massLength;
+  for( int i = 0; i < massLength; i++)
+  {
+    node_ionimg = node_imgStream.append_child("ionImage");
+    node_ionimg.append_attribute("id") = i;
+    
+    cvParam = node_ionimg.append_child("cvParam");
+    cvParam.append_attribute("accession") = "rMSI:1000060";
+    cvParam.append_attribute("cvRef") = "rMSI";
+    cvParam.append_attribute("name") = "image ion byte count";
+    cvParam.append_attribute("value") = _rMSIXBin->iByteLen[i];
+    
+    cvParam = node_ionimg.append_child("cvParam");
+    cvParam.append_attribute("accession") = "rMSI:1000061";
+    cvParam.append_attribute("cvRef") = "rMSI";
+    cvParam.append_attribute("name") = "image ion byte offset";
+    cvParam.append_attribute("value") = _rMSIXBin->iByteOffset[i];
+  }
+  
+  //Run data: Normalizations
+  //TODO
+    
+  // save document to file
+  return(doc.save_file(_rMSIXBin->XML_file.c_str(), "\t", pugi::format_default, pugi::encoding_utf8 ) );
+}
 
 //' decodePngStream2IonImage.
 //'
@@ -296,6 +598,9 @@ void encodeSingleIonImage2ImgStream()
 //' 
 Rcpp::NumericMatrix rMSIXBin::decodeImgStream2IonImage(unsigned ionIndex)
 {
+  
+  //TODO, crec que aquesta funcio esta mal plantejada, podries donar N frames o ion imatges, seria mes rapid pq amb un sol open/close ho tindries tot!
+  
   //TODO falta normalitzations o scaling factor!!!
   
   //TODO investigate the following lodepng function....
@@ -315,6 +620,24 @@ Rcpp::NumericMatrix rMSIXBin::decodeImgStream2IonImage(unsigned ionIndex)
   Rcpp::NumericMatrix ionImage(width, height);
   
   return ionImage;
+}
+
+//Convert a std::string containing a 16 bytes UUID to a big-endian formate byte stream ready to write it to a binary file
+void rMSIXBin::hexstring2byteuuid(std::string hex_str, char* output)
+{
+  if(hex_str.length() != 32)
+  {
+    throw std::invalid_argument("ERROR: hexstring2byteuuid() invalid input string length");
+  }
+  
+  char byteStr[2];
+  unsigned int iout = 0;
+  for(int i=0; i < 32; i+=2)
+  {
+    memcpy(byteStr, hex_str.c_str() + i, 2);
+    output[iout] = (char) std::strtol( byteStr, NULL, 16);
+    iout++;
+  }
 }
 
 //' TODO ideas varies:
@@ -426,3 +749,21 @@ void testingLodepng()
 }
 
 
+///DEBUG METHODS////////////////////////////////////////////////////////////////////////
+
+//' Testing the creation of imgStream
+//' testing_imgStreamCreator
+//' @param name: desc. 
+// [[Rcpp::export(name=".debug_imgStreamCreator")]]
+void testing_imgStreamCreator(Rcpp::List rMSIobj)
+{
+  try
+  {
+    rMSIXBin myXBin(rMSIobj); 
+    myXBin.CreateImgStream();
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::Rcout << "Catch Error: "<< e.what() << "\n";
+  }
+}

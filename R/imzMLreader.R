@@ -274,7 +274,10 @@ import_imzML <- function(imzML_File,
     cat(paste("\nBinary file reading time:",round(pt["elapsed"], digits = 1),"seconds\n\n"))
   
     #Compute average spectrum
-    img$mean <- AverageSpectrum(img) #TODO si bull nomes peak list aixo no s'ha de cridar
+    #TODO aixo va abans d crear el imgStream ja que caal guardarho en el rMSIXBin, utilitzar imzML directament per calcularho, 
+    #TODO     crec k pots passar del Multithreading pq es molt rapid el calcul i lectura disc es sequencial, 
+    #TODO     la propia classe imzMLBin pot tenir un metode per calcul espectre mig (aixi ho pot cridar el rMSIXBin directament).
+    #img$mean <- AverageSpectrum(img) #TODO si bull nomes peak list aixo no s'ha de cridar
   }
   
   #8- Just reading the peak lists
@@ -366,11 +369,11 @@ dataPointBinaryEncoding <- function(str_dataType)
     result$bytes <- 4
   }
   
-  if(xmlRes$mz_dataType == "int" || xmlRes$mz_dataType == "long")
+  if(str_dataType == "int" || str_dataType == "long")
   {
     result$dataType <- integer()
   }
-  if(xmlRes$mz_dataType == "float" || xmlRes$mz_dataType == "double")
+  if(str_dataType == "float" || str_dataType == "double")
   {
     result$dataType <- numeric()
   }

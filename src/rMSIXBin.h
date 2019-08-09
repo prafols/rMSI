@@ -25,6 +25,23 @@
 #include <fstream>
 #include "imzMLBin.h"
 
+//TODO decidir quants bits em quedo...
+//#define IMG_STREAM_8bits //Comment this line out if you prefere to encode the imgStream as 16bits plus a mask
+
+#define IONIMG_BUFFER_MB 250 //I think 250 MB of RAM is a good balance for fast hdd operation and low memory footprint
+
+#ifdef IMG_STREAM_8bits
+typedef  unsigned char imgstreamencoding_type;
+#define ENCODER_RANGE 255.0
+#define ENCODING_BITS 8
+#define ENCODING_BIT_MASK 0xFF //imgStream encoding mask (only used for 8 bit encoding, no masking)
+#else
+typedef  unsigned short imgstreamencoding_type;
+#define ENCODER_RANGE 65535.0
+#define ENCODING_BITS 16
+#define ENCODING_BIT_MASK 0xFFC0 //imgStream encoding mask (only used for 16 bit encoding)
+#endif
+
 class rMSIXBin
 {
   public:
@@ -34,11 +51,8 @@ class rMSIXBin
     //Return a copy of the rMSIObj
     Rcpp::List get_rMSIObj(); 
     
-    //Create the ImgStream in the rMSXBin (both XML and binary parts)
+    //Create the ImgStream in the rMSXBin (both XML and binary parts). Any previois rMSXBin files will be deleted!
     void CreateImgStream(); 
-    
-    //Delete any previouly created ImgStream in the rMSIXBin (both XML and binary parts)
-    void DeleteImgStream();
     
     //Get a ion image in a matrix object by decoding the ImgStream
     Rcpp::NumericMatrix decodeImgStream2IonImage(unsigned int ionIndex);
@@ -46,7 +60,13 @@ class rMSIXBin
     //TODO add methods for the rest of data encoded in rMSIXBin: normalizations... etc  
       
   private:
+    unsigned int irMSIFormatVersion; //An integer to record the rMSI format version
+    std::string sImgName; //A string to record the MS image name.
     Rcpp::List* rMSIObj; //Pointer to the rMSI object
+    char UUID_imzML[16]; //The linked imzML UUID in raw bytes
+    std::string sUUID_imzML; //The linked imzML UUID as a string
+    char UUID_rMSIXBin[16]; //The rMSIXBin UUID in raw bytes
+    std::string sUUID_rMSIXBin; //The linked imzML UUID as a string
     
     double* mass; //The mass axis in C format
     unsigned int massLength; //Number of mass channels
@@ -55,33 +75,31 @@ class rMSIXBin
     
     typedef struct
     {
-      //the binary part of the imzML data (the XML part has been parsed already)
-      ImzMLBinRead* imzMLReader; //Pointer allocated, controlled and destroyed only when imzML data is being readed
-      bool imzMLContinuous;
-      unsigned int *iX;
-      unsigned int *iY;
-      unsigned long *lmzLength;
-      unsigned long *lmzOffset;
-      unsigned long *lintLength;
-      unsigned long *lintOffset;
-    }imzMLHandler;
-    
-    typedef struct
-    {
+      unsigned int numOfPixels; //Total number of pixel in the image;
       std::string XML_file; //rMSIXBin XML file (.XrMSI)
       std::string Bin_file; //rMSIXBin Binary file (.BrMSI)
       float* fScaling; //A vector to store the ImgStream scaling factor for each m/z channel
-      unsigned long * iByteLen; //ImgStream byte lengths of each encoded ion image
-      unsigned long * iByteOffset; //ImgStrem byte offset of each ion image
+      unsigned long* iByteLen; //ImgStream byte lengths of each encoded ion image
+      unsigned long* iByteOffset; //ImgStrem byte offset of each ion image
+      unsigned int* iX; //Corrected X coordinates (non motor coords)
+      unsigned int* iY; //Corrected Y coordinates (non motor coords)
     }rMSIXBin_Handler;
     
     rMSIXBin_Handler* _rMSIXBin; 
     
     //Encoide various Ion images to ImgStream in a single buffered execution
-    void encodeMultipleIonImage2ImgStream(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount);
-    void encodeMultipleIonImage2ImgStream_continuous(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount);
-    void encodeMultipleIonImage2ImgStream_processed(imzMLHandler* imzMLData, unsigned int ionIndex, unsigned int ionCount);
+    void encodeMultipleIonImage2ImgStream(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
+    void encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
+    void encodeMultipleIonImage2ImgStream_processed(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
     
+    //Get the byte representation from a 16 bytes uuid string
+    void hexstring2byteuuid(std::string hex_str, char* output);
+    
+    //Display the current encoded persentage on console
+    void coutEncodingPersentage(unsigned int ionIndex);
+    
+    //Write the XML file, any previous .XrMSI file will be deleted
+    bool writeXrMSIfile();
 };
 
 #endif

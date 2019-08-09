@@ -18,11 +18,13 @@ CparseBrukerXML <- function(xml_path) {
 #' Testing the imzMLreader
 #' testingimzMLBinRead
 #' @param ibdFname: full path to the ibd file.
+#' @param NPixels: Total number of pixels in the image.
 #' @param N: number of elemetns (or data point to read).
 #' @param offset: offset in bytes at which the reading operation is started.
 #' @param read_mz: if true m/z data is readed, otherwise intensities are readed.
-.debug_imzMLBinReader <- function(ibdFname, N, offset, dataTypeString, read_mz) {
-    .Call(`_rMSI_testingimzMLBinRead`, ibdFname, N, offset, dataTypeString, read_mz)
+#' @param continuous: true if imzML data is in continuous mode
+.debug_imzMLBinReader <- function(ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous) {
+    .Call(`_rMSI_testingimzMLBinRead`, ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous)
 }
 
 CimzMLParse <- function(xml_path) {
@@ -105,5 +107,12 @@ NULL
 
 testingLodepng <- function() {
     invisible(.Call(`_rMSI_testingLodepng`))
+}
+
+#' Testing the creation of imgStream
+#' testing_imgStreamCreator
+#' @param name: desc. 
+.debug_imgStreamCreator <- function(rMSIobj) {
+    invisible(.Call(`_rMSI_testing_imgStreamCreator`, rMSIobj))
 }
 

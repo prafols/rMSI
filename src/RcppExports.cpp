@@ -17,17 +17,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // testingimzMLBinRead
-Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz);
-RcppExport SEXP _rMSI_testingimzMLBinRead(SEXP ibdFnameSEXP, SEXP NSEXP, SEXP offsetSEXP, SEXP dataTypeStringSEXP, SEXP read_mzSEXP) {
+Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz, bool continuous);
+RcppExport SEXP _rMSI_testingimzMLBinRead(SEXP ibdFnameSEXP, SEXP NPixelsSEXP, SEXP NSEXP, SEXP offsetSEXP, SEXP dataTypeStringSEXP, SEXP read_mzSEXP, SEXP continuousSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type NPixels(NPixelsSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type N(NSEXP);
     Rcpp::traits::input_parameter< unsigned long >::type offset(offsetSEXP);
     Rcpp::traits::input_parameter< Rcpp::String >::type dataTypeString(dataTypeStringSEXP);
     Rcpp::traits::input_parameter< bool >::type read_mz(read_mzSEXP);
-    rcpp_result_gen = Rcpp::wrap(testingimzMLBinRead(ibdFname, N, offset, dataTypeString, read_mz));
+    Rcpp::traits::input_parameter< bool >::type continuous(continuousSEXP);
+    rcpp_result_gen = Rcpp::wrap(testingimzMLBinRead(ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -90,15 +92,26 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// testing_imgStreamCreator
+void testing_imgStreamCreator(Rcpp::List rMSIobj);
+RcppExport SEXP _rMSI_testing_imgStreamCreator(SEXP rMSIobjSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIobj(rMSIobjSEXP);
+    testing_imgStreamCreator(rMSIobj);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
-    {"_rMSI_testingimzMLBinRead", (DL_FUNC) &_rMSI_testingimzMLBinRead, 5},
+    {"_rMSI_testingimzMLBinRead", (DL_FUNC) &_rMSI_testingimzMLBinRead, 7},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 2},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {"_rMSI_testingLodepng", (DL_FUNC) &_rMSI_testingLodepng, 0},
+    {"_rMSI_testing_imgStreamCreator", (DL_FUNC) &_rMSI_testing_imgStreamCreator, 1},
     {NULL, NULL, 0}
 };
 
