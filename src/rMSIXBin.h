@@ -54,15 +54,16 @@ class rMSIXBin
     //Create the ImgStream in the rMSXBin (both XML and binary parts). Any previois rMSXBin files will be deleted!
     void CreateImgStream(); 
     
-    //Get a ion image in a matrix object by decoding the ImgStream
-    Rcpp::NumericMatrix decodeImgStream2IonImage(unsigned int ionIndex);
+    //Get multiple ion image in a matrix object by decoding the ImgStream
+    //The MAX operator will be used to merge all ion images in a single image matrix
+    Rcpp::NumericMatrix decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount);
       
     //TODO add methods for the rest of data encoded in rMSIXBin: normalizations... etc  
       
   private:
     unsigned int irMSIFormatVersion; //An integer to record the rMSI format version
     std::string sImgName; //A string to record the MS image name.
-    Rcpp::List* rMSIObj; //Pointer to the rMSI object
+    Rcpp::List rMSIObj; //Internal copy of the rMSI object
     char UUID_imzML[16]; //The linked imzML UUID in raw bytes
     std::string sUUID_imzML; //The linked imzML UUID as a string
     char UUID_rMSIXBin[16]; //The rMSIXBin UUID in raw bytes

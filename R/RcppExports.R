@@ -65,11 +65,13 @@ ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
     .Call(`_rMSI_ReduceDataPointsC`, mass, intensity, massMin, massMax, npoints)
 }
 
-#' decodePngStream2IonImage.
+#' decodePngStream2IonImages.
 #'
-#' Obtain a single mass channel ion image be decoding the hdd png stream at a specified ionIndex.
+#' Obtain a multiple mass channel ion image by decoding the hdd img stream at a specified ionIndex.
+#' The MAX operator will be used to merge all ion images in a single image matrix.
 #'
-#' @param ionIndex the index of ion to extract from the png stream. //TODO starting by 0 o 1? Im going to call this from R or from C++?
+#' @param ionIndex the index of ion to extract from the img stream. C style indexing, starting with zero.
+#' @param ionCount number of ion image to decode.
 #' 
 #' @return A NumerixMatrix containing the ion image. //TODO think if row and cols correspond to witdh and height or visaversa
 #' 
@@ -105,14 +107,17 @@ NULL
 #'     
 NULL
 
-testingLodepng <- function() {
-    invisible(.Call(`_rMSI_testingLodepng`))
+#' Ccreate_rMSIXBinData.
+#' 
+#' creates new rMSIXBin files (.XrMSI and .BrMSI). Previous files will be deleted.
+#'
+#' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
+#' @return the rMSI object with rMSIXBin inforation completed. 
+Ccreate_rMSIXBinData <- function(rMSIobj) {
+    .Call(`_rMSI_Ccreate_rMSIXBinData`, rMSIobj)
 }
 
-#' Testing the creation of imgStream
-#' testing_imgStreamCreator
-#' @param name: desc. 
-.debug_imgStreamCreator <- function(rMSIobj) {
-    invisible(.Call(`_rMSI_testing_imgStreamCreator`, rMSIobj))
+testingLodepng <- function() {
+    invisible(.Call(`_rMSI_testingLodepng`))
 }
 

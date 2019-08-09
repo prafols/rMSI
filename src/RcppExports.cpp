@@ -83,22 +83,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Ccreate_rMSIXBinData
+Rcpp::List Ccreate_rMSIXBinData(Rcpp::List rMSIobj);
+RcppExport SEXP _rMSI_Ccreate_rMSIXBinData(SEXP rMSIobjSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIobj(rMSIobjSEXP);
+    rcpp_result_gen = Rcpp::wrap(Ccreate_rMSIXBinData(rMSIobj));
+    return rcpp_result_gen;
+END_RCPP
+}
 // testingLodepng
 void testingLodepng();
 RcppExport SEXP _rMSI_testingLodepng() {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     testingLodepng();
-    return R_NilValue;
-END_RCPP
-}
-// testing_imgStreamCreator
-void testing_imgStreamCreator(Rcpp::List rMSIobj);
-RcppExport SEXP _rMSI_testing_imgStreamCreator(SEXP rMSIobjSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIobj(rMSIobjSEXP);
-    testing_imgStreamCreator(rMSIobj);
     return R_NilValue;
 END_RCPP
 }
@@ -110,8 +111,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 2},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
+    {"_rMSI_Ccreate_rMSIXBinData", (DL_FUNC) &_rMSI_Ccreate_rMSIXBinData, 1},
     {"_rMSI_testingLodepng", (DL_FUNC) &_rMSI_testingLodepng, 0},
-    {"_rMSI_testing_imgStreamCreator", (DL_FUNC) &_rMSI_testing_imgStreamCreator, 1},
     {NULL, NULL, 0}
 };
 
