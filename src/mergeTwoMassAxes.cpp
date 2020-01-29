@@ -85,7 +85,7 @@ List MergeMassAxis(NumericVector mz1, NumericVector mz2)
       {
         binSize = (mz2[i2+1] - mz2[i2]) < binSize ? (mz2[i2+1] - mz2[i2]) : binSize;
       }
-      
+     
       dist = fabs(mz1[i1] -  mz2[i2]);
       if( iN > 0 )
       {
@@ -113,7 +113,7 @@ List MergeMassAxis(NumericVector mz1, NumericVector mz2)
         }
         else
         {
-          mzNew[iN] = mz2[i1];
+          mzNew[iN] = mz2[i2];
         }
       }
         
@@ -134,7 +134,7 @@ List MergeMassAxis(NumericVector mz1, NumericVector mz2)
         i2++;
       }
     }
-    iN++;
+    iN++; 
   }
   
   //if the new mass axis is empty then mz1 and mz2 are non-overlaping vectors, so an error is raised.
