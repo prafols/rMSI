@@ -45,61 +45,96 @@ List MergeMassAxis(NumericVector mz1, NumericVector mz2)
   int i1 = 0; //Iterator over mz1
   int i2 = 0; //Iterator over mz2
   int iN = 0; //Iterator over mzNew
-  double dist, binSize;
+  double dist, binSize, dist1 = 0.0, dist2 = 0.0;
   double *mzNew = new double[mz1.length() + mz2.length()]; //Allocate memory for the worst case
   
-  while( i1 < mz1.length() && i2 < mz2.length()) //Loop stops as soon as mz1 or mz2 ends (auto trimming mass axis upper part)
+  while( i1 < mz1.length() || i2 < mz2.length())
   {
-    //Calculate the binsize in current region
-    binSize = std::numeric_limits<double>::max(); //Start with something really high to allow min to work.
-    if( i1 > 0 )
+    if(i2 >= mz2.length())
     {
-      binSize = (mz1[i1] - mz1[i1-1]) < binSize ? (mz1[i1] - mz1[i1-1]) : binSize;
-    }
-    
-    if( i1+1 < mz1.length() )
-    {
-      binSize = (mz1[i1+1] - mz1[i1]) < binSize ? (mz1[i1+1] - mz1[i1]) : binSize;
-    }
-    
-    if( i2 > 0 )
-    {
-      binSize = (mz2[i2] - mz2[i2-1]) < binSize ? (mz2[i2] - mz2[i2-1]) : binSize;
-    }
-    
-    if( i2+1 < mz2.length() )
-    {
-      binSize = (mz2[i2+1] - mz2[i2]) < binSize ? (mz2[i2+1] - mz2[i2]) : binSize;
-    }
-    
-    dist = fabs(mz1[i1] -  mz2[i2]);
-    if(dist < binSize )
-    {
-      //Merge elements
-      mzNew[iN] = 0.5*(mz1[i1] + mz2[i2]);
+      //We run out of mz2
+      mzNew[iN] = mz1[i1];
       i1++;
+    }
+    else if(i1 >= mz1.length())
+    {
+      //We run out of mz1
+      mzNew[iN] = mz2[i2];
       i2++;
     }
     else
     {
-      //Insert elements
-      if( mz1[i1] < mz2[i2] )
+      //Calculate the binsize in current region
+      binSize = std::numeric_limits<double>::max(); //Start with something really high to allow min to work.
+      if( i1 > 0 )
       {
-        mzNew[iN] = mz1[i1];
+        binSize = (mz1[i1] - mz1[i1-1]) < binSize ? (mz1[i1] - mz1[i1-1]) : binSize;
+      }
+      
+      if( i1+1 < mz1.length() )
+      {
+        binSize = (mz1[i1+1] - mz1[i1]) < binSize ? (mz1[i1+1] - mz1[i1]) : binSize;
+      }
+      
+      if( i2 > 0 )
+      {
+        binSize = (mz2[i2] - mz2[i2-1]) < binSize ? (mz2[i2] - mz2[i2-1]) : binSize;
+      }
+      
+      if( i2+1 < mz2.length() )
+      {
+        binSize = (mz2[i2+1] - mz2[i2]) < binSize ? (mz2[i2+1] - mz2[i2]) : binSize;
+      }
+      
+      dist = fabs(mz1[i1] -  mz2[i2]);
+      if( iN > 0 )
+      {
+        dist1 = mz1[i1] - mzNew[iN-1];
+        dist2 = mz2[i2] - mzNew[iN-1];
+      }
+      
+      //Resampling
+      if( mz1[i1] < mz2[i1] )
+      {
+        if( dist1 < binSize && iN > 0)
+        {
+          mzNew[iN] = mzNew[iN-1] + binSize; 
+        }
+        else
+        {
+          mzNew[iN] = mz1[i1];
+        }
+      }
+      else
+      {
+        if( dist2 < binSize && iN > 0)
+        {
+          mzNew[iN] = mzNew[iN-1] + binSize; 
+        }
+        else
+        {
+          mzNew[iN] = mz2[i1];
+        }
+      }
+        
+      if(dist < binSize)
+      {
+        //Merging elements
+        i1++;
+        i2++;
+      }
+      else if(mz1[i1] < mz2[i2])
+      {
+        //Inserting mz1
         i1++;
       }
       else
       {
-        mzNew[iN] = mz2[i2];
+        //Inserting mz2
         i2++;
       }
     }
-    
-    //Increas the destination index only when we arrive at the common mass range
-    if( i1 > 0 && i2 > 0)
-    {
-      iN++;
-    }
+    iN++;
   }
   
   //if the new mass axis is empty then mz1 and mz2 are non-overlaping vectors, so an error is raised.
