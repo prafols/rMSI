@@ -94,7 +94,7 @@ List MergeMassAxis(NumericVector mz1, NumericVector mz2)
       }
       
       //Resampling
-      if( mz1[i1] < mz2[i1] )
+      if( mz1[i1] < mz2[i2] )
       {
         if( dist1 < binSize && iN > 0)
         {
