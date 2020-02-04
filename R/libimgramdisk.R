@@ -506,7 +506,7 @@ insertRasterImageAtMass<-function( Img, Mass, Tolerance, raster_matrix)
 }
 
 #Internal method to create an empty ramdisk of specified size
-.CreateEmptyRamdisk<-function(num_of_columns, num_of_spectrums, ff_data_folder, max_ff_file_size_MB = 200, vmode_type = "integer")
+.CreateEmptyRamdisk<-function(num_of_columns, num_of_spectrums, ff_data_folder, max_ff_file_size_MB = 512, vmode_type = "integer")
 {
   #Bytes per data point
   Bpdp <- NULL
