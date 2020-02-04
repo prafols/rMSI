@@ -167,6 +167,29 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     }
   }
 
+  #5- Map imzML possible data types to ff packages available data types
+  if(xmlRes$int_dataType == "int")
+  {
+    ffDataType <- "integer" #32 bit signed integer with NA.
+    readDataTypeInt <- integer()
+  }
+  if(xmlRes$int_dataType == "long")
+  {
+    ffDataType <- "single" #32 bit signed integer is not available in ff so I map it to 32 bits float to allow enough range.
+    readDataTypeInt <- integer()
+  }
+  if(xmlRes$int_dataType == "float")
+  {
+    ffDataType <- "single"
+    readDataTypeInt <- numeric()
+  }
+  if(xmlRes$int_dataType == "double")
+  {
+    ffDataType <- "double"
+    readDataTypeInt <- numeric()
+  }
+  bytes2ReadInt <- sizeInBytesFromDataType(xmlRes$int_dataType)
+  
   #4- Obtain de m/z axis (this is only valid for imzML continuous mode)
   pt<-proc.time()
   if(xmlRes$mz_dataType == "int" || xmlRes$mz_dataType == "long")
@@ -248,29 +271,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     cat(paste("The re-sampled mass axis contains", length(mzAxis), "data points\n"))
   }
   
-  #5- Map imzML possible data types to ff packages available data types
-  if(xmlRes$int_dataType == "int")
-  {
-    ffDataType <- "integer" #32 bit signed integer with NA.
-    readDataTypeInt <- integer()
-  }
-  if(xmlRes$int_dataType == "long")
-  {
-    ffDataType <- "single" #32 bit signed integer is not available in ff so I map it to 32 bits float to allow enough range.
-    readDataTypeInt <- integer()
-  }
-  if(xmlRes$int_dataType == "float")
-  {
-    ffDataType <- "single"
-    readDataTypeInt <- numeric()
-  }
-  if(xmlRes$int_dataType == "double")
-  {
-    ffDataType <- "double"
-    readDataTypeInt <- numeric()
-  }
-  bytes2ReadInt <- sizeInBytesFromDataType(xmlRes$int_dataType)
-
   #6- Create the ramdisk only if data is going to be coerced to continuous mode
   if( is.null(subImg_rename))
   {
