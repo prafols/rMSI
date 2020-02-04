@@ -16,6 +16,28 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ############################################################################
 
+#' fixImzMLDuplicates.
+#' Delete duplicates and possible zero-drop errors (fixing Bruker's bugs in imzML).
+#' 
+#' @param mass spectrum mass axis.
+#' @param intensity spectrum intensity.
+#'
+#' @return a list with non-duplicated mass and intensity vectors.
+#'
+fixImzMLDuplicates <- function(mass, intensity)
+{
+  idup <- which(duplicated(mass))
+  if(length(idup) > 0)
+  {
+    for( i in 1:length(idup))
+    {
+      intensity[idup[i] - 1] <- max( intensity[idup[i]], intensity[idup[i] - 1])
+    }
+    mass <- mass[-idup]
+    intensity <- intensity[-idup]
+  }
+  return(list(mass=mass, intensity=intensity))
+}
 
 #' import_imzML.
 #'
@@ -181,30 +203,25 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         return(NULL) #progress bar function must return true if the loading process is to be continued.
       }
       
-      #Fill the initial spectrum as the larger one
-      seli <- which.max(xmlRes$run_data$mzLength)
-      seek(bincon, rw = "read", where = xmlRes$run_data[seli, "mzOffset"] )
-      mzAxis <- readBin(bincon, readDataTypeMz, xmlRes$run_data[seli, "mzLength"], size = bytes2ReadMz, signed = T)
-      mzAxis <- unique(mzAxis) #Avoid duplicates
-      mzMergeErrorCount <- 0 #Count merge mass axis errors
+      resMZMerge <- list()
+      resMZMerge$mass <- as.numeric(c())
+      resMZMerge$bins <- as.numeric(c())
       for( i in 1:nrow(xmlRes$run_data))
       {
         #Read mass axis for the current spectrum 
         seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
         mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
-        mzdd <- unique(mzdd) #Avoid duplicates
+        
+        #Read intensity of current spectrum
+        seek(bincon, rw = "read", where = xmlRes$run_data[i, "intOffset"] )
+        dd <- readBin(bincon, readDataTypeInt, xmlRes$run_data[i, "intLength"], size = bytes2ReadInt, signed = T)
+        
+        #Fix duplicates and zero drops
+        CurrSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
         
         #Combine the two mass axis using Cpp method
-        resMZMerge <- MergeMassAxis(mzAxis, mzdd)
-        if(resMZMerge$error)
-        {
-          mzMergeErrorCount <- mzMergeErrorCount + 1
-        }
-        else
-        {
-          mzAxis <- resMZMerge$mass
-        }
-        
+        resMZMerge <- MergeMassAxis(resMZMerge$mass, resMZMerge$bins, CurrSpectrumFixed$mass, CurrSpectrumFixed$intensity )
+     
         #Update progress bar
         pp_ant<-pp
         pp<-pp+ppStep
@@ -218,13 +235,10 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         }
       }
       
-      #Check the resulting mass axis looking at errors:
-      if ( mzMergeErrorCount >= nrow(xmlRes$run_data))
-      {
-        stop("Error: The mass axis of two vectors to merge is not compatible because they do not share a common range.");    
-      }
-        
       bCreateRamdisk <- T
+      mzAxis <- resMZMerge$mass
+      rm(resMZMerge)
+      gc()
     }
   }
   pt<-proc.time() - pt
@@ -321,18 +335,9 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       
       if(bCreateRamdisk)
       {
-        #Delete duplicates and possible zero-drops errors (fixing Bruker's bugs in imzML)
-        idup <- which(duplicated(mzdd))
-        if(length(idup) > 0)
-        {
-          for( i in 1:length(idup))
-          {
-            dd[idup[i] - 1] <- max( dd[idup[i]], dd[idup[i] - 1])
-          }
-          mzdd <- mzdd[-idup]
-          dd <- dd[-idup]
-        }
-        
+        #Fix duplicates and zero drops
+        CurrSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
+
         #Apply re-sampling (only if needed...)
         if( ! identical(mzdd, mzAxis))
         {

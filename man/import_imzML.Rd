@@ -4,11 +4,18 @@
 \alias{import_imzML}
 \title{import_imzML.}
 \usage{
-import_imzML(imzML_File, ibd_File = paste(sub("\\\\.[^.]*$", "",
-  imzML_File), ".ibd", sep = ""), ramdisk_path, fun_progress = NULL,
-  fun_text = NULL, close_signal = NULL, verifyChecksum = F,
-  subImg_rename = NULL, subImg_Coords = NULL,
-  convertProcessed2Continuous = T)
+import_imzML(
+  imzML_File,
+  ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File), ".ibd", sep = ""),
+  ramdisk_path,
+  fun_progress = NULL,
+  fun_text = NULL,
+  close_signal = NULL,
+  verifyChecksum = F,
+  subImg_rename = NULL,
+  subImg_Coords = NULL,
+  convertProcessed2Continuous = T
+)
 }
 \arguments{
 \item{imzML_File}{full path to .imzML file.}

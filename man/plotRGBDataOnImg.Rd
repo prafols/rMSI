@@ -4,8 +4,18 @@
 \alias{plotRGBDataOnImg}
 \title{plotRGBDataOnImg: Function to plot generic data on a RGB raster using rMSI pixel locations.}
 \usage{
-plotRGBDataOnImg(img, Rvalues, Gvalues, Bvalues, RText, GText, BText,
-  XResLevel = 3, light = 3, rotation = 0)
+plotRGBDataOnImg(
+  img,
+  Rvalues,
+  Gvalues,
+  Bvalues,
+  RText,
+  GText,
+  BText,
+  XResLevel = 3,
+  light = 3,
+  rotation = 0
+)
 }
 \arguments{
 \item{img}{an rMSI object.}

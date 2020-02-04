@@ -4,10 +4,19 @@
 \alias{plotMassImageByPeak}
 \title{Plot a mass image of a up to 3 selected ions.}
 \usage{
-plotMassImageByPeak(img, mass.peak, tolerance = 0.25, XResLevel = 3,
-  NormalizationCoefs = NULL, rotation = 0, show_axes = F,
-  scale_to_global_intensity = F, vlight = 3, crop_area = NULL,
-  intensity_limit = NULL)
+plotMassImageByPeak(
+  img,
+  mass.peak,
+  tolerance = 0.25,
+  XResLevel = 3,
+  NormalizationCoefs = NULL,
+  rotation = 0,
+  show_axes = F,
+  scale_to_global_intensity = F,
+  vlight = 3,
+  crop_area = NULL,
+  intensity_limit = NULL
+)
 }
 \arguments{
 \item{img}{an rMSI data object.}

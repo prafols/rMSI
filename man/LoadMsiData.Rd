@@ -4,10 +4,18 @@
 \alias{LoadMsiData}
 \title{Load rMSI data from a compressed tar.}
 \usage{
-LoadMsiData(data_file, restore_path = file.path(dirname(data_file),
-  paste("ramdisk", basename(data_file), sep = "_")), fun_progress = NULL,
-  ff_overwrite = F, fun_label = NULL, close_signal = NULL,
-  imzMLChecksum = F, imzMLRename = NULL, imzMLSubCoords = NULL)
+LoadMsiData(
+  data_file,
+  restore_path = file.path(dirname(data_file), paste("ramdisk", basename(data_file), sep
+    = "_")),
+  fun_progress = NULL,
+  ff_overwrite = F,
+  fun_label = NULL,
+  close_signal = NULL,
+  imzMLChecksum = F,
+  imzMLRename = NULL,
+  imzMLSubCoords = NULL
+)
 }
 \arguments{
 \item{data_file}{The tar o imzML file containing the MS image in rMSI format or imzML.}

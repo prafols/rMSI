@@ -32,17 +32,18 @@ NULL
 #' Merges two mass axis in a single one using an apropiate bin size.
 #' The resulting mass axis will display a bin size equal to the minimum of two supplied vectors. 
 #' The bin size is calculated relative to the m/z for better accuracy.
-#' The resulting mass axis range is calculated using the common range between the two mass axis.
-#' If there is no overlao between the two mass axis range an error will be raised.
+#' The first mass axis (mz1) can be a zero-length vector.
 #' 
 #' @param mz1 the first mass axis to merge.
+#' @param bins1 the bins size for the first mass axis.
 #' @param mz2 the second mass axis to merge.
+#' @param intensity2 the spectral intensities corresponding to the second mass axis.
 #' 
 #' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
 #' @export
 #' 
-MergeMassAxis <- function(mz1, mz2) {
-    .Call(`_rMSI_MergeMassAxis`, mz1, mz2)
+MergeMassAxis <- function(mz1, bins1, mz2, intensity2) {
+    .Call(`_rMSI_MergeMassAxis`, mz1, bins1, mz2, intensity2)
 }
 
 #' @importFrom Rcpp evalCpp

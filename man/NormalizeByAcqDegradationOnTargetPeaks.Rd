@@ -5,8 +5,13 @@
 \title{NormalizeByAcqDegradationOnTargetPeaks: Calculates the normalization of each pixel as the sum of areas of specified peaks.
 Each normalization coeficient is smoothed by its neighbours to compensate for ionization degradation during acqusition.}
 \usage{
-NormalizeByAcqDegradationOnTargetPeaks(img, mz_vector,
-  mz_window_size = 0.1, norm_name = "AcqSelPK", winSize = 0.1)
+NormalizeByAcqDegradationOnTargetPeaks(
+  img,
+  mz_vector,
+  mz_window_size = 0.1,
+  norm_name = "AcqSelPK",
+  winSize = 0.1
+)
 }
 \arguments{
 \item{img}{the rMSI image object.}

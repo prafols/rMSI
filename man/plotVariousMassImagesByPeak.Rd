@@ -4,9 +4,16 @@
 \alias{plotVariousMassImagesByPeak}
 \title{Plots a image using various MS image objects and the same intensity scale for every MS image.}
 \usage{
-plotVariousMassImagesByPeak(..., mass.peak, tolerance = 0.25,
-  NormalizationName = NULL, rotation = 0, flipV = F, flipH = F,
-  light = 5)
+plotVariousMassImagesByPeak(
+  ...,
+  mass.peak,
+  tolerance = 0.25,
+  NormalizationName = NULL,
+  rotation = 0,
+  flipV = F,
+  flipH = F,
+  light = 5
+)
 }
 \arguments{
 \item{...}{MS images in rMSI format as various arguments to be plotted together.}

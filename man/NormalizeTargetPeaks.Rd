@@ -5,8 +5,7 @@
 \title{NormalizeTargetPeaks: Calculates the normalization of each pixel as the sum of areas of specified peaks.
 The spectra that not contains target mass peaks will be removed by normalizing them by Inf.}
 \usage{
-NormalizeTargetPeaks(img, mz_vector, mz_window_size = 0.1,
-  norm_name = "SelPK")
+NormalizeTargetPeaks(img, mz_vector, mz_window_size = 0.1, norm_name = "SelPK")
 }
 \arguments{
 \item{img}{the rMSI image object.}

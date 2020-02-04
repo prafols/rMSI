@@ -4,8 +4,14 @@
 \alias{importBrukerXmassImg}
 \title{Import a MSI dataset from Bruker XMASS folder and a XML file.}
 \usage{
-importBrukerXmassImg(raw_data_full_path, resolution_um, xml_file_full_path,
-  txt_spectrum_path = NULL, selected_img = 1, ...)
+importBrukerXmassImg(
+  raw_data_full_path,
+  resolution_um,
+  xml_file_full_path,
+  txt_spectrum_path = NULL,
+  selected_img = 1,
+  ...
+)
 }
 \arguments{
 \item{raw_data_full_path}{Where the Bruker XMASS data is located.}

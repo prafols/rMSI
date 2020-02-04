@@ -4,8 +4,17 @@
 \alias{PlotValues}
 \title{PlotValues.}
 \usage{
-PlotValues(posMat, values, rotate = 0, scale_title = "",
-  pixel_size_um = 100, vlight = 5)
+PlotValues(
+  posMat,
+  values,
+  rotate = 0,
+  scale_title = "",
+  pixel_size_um = 100,
+  vlight = 5,
+  labels_x = NULL,
+  labels_y = NULL,
+  labels_text = NULL
+)
 }
 \arguments{
 \item{posMat}{a two columns matrix where first column ara the x coodrinates of values and second column the y coordinates.}
@@ -19,6 +28,12 @@ PlotValues(posMat, values, rotate = 0, scale_title = "",
 \item{pixel_size_um}{the pixel resolution in um.}
 
 \item{vlight}{the lighting of the plotted image.}
+
+\item{labels_x}{x coordinates of text labels optionally overlaid to the plot.}
+
+\item{labels_y}{y coordinates of text labels optionally overlaid to the plot.}
+
+\item{labels_text}{text labels optionally overlaid to the plot.}
 }
 \description{
 Plot values in a image using the same methods as plotting an MS image.
