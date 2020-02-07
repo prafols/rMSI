@@ -483,12 +483,12 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
 #' @return A vector with the average spectrum intensities. Masses are the same as the rMSI object.
 #' @export
 #'
-AverageSpectrum <- function(img)
+  AverageSpectrum <- function(img)
 {
   cat("Calculating Average Spectrum...\n")
   avgSpectrum <- tryCatch(
     {
-      return(rMSIproc::AverageSpectrum(img))
+      return(rMSIproc::AverageSpectrum(img, NumOfThreads = min(parallel::detectCores()/2, 6)))
     },
     warning = function(war)
     {
