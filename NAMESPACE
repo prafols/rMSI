@@ -3,6 +3,7 @@
 export(AppendNormalizationCoefs)
 export(AverageSpectrum)
 export(BaseSpectrum)
+export(CalcMassAxisBinSize)
 export(ConvertBin2rMSIimg)
 export(ConvertrMSIimg2Bin)
 export(CreateEmptyImage)

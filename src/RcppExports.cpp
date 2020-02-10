@@ -39,17 +39,29 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// CalcMassAxisBinSize
+NumericVector CalcMassAxisBinSize(NumericVector mass, NumericVector intensity);
+RcppExport SEXP _rMSI_CalcMassAxisBinSize(SEXP massSEXP, SEXP intensitySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type mass(massSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type intensity(intensitySEXP);
+    rcpp_result_gen = Rcpp::wrap(CalcMassAxisBinSize(mass, intensity));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MergeMassAxis
-List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, NumericVector intensity2);
-RcppExport SEXP _rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP bins1SEXP, SEXP mz2SEXP, SEXP intensity2SEXP) {
+List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, NumericVector bins2);
+RcppExport SEXP _rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP bins1SEXP, SEXP mz2SEXP, SEXP bins2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type mz1(mz1SEXP);
     Rcpp::traits::input_parameter< NumericVector >::type bins1(bins1SEXP);
     Rcpp::traits::input_parameter< NumericVector >::type mz2(mz2SEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type intensity2(intensity2SEXP);
-    rcpp_result_gen = Rcpp::wrap(MergeMassAxis(mz1, bins1, mz2, intensity2));
+    Rcpp::traits::input_parameter< NumericVector >::type bins2(bins2SEXP);
+    rcpp_result_gen = Rcpp::wrap(MergeMassAxis(mz1, bins1, mz2, bins2));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -73,6 +85,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
+    {"_rMSI_CalcMassAxisBinSize", (DL_FUNC) &_rMSI_CalcMassAxisBinSize, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {NULL, NULL, 0}

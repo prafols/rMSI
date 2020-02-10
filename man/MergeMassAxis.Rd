@@ -4,7 +4,7 @@
 \alias{MergeMassAxis}
 \title{MergeMassAxis.}
 \usage{
-MergeMassAxis(mz1, bins1, mz2, intensity2)
+MergeMassAxis(mz1, bins1, mz2, bins2)
 }
 \arguments{
 \item{mz1}{the first mass axis to merge.}
@@ -21,6 +21,6 @@ a list containing the common mass axis that represents mz1 and mz1 accurately an
 \description{
 Merges two mass axis in a single one using an apropiate bin size.
 The resulting mass axis will display a bin size equal to the minimum of two supplied vectors. 
-The bin size is calculated relative to the m/z for better accuracy.
+The bin size must be supplied along each input mass axis.
 The first mass axis (mz1) can be a zero-length vector.
 }

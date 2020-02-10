@@ -226,25 +226,76 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         return(NULL) #progress bar function must return true if the loading process is to be continued.
       }
       
-      resMZMerge <- list()
-      resMZMerge$mass <- as.numeric(c())
-      resMZMerge$bins <- as.numeric(c())
-      for( i in 1:nrow(xmlRes$run_data))
+      icurr <- 1
+      bLoad <- TRUE
+      MergedSpc <- list()
+      while(TRUE)
       {
-        #Read mass axis for the current spectrum 
-        seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
-        mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[i, "mzLength"], size = bytes2ReadMz, signed = T)
+        if(bLoad)
+        {
+          #Read mass axis for the current spectrum 
+          seek(bincon, rw = "read", where = xmlRes$run_data[icurr, "mzOffset"] )
+          mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[icurr, "mzLength"], size = bytes2ReadMz, signed = T)
+          
+          #Read intensity of current spectrum
+          seek(bincon, rw = "read", where = xmlRes$run_data[icurr, "intOffset"] )
+          dd <- readBin(bincon, readDataTypeInt, xmlRes$run_data[icurr, "intLength"], size = bytes2ReadInt, signed = T)
+          
+          #Fix duplicates and zero drops
+          CurrSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
+          
+          #Get Bin size at peaks
+          LoadMass <- CurrSpectrumFixed$mass
+          LoadBins <- rMSI::CalcMassAxisBinSize( LoadMass, CurrSpectrumFixed$intensity)
+          
+          #Shift register
+          if(length(MergedSpc) > 0)
+          {
+            for(i in length(MergedSpc):1)
+            {
+              MergedSpc[[i+1]] <- MergedSpc[[i]]
+            }
+          }
+          
+          MergedSpc[[1]] <- list( level = 0, mass = LoadMass, bins =  LoadBins )
+          icurr <- icurr + 1
+          bLoad <- FALSE
+        }
         
-        #Read intensity of current spectrum
-        seek(bincon, rw = "read", where = xmlRes$run_data[i, "intOffset"] )
-        dd <- readBin(bincon, readDataTypeInt, xmlRes$run_data[i, "intLength"], size = bytes2ReadInt, signed = T)
+        if(length(MergedSpc) > 1)
+        {
+          if(MergedSpc[[1]]$level == MergedSpc[[2]]$level || icurr > nrow(xmlRes$run_data))
+          { 
+            #Merge!
+            mam <- rMSI::MergeMassAxis(MergedSpc[[1]]$mass, MergedSpc[[1]]$bins, MergedSpc[[2]]$mass, MergedSpc[[2]]$bins )
+            MergedSpc[[1]] <- list( level = MergedSpc[[1]]$level + 1, mass = mam$mass, bins =  mam$bins )
+            
+            #Shift register
+            if(length(MergedSpc) > 2)
+            {
+              for(i in 2:(length(MergedSpc)-1))
+              {
+                MergedSpc[[i]] <- MergedSpc[[i+1]]
+              }
+            }
+            MergedSpc[[length(MergedSpc)]] <- NULL #Delete the last element
+            
+            #End Condition
+            if(icurr > nrow(xmlRes$run_data) && length(MergedSpc) == 1)
+            {
+              break
+            }
+          }
+          else
+          {
+            bLoad <- TRUE
+          }
+        }
+        else
+        {
+          bLoad <- TRUE
+        }
         
-        #Fix duplicates and zero drops
-        CurrSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
-        
-        #Combine the two mass axis using Cpp method
-        resMZMerge <- MergeMassAxis(resMZMerge$mass, resMZMerge$bins, CurrSpectrumFixed$mass, CurrSpectrumFixed$intensity )
-     
         #Update progress bar
         pp_ant<-pp
         pp<-pp+ppStep
@@ -257,10 +308,10 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           }
         }
       }
-      
+
       bCreateRamdisk <- T
-      mzAxis <- resMZMerge$mass
-      rm(resMZMerge)
+      mzAxis <-  MergedSpc[[1]]$mass
+      rm(MergedSpc)
       gc()
     }
   }

@@ -27,11 +27,25 @@ CimzMLStore <- function(fname, imgInfo) {
 #' @useDynLib rMSI, .registration = TRUE
 NULL
 
+#' CalcMassAxisBinSize.
+#' 
+#' Calc the bin size of a mass axis at each mass channels using simple peak-picking information.
+#' 
+#' @param mass the mass axis.
+#' @param intensity the intensity of a given spectrum.
+#' 
+#' @return the bin size of each m/z channel.
+#' @export
+#' 
+CalcMassAxisBinSize <- function(mass, intensity) {
+    .Call(`_rMSI_CalcMassAxisBinSize`, mass, intensity)
+}
+
 #' MergeMassAxis.
 #' 
 #' Merges two mass axis in a single one using an apropiate bin size.
 #' The resulting mass axis will display a bin size equal to the minimum of two supplied vectors. 
-#' The bin size is calculated relative to the m/z for better accuracy.
+#' The bin size must be supplied along each input mass axis.
 #' The first mass axis (mz1) can be a zero-length vector.
 #' 
 #' @param mz1 the first mass axis to merge.
@@ -42,8 +56,8 @@ NULL
 #' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
 #' @export
 #' 
-MergeMassAxis <- function(mz1, bins1, mz2, intensity2) {
-    .Call(`_rMSI_MergeMassAxis`, mz1, bins1, mz2, intensity2)
+MergeMassAxis <- function(mz1, bins1, mz2, bins2) {
+    .Call(`_rMSI_MergeMassAxis`, mz1, bins1, mz2, bins2)
 }
 
 #' @importFrom Rcpp evalCpp

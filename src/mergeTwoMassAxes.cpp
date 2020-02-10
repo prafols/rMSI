@@ -101,41 +101,22 @@ List simplePeakDetect(NumericVector mz, NumericVector intensity)
 }
 
 
-//' MergeMassAxis.
+//' CalcMassAxisBinSize.
 //' 
-//' Merges two mass axis in a single one using an apropiate bin size.
-//' The resulting mass axis will display a bin size equal to the minimum of two supplied vectors. 
-//' The bin size is calculated relative to the m/z for better accuracy.
-//' The first mass axis (mz1) can be a zero-length vector.
+//' Calc the bin size of a mass axis at each mass channels using simple peak-picking information.
 //' 
-//' @param mz1 the first mass axis to merge.
-//' @param bins1 the bins size for the first mass axis.
-//' @param mz2 the second mass axis to merge.
-//' @param intensity2 the spectral intensities corresponding to the second mass axis.
+//' @param mass the mass axis.
+//' @param intensity the intensity of a given spectrum.
 //' 
-//' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
+//' @return the bin size of each m/z channel.
 //' @export
 //' 
 // [[Rcpp::export]]
-List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, NumericVector intensity2)
+NumericVector CalcMassAxisBinSize(NumericVector mass, NumericVector intensity)
 {
-  //Error check
-  if(mz1.length() != bins1.length())
-  {
-    stop("Error: mz1 and bins1 must be the same length.\n");
-  }
-  if(mz2.length() != intensity2.length())
-  {
-    stop("Error: mz2 and intensity2 must be the same length.\n");
-  }
-  if(mz2.length() == 0)
-  {
-    stop("Error: mz2 does not contain any element.\n");
-  }
-  
   //Calc bin size at each input vector position
-  List pks2 = simplePeakDetect(mz2, intensity2);
-  NumericVector bins2(mz2.length());
+  List pks2 = simplePeakDetect(mass, intensity);
+  NumericVector bins2(mass.length());
   int currInd = 0;
   NumericVector indeces = pks2["indexRight"];
   NumericVector binss = pks2["BinSize"];
@@ -151,6 +132,41 @@ List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, Nu
   {
     bins2[currInd] = binss[binss.length()-1];
     currInd++;
+  }
+  
+  return bins2;
+}
+
+//' MergeMassAxis.
+//' 
+//' Merges two mass axis in a single one using an apropiate bin size.
+//' The resulting mass axis will display a bin size equal to the minimum of two supplied vectors. 
+//' The bin size must be supplied along each input mass axis.
+//' The first mass axis (mz1) can be a zero-length vector.
+//' 
+//' @param mz1 the first mass axis to merge.
+//' @param bins1 the bins size for the first mass axis.
+//' @param mz2 the second mass axis to merge.
+//' @param intensity2 the spectral intensities corresponding to the second mass axis.
+//' 
+//' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
+//' @export
+//' 
+// [[Rcpp::export]]
+List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, NumericVector bins2)
+{
+  //Error check
+  if(mz1.length() != bins1.length())
+  {
+    stop("Error: mz1 and bins1 must be the same length.\n");
+  }
+  if(mz2.length() != bins2.length())
+  {
+    stop("Error: mz2 and intensity2 must be the same length.\n");
+  }
+  if(mz2.length() == 0)
+  {
+    stop("Error: mz2 does not contain any element.\n");
   }
   
   //Vectors concatenation and sorting
