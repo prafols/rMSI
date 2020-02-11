@@ -260,6 +260,18 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           MergedSpc[[1]] <- list( level = 0, mass = LoadMass, bins =  LoadBins )
           icurr <- icurr + 1
           bLoad <- FALSE
+          
+          #Update progress bar
+          pp_ant<-pp
+          pp<-pp+ppStep
+          if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
+          {
+            #Update progress bar
+            if( !fun_progress(pp) )
+            {
+              return(NULL) #progress bar function must return true if the loading process is to be continued.
+            }
+          }
         }
         
         if(length(MergedSpc) > 1)
@@ -294,18 +306,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         else
         {
           bLoad <- TRUE
-        }
-        
-        #Update progress bar
-        pp_ant<-pp
-        pp<-pp+ppStep
-        if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
-        {
-          #Update progress bar
-          if( !fun_progress(pp) )
-          {
-            return(NULL) #progress bar function must return true if the loading process is to be continued.
-          }
         }
       }
 
