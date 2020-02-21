@@ -1170,6 +1170,56 @@ ROIAverageSpectra <- function( img, roi_list )
   return(rois_avg)
 }
 
+#' ROIAverageSpectraByIds.
+#' 
+#' Calculates the average spectrum within each roi specified by a vector of pixel ID's
+#'
+#' @param img an rMSI object.
+#' @param Ids Identifiers of spectra to use for average calculation.
+#'
+#' @return the ROI average spectrum.
+#' @export
+#'
+ROIAverageSpectraByIds <- function( img, Ids )
+{
+  cat("Calculating Average Spectra of slected pixels...\n")
+  
+  roi_cubes <- getCubeRowFromIds(img, Ids)
+  roi_avg <-  rep(0, length(img$mass))
+  
+  pb <- txtProgressBar(min = 0, max = length(img$data), initial = 0, style = 3)
+  LastId <- 0
+  for( ic in 1:length(img$data) )
+  {
+    setTxtProgressBar(pb, ic)
+    dm <- img$data[[ic]][,] #Load the complete data cube
+    current_ids <- (LastId+1):(LastId+nrow(dm))
+    
+    idCube <- which(unlist(lapply(roi_cubes, function(x){ x$cube})) == ic, arr.ind = T)
+    if( length(idCube) > 0 )
+    {
+      idRows <- roi_cubes[[idCube]]$row
+      if(length(idRows) > 1)
+      {
+        roi_avg <- roi_avg + apply(dm[idRows,], 2, sum)
+      }
+      else
+      {
+        roi_avg <- roi_avg + dm[idRows,]
+      }
+    }
+    
+    LastId <- current_ids[length(current_ids)]
+  }
+  
+  #And divide by the pixel count
+  roi_avg <- roi_avg / length(Ids)
+
+  close(pb)
+  
+  return(roi_avg)
+}
+
 #' uuid.
 #' 
 #' Generates a timecode-based 16-bytes UUID.
