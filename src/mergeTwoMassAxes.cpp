@@ -50,21 +50,19 @@ List simplePeakDetect(NumericVector mz, NumericVector intensity)
   //Calculate the mass bin size for each peak
   for( int i = 0; i < pkIndex.length(); i++)
   {
-    double minBinSize = 10e4;
-    double localBinSize;
+    double localBinSize = 0;
     int count = 0;
     //Left region
     if(pkIndex[i] > 0)
     {
       for( int j = pkIndex[i]; j >= 0; j--)
       {
-        if( (intensity[j] < intensity[j-1])  )
+        if( (intensity[j] <= intensity[j-1])  )
         {
           pkIndexLeft.insert(pkIndexLeft.end(), j ); //inserting C index
           break; //End of peak
         }
-        localBinSize = (mz[j] - mz[j-1]);
-        minBinSize = localBinSize < minBinSize ? localBinSize : minBinSize;
+        localBinSize += (mz[j] - mz[j-1]);
         count++;
       }
     }
@@ -74,20 +72,19 @@ List simplePeakDetect(NumericVector mz, NumericVector intensity)
     {
       for( int j = pkIndex[i]; j < (mz.length()-1); j++)
       {
-        if( (intensity[j] < intensity[j+1])  )
+        if( (intensity[j] <= intensity[j+1])  )
         {
           pkIndexRight.insert(pkIndexRight.end(), j ); //inserting C index
           break; //End of peak
         }
-        localBinSize = (mz[j+1] - mz[j]);
-        minBinSize = localBinSize < minBinSize ? localBinSize : minBinSize;
+        localBinSize += (mz[j+1] - mz[j]);
         count++;
       }
     }
     if(count >0 )
     {
-      pkBinSize.insert(pkBinSize.end(), minBinSize);
-      minBinSize = 10e4; //reset min bin size
+      localBinSize /= (double)count;
+      pkBinSize.insert(pkBinSize.end(), localBinSize);
     }
   }
   
