@@ -5,7 +5,7 @@ Version: 0.8
 Date: 2015-11-30
 Author: Pere Rafols Soler
 Maintainer: Pere Rafols Soler<pere.rafols@urv.cat>
-Description: More about what it does (maybe more than one line)
+Description: MSI data handling and visualization in R
 License: GPL3
 LazyData: TRUE
 Imports:

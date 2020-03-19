@@ -12,20 +12,16 @@
 #' @return ROI pixel coordinates arranged in a named list.
 #' 
 CparseBrukerXML <- function(xml_path) {
-    .Call(`_rMSI_CparseBrukerXML`, xml_path)
+    .Call('_rMSI_CparseBrukerXML', PACKAGE = 'rMSI', xml_path)
 }
 
 CimzMLParse <- function(xml_path) {
-    .Call(`_rMSI_CimzMLParse`, xml_path)
+    .Call('_rMSI_CimzMLParse', PACKAGE = 'rMSI', xml_path)
 }
 
 CimzMLStore <- function(fname, imgInfo) {
-    .Call(`_rMSI_CimzMLStore`, fname, imgInfo)
+    .Call('_rMSI_CimzMLStore', PACKAGE = 'rMSI', fname, imgInfo)
 }
-
-#' @importFrom Rcpp evalCpp
-#' @useDynLib rMSI, .registration = TRUE
-NULL
 
 #' CalcMassAxisBinSize.
 #' 
@@ -38,7 +34,7 @@ NULL
 #' @export
 #' 
 CalcMassAxisBinSize <- function(mass, intensity) {
-    .Call(`_rMSI_CalcMassAxisBinSize`, mass, intensity)
+    .Call('_rMSI_CalcMassAxisBinSize', PACKAGE = 'rMSI', mass, intensity)
 }
 
 #' MergeMassAxis.
@@ -57,14 +53,10 @@ CalcMassAxisBinSize <- function(mass, intensity) {
 #' @export
 #' 
 MergeMassAxis <- function(mz1, bins1, mz2, bins2) {
-    .Call(`_rMSI_MergeMassAxis`, mz1, bins1, mz2, bins2)
+    .Call('_rMSI_MergeMassAxis', PACKAGE = 'rMSI', mz1, bins1, mz2, bins2)
 }
 
-#' @importFrom Rcpp evalCpp
-#' @useDynLib rMSI, .registration = TRUE
-NULL
-
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
-    .Call(`_rMSI_ReduceDataPointsC`, mass, intensity, massMin, massMax, npoints)
+    .Call('_rMSI_ReduceDataPointsC', PACKAGE = 'rMSI', mass, intensity, massMin, massMax, npoints)
 }
 

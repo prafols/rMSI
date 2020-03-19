@@ -20,10 +20,6 @@
 
 using namespace Rcpp;
 
-//' @importFrom Rcpp evalCpp
-//' @useDynLib rMSI, .registration = TRUE
-
-
 // Function to reduce the number of data points in part of spectrum to plot it faster.
 // This is implemented in C to provid an efficient implementation.
 // [[Rcpp::export]]

@@ -22,10 +22,6 @@
 
 using namespace Rcpp;
 
-//' @importFrom Rcpp evalCpp
-//' @useDynLib rMSI, .registration = TRUE
-
-
 //Simple peak detection with bin size calculation
 List simplePeakDetect(NumericVector mz, NumericVector intensity)
 {
@@ -54,19 +50,21 @@ List simplePeakDetect(NumericVector mz, NumericVector intensity)
   //Calculate the mass bin size for each peak
   for( int i = 0; i < pkIndex.length(); i++)
   {
-    double localBinSize = 0;
+    double minBinSize = 10e4;
+    double localBinSize;
     int count = 0;
     //Left region
     if(pkIndex[i] > 0)
     {
       for( int j = pkIndex[i]; j >= 0; j--)
       {
-        if( (intensity[j] <= intensity[j-1])  )
+        if( (intensity[j] < intensity[j-1])  )
         {
           pkIndexLeft.insert(pkIndexLeft.end(), j ); //inserting C index
           break; //End of peak
         }
-        localBinSize += (mz[j] - mz[j-1]);
+        localBinSize = (mz[j] - mz[j-1]);
+        minBinSize = localBinSize < minBinSize ? localBinSize : minBinSize;
         count++;
       }
     }
@@ -76,19 +74,20 @@ List simplePeakDetect(NumericVector mz, NumericVector intensity)
     {
       for( int j = pkIndex[i]; j < (mz.length()-1); j++)
       {
-        if( (intensity[j] <= intensity[j+1])  )
+        if( (intensity[j] < intensity[j+1])  )
         {
           pkIndexRight.insert(pkIndexRight.end(), j ); //inserting C index
           break; //End of peak
         }
-        localBinSize += (mz[j+1] - mz[j]);
+        localBinSize = (mz[j+1] - mz[j]);
+        minBinSize = localBinSize < minBinSize ? localBinSize : minBinSize;
         count++;
       }
     }
     if(count >0 )
     {
-      localBinSize /= (double)count;
-      pkBinSize.insert(pkBinSize.end(), localBinSize);
+      pkBinSize.insert(pkBinSize.end(), minBinSize);
+      minBinSize = 10e4; //reset min bin size
     }
   }
   
@@ -198,7 +197,12 @@ List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, Nu
       else if(i1 >= mz1.length())
       {
         //We run out of elements in mz1
-        if( (mz2[i2] -  newMz[inew - 1]) >= bins2[i2] )
+        if(inew == 0)
+        {
+          newMz[inew] = mz2[i2];
+          inew++;
+        }
+        else if( (mz2[i2] -  newMz[inew - 1]) >= bins2[i2] )
         {
           newMz[inew] = mz2[i2];
           newBins[inew] = bins2[i2];
@@ -209,7 +213,12 @@ List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, Nu
       else if(i2 >= mz2.length())
       {
         //We run out of elements in mz2
-        if( (mz1[i1] -  newMz[inew - 1]) >= bins1[i1] )
+        if(inew == 0)
+        {
+          newMz[inew] = mz1[i1];
+          inew++;
+        }
+        else if( (mz1[i1] -  newMz[inew - 1]) >= bins1[i1] )
         {
           newMz[inew] = mz1[i1];
           newBins[inew] = bins1[i1];
@@ -222,7 +231,12 @@ List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, Nu
         //There are remaining elements in both mass axes
         if(mz1[i1] < mz2[i2])
         {
-          if( (mz1[i1] -  newMz[inew - 1]) >= bins1[i1] )
+          if(inew == 0)
+          {
+            newMz[inew] = mz1[i1];
+            inew++;
+          }
+          else if( (mz1[i1] -  newMz[inew - 1]) >= bins1[i1] )
           {
             newMz[inew] = mz1[i1];
             newBins[inew] = bins1[i1];
@@ -232,7 +246,12 @@ List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, Nu
         }
         else
         {
-          if( (mz2[i2] -  newMz[inew - 1]) >= bins2[i2] )
+          if(inew == 0)
+          {
+            newMz[inew] = mz2[i2];
+            inew++;
+          }
+          else if( (mz2[i2] -  newMz[inew - 1]) >= bins2[i2] )
           {
             newMz[inew] = mz2[i2];
             newBins[inew] = bins2[i2];

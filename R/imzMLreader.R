@@ -244,7 +244,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           #Fix duplicates and zero drops
           CurrSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
           
-          #Get Bin size at peaks
+           #Get Bin size at peaks
           LoadMass <- CurrSpectrumFixed$mass
           LoadBins <- rMSI::CalcMassAxisBinSize( LoadMass, CurrSpectrumFixed$intensity)
           
@@ -279,7 +279,15 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           if(MergedSpc[[1]]$level == MergedSpc[[2]]$level || icurr > nrow(xmlRes$run_data))
           { 
             #Merge!
-            mam <- rMSI::MergeMassAxis(MergedSpc[[1]]$mass, MergedSpc[[1]]$bins, MergedSpc[[2]]$mass, MergedSpc[[2]]$bins )
+            if(identical(MergedSpc[[1]]$mass, MergedSpc[[2]]$mass))
+            {
+              #Both mass axes are identical so there is no need to merge them, this is the case for Bruker FTICR data
+              mam <- list(mass = MergedSpc[[1]]$mass, bins = MergedSpc[[1]]$bins )
+            }
+            else
+            {
+              mam <- rMSI::MergeMassAxis(MergedSpc[[1]]$mass, MergedSpc[[1]]$bins, MergedSpc[[2]]$mass, MergedSpc[[2]]$bins )
+            }
             MergedSpc[[1]] <- list( level = MergedSpc[[1]]$level + 1, mass = mam$mass, bins =  mam$bins )
             
             #Shift register
@@ -392,6 +400,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
         #Apply re-sampling (only if needed...)
         if( ! identical(mzdd, mzAxis))
         {
+          cat("DBG: resampling intensity!\n") #TODO delete me!
           if(length(mzdd) == length(dd))
           {
             dd <- (approx( x = mzdd, y = dd, xout = mzAxis, ties = "ordered", yleft = 0, yright = 0))$y
