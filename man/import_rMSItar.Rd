@@ -4,8 +4,13 @@
 \alias{import_rMSItar}
 \title{import_rMSItar.}
 \usage{
-import_rMSItar(data_file, restore_path, fun_progress = NULL,
-  fun_text = NULL, close_signal = NULL)
+import_rMSItar(
+  data_file,
+  restore_path,
+  fun_progress = NULL,
+  fun_text = NULL,
+  close_signal = NULL
+)
 }
 \arguments{
 \item{data_file}{The tar file containing the MS image in rMSI format.}

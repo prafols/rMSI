@@ -4,13 +4,23 @@
 \alias{import_imzML}
 \title{import_imzML.}
 \usage{
-import_imzML(imzML_File, fun_progress = NULL, fun_text = NULL,
-  close_signal = NULL, verifyChecksum = F, createImgStream = T,
-  subImg_rename = NULL, subImg_Coords = NULL,
-  convertProcessed2Continuous = T)
+import_imzML(
+  imzML_File,
+  ibd_File = paste(sub("\\\\.[^.]*$", "", imzML_File), ".ibd", sep = ""),
+  fun_progress = NULL,
+  fun_text = NULL,
+  close_signal = NULL,
+  verifyChecksum = F,
+  createImgStream = T,
+  subImg_rename = NULL,
+  subImg_Coords = NULL,
+  convertProcessed2Continuous = T
+)
 }
 \arguments{
-\item{imzML_File}{full path to .imzML file (the .ibd file must have the same name but with the .ibd extension).}
+\item{imzML_File}{full path to .imzML file}
+
+\item{ibd_File}{path to the binary file (default the same as imzML file but with .ibd extension)}
 
 \item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.}
 

@@ -5,7 +5,15 @@
 \title{PlotClusterImage.
 Plot a segmentation image with the user-given clusters.}
 \usage{
-PlotClusterImage(posMat, clusters, rotate = 0, pixel_size_um = 100)
+PlotClusterImage(
+  posMat,
+  clusters,
+  rotate = 0,
+  pixel_size_um = 100,
+  labels_x = NULL,
+  labels_y = NULL,
+  labels_text = NULL
+)
 }
 \arguments{
 \item{posMat}{a two columns matrix where first column ara the x coodrinates of values and second column the y coordinates.}
@@ -15,6 +23,12 @@ PlotClusterImage(posMat, clusters, rotate = 0, pixel_size_um = 100)
 \item{rotate}{rotation to apply.}
 
 \item{pixel_size_um}{the pixel resolution in um.}
+
+\item{labels_x}{x coordinates of text labels optionally overlaid to the plot.}
+
+\item{labels_y}{y coordinates of text labels optionally overlaid to the plot.}
+
+\item{labels_text}{text labels optionally overlaid to the plot.}
 }
 \value{
 a vector with the used color for each cluster sorted according clustering numering in assending order.

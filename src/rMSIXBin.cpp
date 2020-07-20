@@ -231,7 +231,6 @@ void rMSIXBin::CreateImgStream()
     Rcpp::Rcout << "Encoding m/z:     ";
     while( true )
     {
-      //Rcpp::Rcout << "Encoding m/z " << iIon << " of " << massLength << "\n"; //TODO millorar aixo... es mooolt lleig... potser posaro dins la funcio d encoding
       iIonImgCount = iIonImgCount <  iRemainingIons ? iIonImgCount :  iRemainingIons;
       encodeMultipleIonImage2ImgStream(imzMLReader, iIon, iIonImgCount);
       iIon += iIonImgCount;
@@ -299,7 +298,7 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHa
   std::vector<double> buffer(ionCount*_rMSIXBin->numOfPixels); 
   for(int i=0; i < _rMSIXBin->numOfPixels; i++)
   {
-    imzMLHandler->readIntData(imzMLHandler->get_intOffset(i) + ionIndex, ionCount, buffer.data() + (i*ionCount) );
+    imzMLHandler->readIntData(imzMLHandler->get_intOffset(i) + ionIndex*imzMLHandler->get_intEncodingBytes(), ionCount, buffer.data() + (i*ionCount) );
   }
   
   //Prepare the image buffer to encode
@@ -325,7 +324,7 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHa
       max = buffer[j*ionCount + i] > max ? buffer[j*ionCount + i] : max;
     }
     
-    _rMSIXBin->fScaling[ionIndex + i] = (float) max; //Store the scaling
+    _rMSIXBin->fScaling[ionIndex + i] = (float) max; //Store the scaling //TODO pq vull guardar els sclaing a objecte rMSI??? pensaho
     
     for(int j=0; j < _rMSIXBin->numOfPixels; j++)
     {
@@ -615,12 +614,14 @@ bool rMSIXBin::writeXrMSIfile()
 //' @param ionIndex the index of ion to extract from the img stream. C style indexing, starting with zero.
 //' @param ionCount number of ion image to decode.
 //' 
-//' @return A NumerixMatrix containing the ion image. //TODO think if row and cols correspond to witdh and height or visaversa
+//' @return A NumerixMatrix containing the ion image.
 //' 
 Rcpp::NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount)
 {
-  
-  //TODO check if the selected   ionCount fits in memory buffer: IONIMG_BUFFER_MB, if not throw exception
+  if(ionIndex + ionCount > massLength)
+  {
+    throw std::runtime_error("ERROR in rMSIXBin::decodeImgStream2IonImages(): ionIndex+ionCount is out of range.\n");
+  }
   
   //1- Read the complete stream in a buffer
   //Calculate the total number of bytes to read the length vector
@@ -628,6 +629,12 @@ Rcpp::NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, u
   for(int i=ionIndex; i < (ionIndex+ionCount); i++)
   {
     byte_count += _rMSIXBin->iByteLen[i];
+  }
+  
+  //Too large ion image windows, raise an error
+  if( byte_count > IONIMG_BUFFER_MB * 1024 * 1024)
+  {
+    throw std::runtime_error("ERROR in rMSIXBin::decodeImgStream2IonImages(): number of mass channels too large to load in memory.\n");
   }
   
   //Read tje complete buffer
@@ -671,17 +678,18 @@ Rcpp::NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, u
   
   //2- Decode the buffer
   Rcpp::NumericMatrix ionImage(img_width, img_height);
-  std::vector<unsigned char> raw_image(img_width * img_height, 0);
-  double scaling;
+  std::vector<unsigned char> raw_image;
+  float scaling;
   unsigned int png_width, png_height;
   for(int i=0; i < ionCount; i++)
   {
-    std::memcpy(&scaling, buffer + _rMSIXBin->iByteOffset[i] - _rMSIXBin->iByteOffset[0], sizeof(float));
-  
-  unsigned encode_error = lodepng::decode(raw_image, png_width, png_height,
-                    (const unsigned char*)(buffer + _rMSIXBin->iByteOffset[i] - _rMSIXBin->iByteOffset[0] + sizeof(float)), _rMSIXBin->iByteLen[i] - sizeof(float),
+    //Read the scaling factor
+    std::memcpy(&scaling, buffer + _rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex], sizeof(float));
+    
+    unsigned encode_error = lodepng::decode(raw_image, png_width, png_height,
+                    (const unsigned char*)(buffer + _rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex] + sizeof(float)), _rMSIXBin->iByteLen[i + ionIndex] - sizeof(float),
                     LodePNGColorType::LCT_GREY, ENCODING_BITS);
-
+    
     if(encode_error)
     {
       std::stringstream ss; 
@@ -696,20 +704,27 @@ Rcpp::NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, u
       throw std::runtime_error("ERROR:  rMSIXBin::decodeImgStream2IonImages decoded image size is invalid, possible data corruption in .BrMSI file.\n");
     }
     
-    double pixel_value; //Current pixel value
+    imgstreamencoding_type pixel_value_raw; //Current pixel value in raw format
+    double pixel_value; //Current pixel value in R format
     unsigned int img_offset; //Offset inside the raw image
-    unsigned int img_x, img_y; //current coordinates in the image
-    for( int iPixel = 0; iPixel < (img_width*img_height); iPixel++)
+    unsigned int img_x = 0; //current x coordinate in the image
+    unsigned int img_y = 0; //current y coordinate in the image
+    for( int iPixel = 0; iPixel <  img_width * img_height; iPixel++)
     {
-      //TODO i'm here!!!!! pensa els offsets i coordneas imatge, al final tindras la imatge en un numeric matrix apunt per tornar a R i passar per el raster
-      //TODO calculate img_offset!
-      //TODO calculate img_x and img_y!!!
-      std::memcpy(&pixel_value, raw_image.data() + img_offset, sizeof(imgstreamencoding_type));
-      pixel_value *= scaling; 
+      img_offset = img_x  + img_width*img_y;
+      std::memcpy(&pixel_value_raw, raw_image.data() + img_offset*sizeof(imgstreamencoding_type), sizeof(imgstreamencoding_type));
+      pixel_value = (((double)pixel_value_raw)/ENCODER_RANGE) * (double)scaling; 
       ionImage(img_x,img_y) = pixel_value > ionImage(img_x,img_y) ? pixel_value : ionImage(img_x,img_y);
+      
+      img_x++;
+      if(img_x >= img_width)
+      {
+        img_x = 0;
+        img_y++;
+      }
     }
   }
-  
+
   delete[] buffer;
   return ionImage;
 }
@@ -756,15 +771,41 @@ Rcpp::List Ccreate_rMSIXBinData(Rcpp::List rMSIobj)
   return NULL;
 }
 
+//' Cload_rMSIXBinIonImage.
+//' 
+//' loads a ion image from the .BrNSI img stream.
+//' 
+//' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
+//' @param ionIndex: the first mass channel at which the image starts.
+//' @param ionCount: the numer of mass channels used to construct the ion image (a.k.a. image tolerance window).
+//' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
+// [[Rcpp::export]]
+Rcpp::NumericMatrix Cload_rMSIXBinIonImage(Rcpp::List rMSIobj, unsigned int ionIndex, unsigned int ionCount)
+{
+  //Check if ion indeces are valid
+  if(ionIndex < 1)
+  {
+    throw std::runtime_error("ERROR in rMSIXBin::Cload_rMSIXBinIonImage(): ionIndex below zero.\n");
+  }
+  
+  ionIndex = ionIndex - 1; //ionIndex-1 to convert from R to C indexing
+  
+  try
+  {
+    rMSIXBin myXBin(rMSIobj); 
+    return myXBin.decodeImgStream2IonImages(ionIndex, ionCount); //ionIndex-1 to convert from R to C indexing
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::stop(e.what());
+  }
+  return Rcpp::NumericMatrix(); //Returning empty matrix in cas of error
+}
+
 
 //' TODO ideas varies:
 //' 
-//' - utilitzar un XML de la mateixa forma que fa imzML per tal d'agregar de forma ordenada tot el que necessitis en un binary:
-//'   -- Tot el que no pot estar en imzML de espectres: coordenas corregides (actualment pos), normalizacions, etc...
-//'   -- Nou ramdisk basat en png: png stream + factor d'escalat de cada m/z channel, pot seguir la seguent trama binaria:
-//'         factor_escalat(float 32bit) + png_stream(N bits) [aixo es repetiria per cada pixel]
-//'   -- Peak matrix resultant del rMSIproc, seria un camp opcional: m/z vector (centroides), SNR, Intensity i Area (no caldria guardar ni normalizacions i coordenas pq ja hi son!)
-//'      
+
 //' - compatibilitat: puc fer que el nou rMSI i rMSIproc detecti automaticament si les dades son nou o antic format i ho carregui?
 //' 
 //' - comentar coses en el lodepng.h per fer el binary resultant mes petit: el que no facis servir fora! esta documentat en el propi lodepng.h
@@ -785,86 +826,4 @@ Rcpp::List Ccreate_rMSIXBinData(Rcpp::List rMSIobj)
 //'   (on N correspont al numero d mass chanels o frames de disc), per tan N es correspon amb el valor de tolerancia selecionat per usuari.
 //'   La lectura de disc la faria un sol thread k carregaria en RAM N frames. Despres, varis threads es poden repartir la feina de fer el decoding dels N frames.
 //'     
-
-
-/// Pensa en estructura d dades acutal d rMSI i com arribari invocant una sola funcio C++. La estrucura es mante canviant el camp data per les refs a 
-/// imzML. Pot ser interessant afegir un camp amb la veriso de format. Axi segons el contingut d versio d format (o si versio no existeix) podre carregar
-/// indistintament dades antigue si noves!
-
-
-
-
-
-
-//TODO DELETE ME! el k ve tot seguit es un exemple per probar que lodepng funciona i linka be
-
-/*
- 3 ways to encode a PNG from RGBA pixel data to a file (and 2 in-memory ways).
- NOTE: this samples overwrite the file or test.png without warning!
- */
-
-//g++ lodepng.cpp examples/example_encode.cpp -I./ -ansi -pedantic -Wall -Wextra -O3
-
-//Example 1
-//Encode from raw pixels to disk with a single function call
-//The image argument has width * height RGBA pixels or width * height * 4 bytes
-void encodeOneStep(const char* filename, std::vector<unsigned char>& image, unsigned width, unsigned height) {
-  //Encode the image
-  unsigned error = lodepng::encode(filename, image, width, height);
-  
-  //if there's an error, display it
-  if(error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
-}
-
-//Example 2
-//Encode from raw pixels to an in-memory PNG file first, then write it to disk
-//The image argument has width * height RGBA pixels or width * height * 4 bytes
-void encodeTwoSteps(const char* filename, std::vector<unsigned char>& image, unsigned width, unsigned height) {
-  std::vector<unsigned char> png;
-  
-  unsigned error = lodepng::encode(png, image, width, height);
-  if(!error) lodepng::save_file(png, filename);
-  
-  //if there's an error, display it
-  if(error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
-}
-
-//Example 3
-//Save a PNG file to disk using a State, normally needed for more advanced usage.
-//The image argument has width * height RGBA pixels or width * height * 4 bytes
-void encodeWithState(const char* filename, std::vector<unsigned char>& image, unsigned width, unsigned height) {
-  std::vector<unsigned char> png;
-  lodepng::State state; //optionally customize this one
-  
-  unsigned error = lodepng::encode(png, image, width, height, state);
-  if(!error) lodepng::save_file(png, filename);
-  
-  //if there's an error, display it
-  if(error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
-}
-
-//saves image to filename given as argument. Warning, this overwrites the file without warning!
-// [[Rcpp::export]]
-void testingLodepng() 
-{
-  //NOTE: this sample will overwrite the file or test.png without warning!
-  const char* filename = "test_lodepng.png";
-  
-  //generate some image
-  unsigned width = 512, height = 512;
-  std::vector<unsigned char> image;
-  image.resize(width * height * 4);
-  for(unsigned y = 0; y < height; y++)
-    for(unsigned x = 0; x < width; x++) {
-      image[4 * width * y + 4 * x + 0] = 255 * !(x & y);
-      image[4 * width * y + 4 * x + 1] = x ^ y;
-      image[4 * width * y + 4 * x + 2] = x | y;
-      image[4 * width * y + 4 * x + 3] = 255;
-    }
-    
-    encodeOneStep(filename, image, width, height);
-}
-
-
-///DEBUG METHODS////////////////////////////////////////////////////////////////////////
 

@@ -12,7 +12,7 @@
 #' @return ROI pixel coordinates arranged in a named list.
 #' 
 CparseBrukerXML <- function(xml_path) {
-    .Call(`_rMSI_CparseBrukerXML`, xml_path)
+    .Call('_rMSI_CparseBrukerXML', PACKAGE = 'rMSI', xml_path)
 }
 
 #' Testing the imzMLreader
@@ -24,45 +24,52 @@ CparseBrukerXML <- function(xml_path) {
 #' @param read_mz: if true m/z data is readed, otherwise intensities are readed.
 #' @param continuous: true if imzML data is in continuous mode
 .debug_imzMLBinReader <- function(ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous) {
-    .Call(`_rMSI_testingimzMLBinRead`, ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous)
+    .Call('_rMSI_testingimzMLBinRead', PACKAGE = 'rMSI', ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous)
 }
 
 CimzMLParse <- function(xml_path) {
-    .Call(`_rMSI_CimzMLParse`, xml_path)
+    .Call('_rMSI_CimzMLParse', PACKAGE = 'rMSI', xml_path)
 }
 
 CimzMLStore <- function(fname, imgInfo) {
-    .Call(`_rMSI_CimzMLStore`, fname, imgInfo)
+    .Call('_rMSI_CimzMLStore', PACKAGE = 'rMSI', fname, imgInfo)
 }
 
-#' @importFrom Rcpp evalCpp
-#' @useDynLib rMSI, .registration = TRUE
-NULL
+#' CalcMassAxisBinSize.
+#' 
+#' Calc the bin size of a mass axis at each mass channels using simple peak-picking information.
+#' 
+#' @param mass the mass axis.
+#' @param intensity the intensity of a given spectrum.
+#' 
+#' @return the bin size of each m/z channel.
+#' @export
+#' 
+CalcMassAxisBinSize <- function(mass, intensity) {
+    .Call('_rMSI_CalcMassAxisBinSize', PACKAGE = 'rMSI', mass, intensity)
+}
 
 #' MergeMassAxis.
 #' 
 #' Merges two mass axis in a single one using an apropiate bin size.
 #' The resulting mass axis will display a bin size equal to the minimum of two supplied vectors. 
-#' The bin size is calculated relative to the m/z for better accuracy.
-#' The resulting mass axis range is calculated using the common range between the two mass axis.
-#' If there is no overlao between the two mass axis range an error will be raised.
+#' The bin size must be supplied along each input mass axis.
+#' The first mass axis (mz1) can be a zero-length vector.
 #' 
 #' @param mz1 the first mass axis to merge.
+#' @param bins1 the bins size for the first mass axis.
 #' @param mz2 the second mass axis to merge.
+#' @param intensity2 the spectral intensities corresponding to the second mass axis.
 #' 
 #' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
 #' @export
 #' 
-MergeMassAxis <- function(mz1, mz2) {
-    .Call(`_rMSI_MergeMassAxis`, mz1, mz2)
+MergeMassAxis <- function(mz1, bins1, mz2, bins2) {
+    .Call('_rMSI_MergeMassAxis', PACKAGE = 'rMSI', mz1, bins1, mz2, bins2)
 }
 
-#' @importFrom Rcpp evalCpp
-#' @useDynLib rMSI, .registration = TRUE
-NULL
-
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
-    .Call(`_rMSI_ReduceDataPointsC`, mass, intensity, massMin, massMax, npoints)
+    .Call('_rMSI_ReduceDataPointsC', PACKAGE = 'rMSI', mass, intensity, massMin, massMax, npoints)
 }
 
 #' decodePngStream2IonImages.
@@ -73,7 +80,7 @@ ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
 #' @param ionIndex the index of ion to extract from the img stream. C style indexing, starting with zero.
 #' @param ionCount number of ion image to decode.
 #' 
-#' @return A NumerixMatrix containing the ion image. //TODO think if row and cols correspond to witdh and height or visaversa
+#' @return A NumerixMatrix containing the ion image.
 #' 
 NULL
 
@@ -114,10 +121,22 @@ NULL
 #' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
 #' @return the rMSI object with rMSIXBin inforation completed. 
 Ccreate_rMSIXBinData <- function(rMSIobj) {
-    .Call(`_rMSI_Ccreate_rMSIXBinData`, rMSIobj)
+    .Call('_rMSI_Ccreate_rMSIXBinData', PACKAGE = 'rMSI', rMSIobj)
+}
+
+#' Cload_rMSIXBinIonImage.
+#' 
+#' loads a ion image from the .BrNSI img stream.
+#' 
+#' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
+#' @param ionIndex: the first mass channel at which the image starts.
+#' @param ionCount: the numer of mass channels used to construct the ion image (a.k.a. image tolerance window).
+#' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
+Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount) {
+    .Call('_rMSI_Cload_rMSIXBinIonImage', PACKAGE = 'rMSI', rMSIobj, ionIndex, ionCount)
 }
 
 testingLodepng <- function() {
-    invisible(.Call(`_rMSI_testingLodepng`))
+    invisible(.Call('_rMSI_testingLodepng', PACKAGE = 'rMSI'))
 }
 

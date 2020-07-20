@@ -180,6 +180,16 @@ void ImzMLBin::set_intOffset(Rcpp::NumericVector* intOffset_vector)
   }
 }
 
+unsigned int ImzMLBin::get_mzEncodingBytes()
+{
+  return mzDataPointBytes;
+}
+
+unsigned int ImzMLBin::get_intEncodingBytes()
+{
+  return intDataPointBytes;
+}
+
 template<typename T> 
 void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
 {

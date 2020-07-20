@@ -16,10 +16,33 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ############################################################################
 
+#' fixImzMLDuplicates.
+#' Delete duplicates and possible zero-drop errors (fixing Bruker's bugs in imzML).
+#' 
+#' @param mass spectrum mass axis.
+#' @param intensity spectrum intensity.
+#'
+#' @return a list with non-duplicated mass and intensity vectors.
+#'
+fixImzMLDuplicates <- function(mass, intensity)
+{
+  idup <- which(duplicated(mass))
+  if(length(idup) > 0)
+  {
+    for( i in 1:length(idup))
+    {
+      intensity[idup[i] - 1] <- max( intensity[idup[i]], intensity[idup[i] - 1])
+    }
+    mass <- mass[-idup]
+    intensity <- intensity[-idup]
+  }
+  return(list(mass=mass, intensity=intensity))
+}
 
 #' import_imzML.
 #'
-#' @param imzML_File full path to .imzML file (the .ibd file must have the same name but with the .ibd extension).
+#' @param imzML_File full path to .imzML file 
+#' @param ibd_File path to the binary file (default the same as imzML file but with .ibd extension)
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
 #' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
 #' @param close_signal function to be called if loading process is abored.
@@ -33,14 +56,13 @@
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
 #'
 #' @return an rMSI data object.
-#'
-import_imzML <- function(imzML_File, 
+#' @export
+#' 
+import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ),
                          fun_progress = NULL, fun_text = NULL, close_signal = NULL, 
                          verifyChecksum = F, createImgStream = T,
                          subImg_rename = NULL, subImg_Coords = NULL, convertProcessed2Continuous = T)
 {
-  ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" )
-  
   setPbarValue<-function(progress)
   {
     setTxtProgressBar(pb, progress)
@@ -142,9 +164,11 @@ import_imzML <- function(imzML_File,
     .controlled_loadAbort("ERROR: UUID in imzML file does not match UUID in ibd file\n", close_signal)
   }
 
-  #4- Obtain de m/z axis (this is only valid for imzML continuous mode)
+  #4- Obtain de m/z axis (for continuous mode just read the mass axis, for processed mode calculate a common mass axis)
   pt<-proc.time()
   dataPointEncoding_Mz  <- dataPointBinaryEncoding(xmlRes$mz_dataType)
+  dataPointEncoding_Int <- dataPointBinaryEncoding(xmlRes$int_dataType)
+  bNoNeed2Resample <- T #Start assuming there is no need to resample the data
   
   if(xmlRes$continuous_mode)
   {
@@ -168,49 +192,116 @@ import_imzML <- function(imzML_File,
         return(NULL) #progress bar function must return true if the loading process is to be continued.
       }
       
-      #Fill the initial spectrum as the larger one
-      seli <- which.max(xmlRes$run_data$mzLength)
-      seek(bincon, rw = "read", where = xmlRes$run_data[seli, "mzOffset"] )
-      mzAxis <- readBin(bincon, dataPointEncoding_Mz$dataType, xmlRes$run_data[seli, "mzLength"], size = dataPointEncoding_Mz$bytes, signed = T)
-      mzAxis <- unique(mzAxis) #Avoid duplicates
-      mzMergeErrorCount <- 0 #Count merge mass axis errors
-      for( i in 1:nrow(xmlRes$run_data))
+      icurr <- 1
+      bLoad <- TRUE
+      MergedSpc <- list()
+      
+      #Read only the first mass axis to compare if others are identical, this is the case for Bruker FTICR
+      seek(bincon, rw = "read", where = xmlRes$run_data[1, "mzOffset"] )
+      firstMassAxis <- unique(readBin(bincon, dataPointEncoding_Mz$dataType, xmlRes$run_data[1, "mzLength"], size = dataPointEncoding_Mz$bytes, signed = T))
+      
+      while(TRUE)
       {
-        #Read mass axis for the current spectrum 
-        seek(bincon, rw = "read", where = xmlRes$run_data[i, "mzOffset"] )
-        mzdd <- readBin(bincon, dataPointEncoding_Mz$dataType, xmlRes$run_data[i, "mzLength"], size = dataPointEncoding_Mz$bytes, signed = T)
-        mzdd <- unique(mzdd) #Avoid duplicates
-        
-        #Combine the two mass axis using Cpp method
-        resMZMerge <- MergeMassAxis(mzAxis, mzdd)
-        if(resMZMerge$error)
+        if(bLoad)
         {
-          mzMergeErrorCount <- mzMergeErrorCount + 1
+          #Read mass axis for the current spectrum 
+          seek(bincon, rw = "read", where = xmlRes$run_data[icurr, "mzOffset"] )
+          mzdd <- readBin(bincon, dataPointEncoding_Mz$dataType, xmlRes$run_data[icurr, "mzLength"], size = dataPointEncoding_Mz$bytes, signed = T)
+          
+          #Read intensity of current spectrum
+          seek(bincon, rw = "read", where = xmlRes$run_data[icurr, "intOffset"] )
+          dd <- readBin(bincon, dataPointEncoding_Int$dataType, xmlRes$run_data[icurr, "intLength"], size = dataPointEncoding_Int$bytes, signed = T)
+          
+          #Fix duplicates and zero drops
+          CurrSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
+          
+          #Get Bin size at peaks
+          LoadMass <- CurrSpectrumFixed$mass
+          bMassMerge <- T
+          if(identical(firstMassAxis, LoadMass))
+          {
+            bMassMerge <- F
+            LoadBins <- NULL
+          }
+          else
+          {
+            LoadBins <- CalcMassAxisBinSize( LoadMass, CurrSpectrumFixed$intensity)
+          }
+          
+          bNoNeed2Resample <- bNoNeed2Resample & (!bMassMerge)
+          
+          #Shift register
+          if(length(MergedSpc) > 0)
+          {
+            for(i in length(MergedSpc):1)
+            {
+              MergedSpc[[i+1]] <- MergedSpc[[i]]
+            }
+          }
+          
+          MergedSpc[[1]] <- list( level = 0, mass = LoadMass, bins =  LoadBins, merge = bMassMerge )
+          icurr <- icurr + 1
+          bLoad <- FALSE
+          
+          #Update progress bar
+          pp_ant<-pp
+          pp<-pp+ppStep
+          if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
+          {
+            #Update progress bar
+            if( !fun_progress(pp) )
+            {
+              return(NULL) #progress bar function must return true if the loading process is to be continued.
+            }
+          }
+        }
+        
+        if(length(MergedSpc) > 1)
+        {
+          if(MergedSpc[[1]]$level == MergedSpc[[2]]$level || icurr > nrow(xmlRes$run_data))
+          { 
+            #Merge!
+            if( MergedSpc[[2]]$merge)
+            {
+              mam <- rMSI::MergeMassAxis(MergedSpc[[1]]$mass, MergedSpc[[1]]$bins, MergedSpc[[2]]$mass, MergedSpc[[2]]$bins )
+            }
+            else
+            {
+              #Both mass axes are identical so there is no need to merge them, this is the case for Bruker FTICR data
+              mam <- list(mass = MergedSpc[[1]]$mass, bins = MergedSpc[[1]]$bins )
+            }
+            MergedSpc[[1]] <- list( level = MergedSpc[[1]]$level + 1, mass = mam$mass, bins =  mam$bins, merge = MergedSpc[[2]]$merge )
+            
+            #Shift register
+            if(length(MergedSpc) > 2)
+            {
+              for(i in 2:(length(MergedSpc)-1))
+              {
+                MergedSpc[[i]] <- MergedSpc[[i+1]]
+              }
+            }
+            MergedSpc[[length(MergedSpc)]] <- NULL #Delete the last element
+            
+            #End Condition
+            if(icurr > nrow(xmlRes$run_data) && length(MergedSpc) == 1)
+            {
+              break
+            }
+          }
+          else
+          {
+            bLoad <- TRUE
+          }
         }
         else
         {
-          mzAxis <- resMZMerge$mass
-        }
-        
-        #Update progress bar
-        pp_ant<-pp
-        pp<-pp+ppStep
-        if(!is.null(fun_progress) && (round(pp) > round(pp_ant)) )
-        {
-          #Update progress bar
-          if( !fun_progress(pp) )
-          {
-            return(NULL) #progress bar function must return true if the loading process is to be continued.
-          }
+          bLoad <- TRUE
         }
       }
       
-      #Check the resulting mass axis looking at errors:
-      if ( mzMergeErrorCount >= nrow(xmlRes$run_data))
-      {
-        stop("Error: The mass axis of two vectors to merge is not compatible because they do not share a common range.");    
-      }
-        
+      mzAxis <-  MergedSpc[[1]]$mass
+      rm(MergedSpc)
+      gc()
       pt<-proc.time() - pt
       cat(paste("\nMass axis calculation time:",round(pt["elapsed"], digits = 1),"seconds\n"))
       cat(paste("The re-sampled mass axis contains", length(mzAxis), "data points\n"))
@@ -218,7 +309,7 @@ import_imzML <- function(imzML_File,
   }
   close(bincon)
  
-  #6- Create the rMSIXBin
+  #5- Create the rMSIXBin
   if( is.null(subImg_rename))
   {
     subImg_rename <-  basename(imzML_File)
@@ -248,7 +339,7 @@ import_imzML <- function(imzML_File,
   {
     img$data$imzML$MD5 <- xmlRes$MD5
   }
-  img$data$imzML$continuous_mode <- xmlRes$continuous_mode
+  img$data$imzML$continuous_mode <- bNoNeed2Resample #Use this bool instead of xmlRes data becaus Bruker FTICR use processed mode but the mass axis is actually replicated
   img$data$imzML$mz_dataType <- xmlRes$mz_dataType
   img$data$imzML$int_dataType <-xmlRes$int_dataType
   img$data$imzML$run <- xmlRes$run_data
@@ -261,7 +352,7 @@ import_imzML <- function(imzML_File,
   img$size["y"] <- max(img$pos[,"y"])
   
   
-  #7- Read all spectra and creat the ImgStrem
+  #6- Read all spectra and creat the ImgStrem
   if(createImgStream && (xmlRes$continuous_mode || (!xmlRes$continuous_mode && convertProcessed2Continuous) ))
   {
     pt <- proc.time()
@@ -280,7 +371,7 @@ import_imzML <- function(imzML_File,
     #img$mean <- AverageSpectrum(img) #TODO si bull nomes peak list aixo no s'ha de cridar
   }
   
-  #8- Just reading the peak lists
+  #7- Just reading the peak lists
   if(!xmlRes$continuous_mode && !convertProcessed2Continuous)
   {
     pt <- proc.time()
@@ -290,7 +381,7 @@ import_imzML <- function(imzML_File,
     cat(paste("\nBinary file reading time:",round(pt["elapsed"], digits = 1),"seconds\n\n"))
   }
 
-  #9- And it's done, just return de rMSI object
+  #8- And it's done, just return de rMSI object
   if(!is.null(pb))
   {
     close(pb)
@@ -366,7 +457,7 @@ dataPointBinaryEncoding <- function(str_dataType)
   }
   if(str_dataType == "long" || str_dataType == "double")
   {
-    result$bytes <- 4
+    result$bytes <- 8
   }
   
   if(str_dataType == "int" || str_dataType == "long")

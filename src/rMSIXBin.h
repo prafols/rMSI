@@ -25,8 +25,9 @@
 #include <fstream>
 #include "imzMLBin.h"
 
-//TODO decidir quants bits em quedo...
-//#define IMG_STREAM_8bits //Comment this line out if you prefere to encode the imgStream as 16bits plus a mask
+//TODO decidir quants bits em quedo... amb 16bits el brain TOF son 524MB amb 8bits son 327MB, no hi ha tanta differencia?
+//TODO per decidir quants bits son necessaris fes una scala d color rainbow amb diferents tramps: 256, 2^12, 2^16...etc... l'ull hi veu diferencies?
+#define IMG_STREAM_8bits //Comment this line out if you prefere to encode the imgStream as 16bits plus a mask
 
 #define IONIMG_BUFFER_MB 250 //I think 250 MB of RAM is a good balance for fast hdd operation and low memory footprint
 
@@ -34,7 +35,7 @@
 typedef  unsigned char imgstreamencoding_type;
 #define ENCODER_RANGE 255.0
 #define ENCODING_BITS 8
-#define ENCODING_BIT_MASK 0xFF //imgStream encoding mask (only used for 8 bit encoding, no masking)
+#define ENCODING_BIT_MASK 0xFF //imgStream encoding mask (in 8 bit encoding, no masking)
 #else
 typedef  unsigned short imgstreamencoding_type;
 #define ENCODER_RANGE 65535.0

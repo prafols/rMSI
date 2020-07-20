@@ -4,11 +4,23 @@
 \alias{CreateEmptyImage}
 \title{Create an empty rMSI object with defined mass axis and size.}
 \usage{
-CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
-  img_name = "New empty image", rMSIXBin_path = getwd(), uuid = NULL)
+CreateEmptyImage(
+  num_of_pixels,
+  mass_axis,
+  pixel_resolution,
+  img_name = "New empty image",
+  rMSIXBin_path = getwd(),
+  uuid = NULL
+)
 
-CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
-  img_name = "New empty image", rMSIXBin_path = getwd(), uuid = NULL)
+CreateEmptyImage(
+  num_of_pixels,
+  mass_axis,
+  pixel_resolution,
+  img_name = "New empty image",
+  rMSIXBin_path = getwd(),
+  uuid = NULL
+)
 }
 \arguments{
 \item{num_of_pixels}{Total number of spectrums/pixels.}
@@ -24,25 +36,12 @@ CreateEmptyImage(num_of_pixels, mass_axis, pixel_resolution,
 \item{uuid}{a string containing an universal unique identifier for the image. If it is not provided it will be created using a time code.
 
 Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
-and synthetic datasets to test and develop processing methods and tools.}
+and synthetic datasets to test and develop processing methods and tools.
+img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.}
 
 \item{x_size}{the number of pixel in X direction.}
 
 \item{y_size}{the number of pixel in Y direction.}
-
-\item{mass_axis}{the mass axis.}
-
-\item{pixel_resolution}{defined pixel size in um.}
-
-\item{img_name}{the name for the image.}
-
-\item{rMSIXBin_path}{where the rMSI files will be stored.}
-
-\item{uuid}{a string containing an universal unique identifier for the image. If it is not provided it will be created using a time code.
-
-Creates an empty rMSI object with the provided parameters. This method is usefull to implement importation of new data formats
-and synthetic datasets to test and develop processing methods and tools.
-img$size is initialized with c(NA, NA) and the pos matrix with NA coords. Size and pos matrix must be filled by user.}
 }
 \value{
 the created rMSI object

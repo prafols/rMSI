@@ -56,15 +56,29 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// CalcMassAxisBinSize
+NumericVector CalcMassAxisBinSize(NumericVector mass, NumericVector intensity);
+RcppExport SEXP _rMSI_CalcMassAxisBinSize(SEXP massSEXP, SEXP intensitySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type mass(massSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type intensity(intensitySEXP);
+    rcpp_result_gen = Rcpp::wrap(CalcMassAxisBinSize(mass, intensity));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MergeMassAxis
-List MergeMassAxis(NumericVector mz1, NumericVector mz2);
-RcppExport SEXP _rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP mz2SEXP) {
+List MergeMassAxis(NumericVector mz1, NumericVector bins1, NumericVector mz2, NumericVector bins2);
+RcppExport SEXP _rMSI_MergeMassAxis(SEXP mz1SEXP, SEXP bins1SEXP, SEXP mz2SEXP, SEXP bins2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type mz1(mz1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type bins1(bins1SEXP);
     Rcpp::traits::input_parameter< NumericVector >::type mz2(mz2SEXP);
-    rcpp_result_gen = Rcpp::wrap(MergeMassAxis(mz1, mz2));
+    Rcpp::traits::input_parameter< NumericVector >::type bins2(bins2SEXP);
+    rcpp_result_gen = Rcpp::wrap(MergeMassAxis(mz1, bins1, mz2, bins2));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -94,6 +108,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Cload_rMSIXBinIonImage
+Rcpp::NumericMatrix Cload_rMSIXBinIonImage(Rcpp::List rMSIobj, unsigned int ionIndex, unsigned int ionCount);
+RcppExport SEXP _rMSI_Cload_rMSIXBinIonImage(SEXP rMSIobjSEXP, SEXP ionIndexSEXP, SEXP ionCountSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIobj(rMSIobjSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type ionIndex(ionIndexSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type ionCount(ionCountSEXP);
+    rcpp_result_gen = Rcpp::wrap(Cload_rMSIXBinIonImage(rMSIobj, ionIndex, ionCount));
+    return rcpp_result_gen;
+END_RCPP
+}
 // testingLodepng
 void testingLodepng();
 RcppExport SEXP _rMSI_testingLodepng() {
@@ -109,9 +136,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_testingimzMLBinRead", (DL_FUNC) &_rMSI_testingimzMLBinRead, 7},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
-    {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 2},
+    {"_rMSI_CalcMassAxisBinSize", (DL_FUNC) &_rMSI_CalcMassAxisBinSize, 2},
+    {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {"_rMSI_Ccreate_rMSIXBinData", (DL_FUNC) &_rMSI_Ccreate_rMSIXBinData, 1},
+    {"_rMSI_Cload_rMSIXBinIonImage", (DL_FUNC) &_rMSI_Cload_rMSIXBinIonImage, 3},
     {"_rMSI_testingLodepng", (DL_FUNC) &_rMSI_testingLodepng, 0},
     {NULL, NULL, 0}
 };

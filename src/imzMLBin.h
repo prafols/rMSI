@@ -48,6 +48,10 @@ class ImzMLBin
     void set_intLength(Rcpp::NumericVector* intLength_vector);
     void set_intOffset(Rcpp::NumericVector* intOffset_vector);
     
+    //Get the number of bytes used for encoding
+    unsigned int get_mzEncodingBytes();
+    unsigned int get_intEncodingBytes();
+    
   protected:
     std::fstream ibdFile; 
     unsigned int Npixels; //Total number of pixels in the image;
