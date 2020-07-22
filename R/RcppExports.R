@@ -86,12 +86,8 @@ NULL
 
 #' TODO ideas varies:
 #' 
-#' - utilitzar un XML de la mateixa forma que fa imzML per tal d'agregar de forma ordenada tot el que necessitis en un binary:
-#'   -- Tot el que no pot estar en imzML de espectres: coordenas corregides (actualment pos), normalizacions, etc...
-#'   -- Nou ramdisk basat en png: png stream + factor d'escalat de cada m/z channel, pot seguir la seguent trama binaria:
-#'         factor_escalat(float 32bit) + png_stream(N bits) [aixo es repetiria per cada pixel]
-#'   -- Peak matrix resultant del rMSIproc, seria un camp opcional: m/z vector (centroides), SNR, Intensity i Area (no caldria guardar ni normalizacions i coordenas pq ja hi son!)
-#'      
+NULL
+
 #' - compatibilitat: puc fer que el nou rMSI i rMSIproc detecti automaticament si les dades son nou o antic format i ho carregui?
 #' 
 #' - comentar coses en el lodepng.h per fer el binary resultant mes petit: el que no facis servir fora! esta documentat en el propi lodepng.h
@@ -124,6 +120,18 @@ Ccreate_rMSIXBinData <- function(rMSIobj) {
     .Call('_rMSI_Ccreate_rMSIXBinData', PACKAGE = 'rMSI', rMSIobj)
 }
 
+#' Cload_rMSIXBinData.
+#' 
+#' Loads the data from the rMSIXBin files (.XrMSI and .BrMSI).
+#' This method is used to load a previously stored rMSIXBin file.
+#'
+#' @param path: full path to the .XrMSI file.
+#' @param fname: file name of the .XrMSI file without the extension.
+#' @return the rMSI object with rMSIXBin inforation completed. 
+Cload_rMSIXBinData <- function(path, fname) {
+    .Call('_rMSI_Cload_rMSIXBinData', PACKAGE = 'rMSI', path, fname)
+}
+
 #' Cload_rMSIXBinIonImage.
 #' 
 #' loads a ion image from the .BrNSI img stream.
@@ -134,9 +142,5 @@ Ccreate_rMSIXBinData <- function(rMSIobj) {
 #' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
 Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount) {
     .Call('_rMSI_Cload_rMSIXBinIonImage', PACKAGE = 'rMSI', rMSIobj, ionIndex, ionCount)
-}
-
-testingLodepng <- function() {
-    invisible(.Call('_rMSI_testingLodepng', PACKAGE = 'rMSI'))
 }
 

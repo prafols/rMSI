@@ -46,6 +46,11 @@ typedef  unsigned short imgstreamencoding_type;
 class rMSIXBin
 {
   public:
+    
+    //constructor using a .XrMSI file
+    rMSIXBin(Rcpp::String path, Rcpp::String fname);
+    
+    //Constructor using an already filled rMSIobject
     rMSIXBin(Rcpp::List rMSIobject);
     ~rMSIXBin();
     
@@ -59,7 +64,13 @@ class rMSIXBin
     //The MAX operator will be used to merge all ion images in a single image matrix
     Rcpp::NumericMatrix decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount);
       
-    //TODO add methods for the rest of data encoded in rMSIXBin: normalizations... etc  
+    //TODO add methods for the rest of data encoded in rMSIXBin: normalizations... etc  puc fer un spl metode per passar tot un imzML i calcular:
+    //(Tot aixo hauria d'anar a la classe del imzML ja que u fa amb imzML)
+        // - Espectre mig
+        // - Espectre max o skyline 
+        // - normalitzacions
+        
+        
       
   private:
     unsigned int irMSIFormatVersion; //An integer to record the rMSI format version
@@ -72,7 +83,7 @@ class rMSIXBin
     
     double* mass; //The mass axis in C format
     unsigned int massLength; //Number of mass channels
-    
+    double pixel_size_um; //pixel resolution in microns
     unsigned int img_width, img_height; //Image size in pixels
     
     typedef struct
@@ -80,7 +91,6 @@ class rMSIXBin
       unsigned int numOfPixels; //Total number of pixel in the image;
       std::string XML_file; //rMSIXBin XML file (.XrMSI)
       std::string Bin_file; //rMSIXBin Binary file (.BrMSI)
-      float* fScaling; //A vector to store the ImgStream scaling factor for each m/z channel
       unsigned long* iByteLen; //ImgStream byte lengths of each encoded ion image
       unsigned long* iByteOffset; //ImgStrem byte offset of each ion image
       unsigned int* iX; //Corrected X coordinates (non motor coords)
@@ -102,6 +112,13 @@ class rMSIXBin
     
     //Write the XML file, any previous .XrMSI file will be deleted
     bool writeXrMSIfile();
+    
+    //Load a XML file
+    void readXrMSIfile();
+    
+    //Copy imgStream to the rMSIObject
+    void copyimgStream2rMSIObj();
+    
 };
 
 #endif

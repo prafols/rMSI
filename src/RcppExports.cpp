@@ -98,36 +98,39 @@ BEGIN_RCPP
 END_RCPP
 }
 // Ccreate_rMSIXBinData
-Rcpp::List Ccreate_rMSIXBinData(Rcpp::List rMSIobj);
+List Ccreate_rMSIXBinData(List rMSIobj);
 RcppExport SEXP _rMSI_Ccreate_rMSIXBinData(SEXP rMSIobjSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIobj(rMSIobjSEXP);
+    Rcpp::traits::input_parameter< List >::type rMSIobj(rMSIobjSEXP);
     rcpp_result_gen = Rcpp::wrap(Ccreate_rMSIXBinData(rMSIobj));
     return rcpp_result_gen;
 END_RCPP
 }
+// Cload_rMSIXBinData
+List Cload_rMSIXBinData(String path, String fname);
+RcppExport SEXP _rMSI_Cload_rMSIXBinData(SEXP pathSEXP, SEXP fnameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< String >::type path(pathSEXP);
+    Rcpp::traits::input_parameter< String >::type fname(fnameSEXP);
+    rcpp_result_gen = Rcpp::wrap(Cload_rMSIXBinData(path, fname));
+    return rcpp_result_gen;
+END_RCPP
+}
 // Cload_rMSIXBinIonImage
-Rcpp::NumericMatrix Cload_rMSIXBinIonImage(Rcpp::List rMSIobj, unsigned int ionIndex, unsigned int ionCount);
+NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsigned int ionCount);
 RcppExport SEXP _rMSI_Cload_rMSIXBinIonImage(SEXP rMSIobjSEXP, SEXP ionIndexSEXP, SEXP ionCountSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIobj(rMSIobjSEXP);
+    Rcpp::traits::input_parameter< List >::type rMSIobj(rMSIobjSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type ionIndex(ionIndexSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type ionCount(ionCountSEXP);
     rcpp_result_gen = Rcpp::wrap(Cload_rMSIXBinIonImage(rMSIobj, ionIndex, ionCount));
     return rcpp_result_gen;
-END_RCPP
-}
-// testingLodepng
-void testingLodepng();
-RcppExport SEXP _rMSI_testingLodepng() {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    testingLodepng();
-    return R_NilValue;
 END_RCPP
 }
 
@@ -140,8 +143,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {"_rMSI_Ccreate_rMSIXBinData", (DL_FUNC) &_rMSI_Ccreate_rMSIXBinData, 1},
+    {"_rMSI_Cload_rMSIXBinData", (DL_FUNC) &_rMSI_Cload_rMSIXBinData, 2},
     {"_rMSI_Cload_rMSIXBinIonImage", (DL_FUNC) &_rMSI_Cload_rMSIXBinIonImage, 3},
-    {"_rMSI_testingLodepng", (DL_FUNC) &_rMSI_testingLodepng, 0},
     {NULL, NULL, 0}
 };
 

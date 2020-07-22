@@ -141,6 +141,26 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
   cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
 }
 
+#' import_rMSIXBin.
+#'
+#' @param data_file The .XrMSI file containing the MS image in rMSI format.
+#'
+#'  Imports an rMSI data object from an .XrMSI data file
+#'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
+#'  
+#' @return   an rMSI data object.
+#' @export
+#'
+import_rMSIXBin<-function(data_file)
+{
+  img_path  <-  path.expand(dirname(data_file))
+  img_fname <- strsplit(basename(data_file), split = ".XrMSI")[[1]] #Set the .XrMSI file
+  img <- Cload_rMSIXBinData( img_path, img_fname )
+  return(img)
+  
+  #TODO si hi ha un imzML associat, validar que uuid concorden amb els del .XrMSI
+}
+
 #' import_rMSItar.
 #'
 #' @param data_file The tar file containing the MS image in rMSI format.
@@ -432,7 +452,7 @@ CreateEmptyImage<-function(num_of_pixels,
   img$size <- c( NA, NA )
   names(img$size) <- c("x", "y")
 
-  #Prepare the pos matrix
+#Prepare the pos matrix
   img$pos <- matrix( NA, ncol = 2, nrow = num_of_pixels )
   img$posMotors <- matrix( NA, ncol = 2, nrow = num_of_pixels )
   colnames(img$pos)<- c("x", "y")
@@ -451,7 +471,6 @@ CreateEmptyImage<-function(num_of_pixels,
   img$data$rMSIXBin$file <- NULL
   img$data$rMSIXBin$uuid <- uuid_timebased()
   img$data$rMSIXBin$imgStream <- data.frame( 
-                                            Scaling = rep(NA, length(mass_axis)), #The scaling factor of each m/z channel for the imgStream
                                             ByteLength = rep(NA, length(mass_axis)), #The encoded byte length of each m/z channel image
                                             ByteOffset = rep(NA, length(mass_axis)) #The offset in bytes of each m/z channel image in the imgStream 
                                             )

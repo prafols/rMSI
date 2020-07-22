@@ -17,6 +17,7 @@
  **************************************************************************/
 
 #include "pugixml.hpp"
+#include "common_methods.h"
 #include <Rcpp.h>
 #include <string>
 #include <cstring>
@@ -98,29 +99,7 @@ List CimzMLParse( String xml_path )
     if(accession == "IMS:1000080")
     {
       //Parse the UUID to get just the hex representation in a string (without dashes and {})
-      std::size_t ipos = value.find('{');
-      if( ipos != std::string::npos )
-      {
-        value.erase(ipos, 1);
-      }
-      do
-      {
-        ipos = value.find('-'); 
-        if( ipos != std::string::npos )
-        {
-          value.erase(ipos, 1);
-        } 
-      } while ( ipos != std::string::npos);
-      ipos = value.find('}');
-      if( ipos != std::string::npos )
-      {
-        value.erase(ipos, 1);
-      }
-      for( unsigned int i=0; i < value.length(); i++)
-      {
-        value[i] = toupper(value[i]);
-      }
-      sUUID = value;
+      sUUID = parse_xml_uuid(value);
       bUUID_present = true;
     }
     if( accession == "IMS:1000091") //SHA Checksum
