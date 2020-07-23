@@ -2,12 +2,12 @@
 % Please edit documentation in R/libimgramdisk.R
 \name{loadImgChunkFromCoords}
 \alias{loadImgChunkFromCoords}
-\title{Loads a part of a ff data img in RAM.}
+\title{Loads a part of the img data in RAM.}
 \usage{
 loadImgChunkFromCoords(Img, Coords)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Coords}{a coordinates vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.}
 }

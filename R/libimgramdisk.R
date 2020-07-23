@@ -18,11 +18,11 @@
 
 #Image ramdisk API
 
-#' Loads a part of a ff data img in RAM.
+#' Loads a part of a img data in RAM.
 #'
 #' Loads a part of a rMSI object in computer memory. The spectra to load is specified by its identifiers (Ids).
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Ids Identifiers of spectra to load.
 #'
 #' @return a matrix containing the loaded spectra.
@@ -31,6 +31,8 @@
 #'
 loadImgChunkFromIds<-function(Img, Ids)
 {
+  #TODO re-implement using new rMSIXBin format
+  
   #Avoid duplicates
   Ids <- unique(Ids)
   
@@ -62,11 +64,11 @@ loadImgChunkFromIds<-function(Img, Ids)
 }
 
 
-#' Stores a data matrix to a part of ff data img.
+#' Stores a data matrix to a part of the img data.
 #'
 #' Overwrites a part of rMSI object with the provided data matrix. The part of rMSI object that is overwrited is specified by the Ids vector.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Ids Identifiers of spectra to be overwrited.
 #' @param dm a matrix containing the data to overwrite the rMSI object.
 #'
@@ -74,6 +76,8 @@ loadImgChunkFromIds<-function(Img, Ids)
 #'
 saveImgChunkAtIds<-function(Img, Ids, dm)
 {
+  #TODO re-implement using new rMSIXBin format
+  
   #Avoid duplicates
   Ids <- unique(Ids)
   
@@ -101,11 +105,11 @@ saveImgChunkAtIds<-function(Img, Ids, dm)
   }
 }
 
-#' Loads a part of a ff data img in RAM.
+#' Loads a part of the img data in RAM.
 #'
 #' Loads a part of a rMSI object in computer memory. The spectra to load is specified by its pixel coordinates (Coords).
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Coords a coordinates vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.
 #'
 #' @return a matrix containing the loaded spectra.
@@ -117,11 +121,11 @@ loadImgChunkFromCoords<-function(Img, Coords)
   return(loadImgChunkFromIds(Img, getIdsFromCoords(Img, Coords)))
 }
 
-#' Stores a data matrix to a part of ff data img.
+#' Stores a data matrix to a part of img data.
 #'
 #' Overwrites a part of rMSI object with the provided data matrix. The part of rMSI object that is overwrited is specified by the Coords vector.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Coords a coordinates vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.
 #' @param dm a matrix containing the data to overwrite the rMSI object.
 #'
@@ -132,12 +136,12 @@ saveImgChunkAtCoords<-function(Img, Coords, dm)
   saveImgChunkAtIds(Img, getIdsFromCoords(Img, Coords), dm)
 }
 
-#' Loads a part of a ff data img in RAM.
+#' Loads a part of  MSI data in RAM.
 #'
 #' This function loads a specified ff datacubes.
 #' It loads full cubes so it should be the most eficient and fast way of loading data to RAM.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Cube The datacube index to load.
 #'
 #' @return a matrix containing the loaded spectra.
@@ -146,6 +150,7 @@ saveImgChunkAtCoords<-function(Img, Coords, dm)
 #'
 loadImgChunkFromCube<-function(Img, Cube)
 {
+  #TODO remove, this method is deprecated in the new data format.
   return(Img$data[[Cube]][,])
 }
 
@@ -159,6 +164,7 @@ loadImgChunkFromCube<-function(Img, Cube)
 #'
 saveImgChunkToCube<-function(Img, Cube, dm)
 {
+  #TODO remove, this method is deprecated in the new data format.
   Img$data[[Cube]][,] <- dm
 }
 
@@ -175,6 +181,7 @@ saveImgChunkToCube<-function(Img, Cube, dm)
 #'
 getCubeRowFromCoords<-function(Img, Coords)
 {
+  #TODO remove, this method is deprecated in the new data format.
   return(getCubeRowFromIds(Img, getIdsFromCoords(Img, Coords)))
 }
 
@@ -191,6 +198,7 @@ getCubeRowFromCoords<-function(Img, Coords)
 #'
 getCubeRowFromIds<-function(Img, Ids)
 {
+  #TODO remove, this method is deprecated in the new data format.
   max_nrow<-nrow(Img$data[[1]])
   icube<-(1+((Ids - 1) %/% max_nrow))
   irow<- (Ids - (icube -1) * max_nrow)
@@ -216,7 +224,7 @@ getCubeRowFromIds<-function(Img, Ids)
 #'
 #' Calculate the pixel identifiers from the pixel coordinates.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Coords a coords vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.
 #'
 #' @return a vector of identifiers corresponding to given coords.
@@ -235,7 +243,7 @@ getIdsFromCoords<-function(Img, Coords)
 #'
 #' Calculate the pixel identifiers from the pixel motor coordinates.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param MotorCoords a coords vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.
 #'
 #' @return a vector of identifiers corresponding to given coords.
@@ -252,7 +260,7 @@ getIdsFromMotorCoords<-function(Img, MotorCoords)
 
 #' getCoordsFromIds Obtain images coords from a set of Ids.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Ids from which coords will be obtained.
 #'
 #' @return a matrix containing the coords.
@@ -268,7 +276,7 @@ getCoordsFromIds<-function(Img, Ids)
 #' Loads a slice of an rMSI object into RAM. The slice is determined by the columns specified in Cols parameter.
 #' The returned value is not a MS image, in order to obtain a plotable image the function builRasterImageFromCols must be used.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Cols the columns indexes from which data will be taken.
 #'
 #' @return a data matrix containing the image slice.
@@ -277,6 +285,7 @@ getCoordsFromIds<-function(Img, Ids)
 #'
 loadImageSliceFromCols<-function(Img, Cols)
 {
+  #TODO this method is the one which actually created images! but it seams it is not creating the image directely... but new format is... see how it is used and re-implement all!
   dm <- matrix(nrow = nrow(Img$pos), ncol = length(Cols))
   ptr<-1
   for( i in 1:length(Img$data))
@@ -292,7 +301,7 @@ loadImageSliceFromCols<-function(Img, Cols)
 #'
 #' Overwrite a part of a ramdisk in rMSI object with the provided data matrix in the specified columns.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Cols  the columns indexes at which data will be overwriten.
 #' @param dm the new data matrix overwrite current rMSI slected columns.
 #'
@@ -300,6 +309,7 @@ loadImageSliceFromCols<-function(Img, Cols)
 #'
 saveImageSliceAtCols<-function(Img, Cols, dm)
 {
+  #TODO this methos is incompatible with new data format, re-implement!
   ptr<-1
   for( i in 1:length(Img$data))
   {
@@ -313,7 +323,7 @@ saveImageSliceAtCols<-function(Img, Cols, dm)
 #' Obtains the rMSI datacube columns that corresponds to a mass range defined by a central mass and a tolerance.
 #' The central mass and tolerance are also recalculated to fit acurately in the dataset mass axis.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Mass the slected mass.
 #' @param Tolerance a tolerance expressed in daltons around the slected mass.
 #'
@@ -340,7 +350,7 @@ getImageColsFromMass<-function(Img, Mass, Tolerance)
 #' Loads a slice of an rMSI object into RAM. The slice is determined by a mass and a tolerance.
 #' The returned value is not a MS image, in order to obtain a plotable image the function builRasterImageFromMass must be used.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
+#' @param Img the rMSI object where the data is stored.
 #' @param Mass the slected mass.
 #' @param Tolerance a tolerance expressed in daltons around the slected mass.
 #'
@@ -368,6 +378,8 @@ loadImageSliceFromMass<-function(Img, Mass, Tolerance)
 #'
 saveImageSliceAtMass<-function(Img, Mass, dm)
 {
+  
+  #TODO deprecated method for the new data format, re-implement
   central_col <- getImageColsFromMass(Img, Mass, 0)$Cols
   sel_cols <- ((central_col - floor(0.5*ncol(dm))) : (central_col + floor(0.5*ncol(dm))))
 
@@ -389,59 +401,26 @@ saveImageSliceAtMass<-function(Img, Mass, dm)
 #'
 #' Builds a image from the selected columns in the rMSI object. The image is returned arranged in a matrix containing each pixel value.
 #'
-#' @param Img the rMSI object where the data is stored (ramdisk).
-#' @param Cols the columns indexes from which data will be taken.
-#' @param method the method used to calculate the pixel value. Can be max or mean.
+#' @param Img the rMSI object where the data is stored.
+#' @param IonIndex the starting ion index to construc the image.
+#' @param IonCount the number of ions used to build the image.
 #' @param Normalization optionally a vector of the normalization factor for each pixel.
 #'
 #' @return a matrix with the same size as image size containing the pixel values.
 #'
 #' @export
 #'
-builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NULL)
+builRasterImageFromCols<-function( Img, IonIndex, IonCount, Normalization = NULL)
 {
-  #Set the method
-  if( method == "max")
-  {
-    fmethod <- max
-  }
-  else if(method == "mean")
-  {
-    fmethod <- mean
-  }
-  else
-  {
-    stop(paste("The specified method", method, "is invalid\n"))
-  }
-  
+ 
   #Set no normalization if is null
   if(is.null(Normalization))
   {
     Normalization <- rep(1, nrow(Img$pos))
   }
-  
-  #Avoid dimension error when a single column is selected
-  if(length(Cols) == 1)
-  {
-    Cols <- c(Cols, Cols)
-  }
-  
-  zplots<-matrix(0, nrow=Img$size["x"], ncol=Img$size["y"])#Now I'm using a zero instead of NA to display a completely black background
-  for( i in 1:length(Img$data))
-  {
-    #Preload data from hdd for faster access in the next loop
-    dm <- Img$data[[i]][ , Cols]
-    
-    for( j in 1:nrow(Img$data[[i]]))
-    {
-      #Calculate the img ID corresponding to current cube and row
-      idCurr <- nrow(Img$data[[1]]) * (i - 1) + j
-      
-      #Fill the raster matrix
-      zplots[Img$pos[ idCurr , "x" ], Img$pos[ idCurr , "y" ]] <- fmethod( dm[j, ]  ) / Normalization[idCurr]
-    }
-    
-  }
+
+  #Get the ion image
+  zplots <- Cload_rMSIXBinIonImage(Img, IonIndex, IonCount) / Normalization
   
   return( zplots )
 }
@@ -453,7 +432,6 @@ builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NU
 #' @param Img the rMSI object where the data is stored (ramdisk).
 #' @param Mass the slected mass.
 #' @param Tolerance  a tolerance expressed in daltons around the slected mass.
-#' @param method the method used to calculate the pixel value. Can be max or mean.
 #' @param Normalization  optionally a vector of the normalization factor for each pixel.
 #'
 #' @return list with a matrix with the same size as image size containing the pixel values, used mass and tolerance.
@@ -463,7 +441,7 @@ builRasterImageFromCols<-function( Img, Cols, method = "max", Normalization = NU
 builRasterImageFromMass<-function( Img, Mass, Tolerance, method = "max", Normalization = NULL)
 {
   location<-getImageColsFromMass(Img, Mass, Tolerance)
-  return( list( pixels = builRasterImageFromCols(Img, location$Cols, method, Normalization),  Mass = location$Mass, Tolerance = location$Tolerance ) )
+  return( list( pixels = builRasterImageFromCols(Img, location$Cols[1], length(location$Cols), Normalization),  Mass = location$Mass, Tolerance = location$Tolerance ) )
 }
 
 #' Inserts a image at specified Cols of a rMSI object.
@@ -479,6 +457,7 @@ builRasterImageFromMass<-function( Img, Mass, Tolerance, method = "max", Normali
 #'
 insertRasterImageAtCols<-function( Img, Cols, raster_matrix)
 {
+  #TODO  re-implement for the new data format
   dm <- matrix(0, nrow = nrow(Img$pos), ncol = length(Cols) )
 
   for( i in 1:nrow(dm))
@@ -502,5 +481,6 @@ insertRasterImageAtCols<-function( Img, Cols, raster_matrix)
 #'
 insertRasterImageAtMass<-function( Img, Mass, Tolerance, raster_matrix)
 {
+  #TODO  re-implement for the new data format
   insertRasterImageAtCols(Img, getImageColsFromMass(Img, Mass, Tolerance)$Cols, raster_matrix)
 }

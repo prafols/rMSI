@@ -2,12 +2,12 @@
 % Please edit documentation in R/libimgramdisk.R
 \name{loadImgChunkFromCube}
 \alias{loadImgChunkFromCube}
-\title{Loads a part of a ff data img in RAM.}
+\title{Loads a part of  MSI data in RAM.}
 \usage{
 loadImgChunkFromCube(Img, Cube)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Cube}{The datacube index to load.}
 }

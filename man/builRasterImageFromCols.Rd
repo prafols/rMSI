@@ -4,14 +4,14 @@
 \alias{builRasterImageFromCols}
 \title{Build a image slice from specified datacube columns.}
 \usage{
-builRasterImageFromCols(Img, Cols, method = "max", Normalization = NULL)
+builRasterImageFromCols(Img, IonIndex, IonCount, Normalization = NULL)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
-\item{Cols}{the columns indexes from which data will be taken.}
+\item{IonIndex}{the starting ion index to construc the image.}
 
-\item{method}{the method used to calculate the pixel value. Can be max or mean.}
+\item{IonCount}{the number of ions used to build the image.}
 
 \item{Normalization}{optionally a vector of the normalization factor for each pixel.}
 }

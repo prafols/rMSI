@@ -2,12 +2,12 @@
 % Please edit documentation in R/libimgramdisk.R
 \name{saveImgChunkAtIds}
 \alias{saveImgChunkAtIds}
-\title{Stores a data matrix to a part of ff data img.}
+\title{Stores a data matrix to a part of the img data.}
 \usage{
 saveImgChunkAtIds(Img, Ids, dm)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Ids}{Identifiers of spectra to be overwrited.}
 

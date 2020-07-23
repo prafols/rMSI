@@ -19,8 +19,6 @@ builRasterImageFromMass(
 
 \item{Tolerance}{a tolerance expressed in daltons around the slected mass.}
 
-\item{method}{the method used to calculate the pixel value. Can be max or mean.}
-
 \item{Normalization}{optionally a vector of the normalization factor for each pixel.}
 }
 \value{

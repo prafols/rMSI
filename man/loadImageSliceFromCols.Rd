@@ -7,7 +7,7 @@
 loadImageSliceFromCols(Img, Cols)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Cols}{the columns indexes from which data will be taken.}
 }

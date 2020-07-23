@@ -7,7 +7,7 @@
 getIdsFromMotorCoords(Img, MotorCoords)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{MotorCoords}{a coords vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.}
 }

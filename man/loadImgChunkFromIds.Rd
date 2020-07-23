@@ -2,12 +2,12 @@
 % Please edit documentation in R/libimgramdisk.R
 \name{loadImgChunkFromIds}
 \alias{loadImgChunkFromIds}
-\title{Loads a part of a ff data img in RAM.}
+\title{Loads a part of a img data in RAM.}
 \usage{
 loadImgChunkFromIds(Img, Ids)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Ids}{Identifiers of spectra to load.}
 }

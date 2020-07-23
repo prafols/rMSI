@@ -7,7 +7,7 @@
 getCoordsFromIds(Img, Ids)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Ids}{from which coords will be obtained.}
 }

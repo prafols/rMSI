@@ -22,13 +22,17 @@
 
 //#define __DEBUG__
 
-ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels, imzMLDataType mzType, imzMLDataType intType, bool continuous):
-  Npixels(num_of_pixels), mzDataType(mzType), intDataType(intType), bContinuous(continuous)
+ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous):
+  Npixels(num_of_pixels), bContinuous(continuous)
 {
+  
+  mzDataType = string2imzMLDatatype(Str_mzType);
+  intDataType = string2imzMLDatatype(Str_intType);
   
 #ifdef __DEBUG__
   Rcpp::Rcout << "ImzMLBin::ImzMLBin() entring... with " << Npixels << " num. of pixels...";
 #endif
+  
   switch(mzDataType)
   {
     case int32: 
@@ -46,7 +50,7 @@ ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels, imzMLData
       break;
   }
   
-  switch(intType)
+  switch(intDataType)
   {
     case int32: 
     case float32:  
@@ -62,7 +66,7 @@ ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels, imzMLData
       throw std::runtime_error("ERROR: ImzMLBin class constructor: invalid intType.\n");
       break;
   }
-
+  
   imzLength = new unsigned int[Npixels];
   lmzOffset  = new unsigned long[Npixels];  
   iintLength = new unsigned int[Npixels];  
@@ -190,6 +194,33 @@ unsigned int ImzMLBin::get_intEncodingBytes()
   return intDataPointBytes;
 }
 
+ImzMLBin::imzMLDataType ImzMLBin::string2imzMLDatatype(Rcpp::String data_type)
+{
+  imzMLDataType dataType;
+  if( data_type == "float" )
+  {
+    dataType = imzMLDataType::float32;
+  }
+  else if( data_type == "double" )
+  {
+    dataType = imzMLDataType::float64;
+  }
+  else if( data_type == "int" )
+  {
+    dataType = imzMLDataType::int32;
+  }
+  else if( data_type == "long" )
+  {
+    dataType = imzMLDataType::int64;
+  }
+  else
+  {
+    throw std::runtime_error("ERROR: string2imzMLDatatype() invalid imzML datatype.\n");
+  }
+  
+  return dataType;
+}
+
 template<typename T> 
 void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
 {
@@ -206,8 +237,8 @@ void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
   delete[] auxBuffer;
 }
 
-ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, imzMLDataType mzType, imzMLDataType intType, bool continuous):
-  ImzMLBin(ibd_fname, num_of_pixels, mzType, intType, continuous)
+ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous):
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous)
 {
 #ifdef __DEBUG__
   Rcpp::Rcout << "ImzMLBinRead() constructor start...\nibdfile is:"<<  ibd_fname << "\n";
@@ -308,8 +339,8 @@ void ImzMLBinRead::readIntData(unsigned long offset, unsigned int N, double* ptr
   readDataCommon(offset, N, ptr, intDataPointBytes, intDataType);
 }
 
-ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, imzMLDataType mzType, imzMLDataType intType, bool continuous) :
-  ImzMLBin(ibd_fname, num_of_pixels, mzType, intType, continuous)
+ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous) :
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous)
 {
   
   ibdFile.open(ibd_fname, std::fstream::out | std::ios::binary); //TODO do I want ot truncate the file or just modify it?
@@ -352,32 +383,9 @@ void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* p
 Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz, bool continuous)
 {
   Rcpp::NumericVector x(N);
-  imzMLDataType mdatatype;
-  
-  if(dataTypeString == "int")
-  {
-    mdatatype = imzMLDataType::int32;
-  }
-  else if(dataTypeString == "long")
-  {
-    mdatatype = imzMLDataType::int64;
-  }
-  else if(dataTypeString == "float")
-  {
-    mdatatype = imzMLDataType::float32;
-  }
-  else if(dataTypeString == "double")
-  {
-    mdatatype = imzMLDataType::float64;
-  }
-  else
-  {
-    throw std::runtime_error("Error: invalid dataTypeString");
-  }
-  
   try
   {
-    ImzMLBinRead myReader(ibdFname, NPixels, mdatatype, mdatatype, continuous);
+    ImzMLBinRead myReader(ibdFname, NPixels, dataTypeString, dataTypeString, continuous);
     if(read_mz)
     {
       myReader.readMzData(offset, N, x.begin());  

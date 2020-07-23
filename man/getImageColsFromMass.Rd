@@ -7,7 +7,7 @@
 getImageColsFromMass(Img, Mass, Tolerance)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Mass}{the slected mass.}
 

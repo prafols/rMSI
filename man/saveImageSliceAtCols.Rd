@@ -7,7 +7,7 @@
 saveImageSliceAtCols(Img, Cols, dm)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Cols}{the columns indexes at which data will be overwriten.}
 

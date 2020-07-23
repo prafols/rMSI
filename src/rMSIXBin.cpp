@@ -27,19 +27,21 @@
 #include "lodepng.h"
 #include "pugixml.hpp"
 #include "common_methods.h"
+#include "progressbar.h"
 
 using namespace Rcpp;
 using namespace pugi;
 
+//This constructor is used to load the rMSIObj from already present .XrMSI and .BrMSI file
 rMSIXBin::rMSIXBin(String path, String fname)
 {
   //Start setting pointers to null to let the destructor to not crash in case of error
-  mass = nullptr;
   _rMSIXBin = nullptr;
   
  rMSIObj["data"] = List::create(Named("path") = path, 
                             Named("rMSIXBin") = List::create(Named("file") = fname));
  readXrMSIfile();
+ readBrMSI_header();
 }
 
 rMSIXBin::rMSIXBin(List rMSIobject)
@@ -73,8 +75,6 @@ rMSIXBin::rMSIXBin(List rMSIobject)
   //Get the mass axis
   NumericVector massAxis =  rMSIObj["mass"];
   massLength = massAxis.length();
-  mass = new double[massLength];
-  memcpy(mass, massAxis.begin(), sizeof(double)*massLength);
   
   //Get the pixel resolution
   pixel_size_um = as<double>(rMSIObj["pixel_size_um"]);
@@ -106,11 +106,6 @@ rMSIXBin::rMSIXBin(List rMSIobject)
 
 rMSIXBin::~rMSIXBin()
 {
-  if( mass != nullptr ) //Avoid crashing in case mass ptr was not set
-  {
-    delete[] mass;
-  }
-  
   if( _rMSIXBin != nullptr ) //Avoid crashing in case _rMSIXBIN ptr was not set
   {
     delete[] _rMSIXBin->iByteLen;
@@ -154,55 +149,17 @@ void rMSIXBin::CreateImgStream()
   imzML_intLength = imzMLrun["intLength"];
   imzML_intOffsets = imzMLrun["intOffset"];
 
-  imzMLDataType mzDataType;
-  if( as<std::string>(imzML["mz_dataType"]) == "float" )
-  {
-    mzDataType = imzMLDataType::float32;
-  }
-  else if(as<std::string>(imzML["mz_dataType"]) == "double" )
-  {
-    mzDataType = imzMLDataType::float64;
-  }
-  else if(as<std::string>(imzML["mz_dataType"]) == "int" )
-  {
-    mzDataType = imzMLDataType::int32;
-  }
-  else if(as<std::string>(imzML["mz_dataType"]) == "long" )
-  {
-    mzDataType = imzMLDataType::int64;
-  }
-  else
-  {
-    throw std::runtime_error("ERROR: CreateImgStream() invalid m/z datatype.\n");
-  }
-  
-  imzMLDataType intDataType;
-  if( as<std::string>(imzML["int_dataType"]) == "float" )
-  {
-    intDataType = imzMLDataType::float32;
-  }
-  else if(as<std::string>(imzML["int_dataType"]) == "double" )
-  {
-    intDataType = imzMLDataType::float64;
-  }
-  else if(as<std::string>(imzML["int_dataType"]) == "int" )
-  {
-    intDataType = imzMLDataType::int32;
-  }
-  else if(as<std::string>(imzML["int_dataType"]) == "long" )
-  {
-    intDataType = imzMLDataType::int64;
-  }
-  else
-  {
-    throw std::runtime_error("ERROR: CreateImgStream() invalid intensity datatype.\n");
-  }
-  
   //Create and init the imzML reader
   ImzMLBinRead* imzMLReader;
+  
   try
   {
-    imzMLReader = new ImzMLBinRead(sFnameImzML.c_str(), _rMSIXBin->numOfPixels, mzDataType, intDataType, as<bool>(imzML["continuous_mode"])); 
+    imzMLReader = new ImzMLBinRead(sFnameImzML.c_str(), 
+                                   _rMSIXBin->numOfPixels, 
+                                   as<String>(imzML["mz_dataType"]),
+                                   as<String>(imzML["int_dataType"]) ,
+                                   as<bool>(imzML["continuous_mode"])); 
+    
     imzMLReader->set_mzLength(&imzML_mzLength);  
     imzMLReader->set_mzOffset(&imzML_mzOffsets);
     imzMLReader->set_intLength(&imzML_intLength);
@@ -213,6 +170,14 @@ void rMSIXBin::CreateImgStream()
     delete imzMLReader;
     stop(e.what());
   }
+  
+  
+  
+  
+  //Calculate the average spectrum, base spectrum and normalizations
+  Rcout<< "Processing imzML data..." << std::endl;
+  CalculateAverageBaseNormalizations(imzMLReader);
+  Rcout << std::endl;
   
   //Create the binary file (.BrMSI) any previous file will be deleted.
   std::ofstream fBrMSI;
@@ -226,11 +191,14 @@ void rMSIXBin::CreateImgStream()
   fBrMSI.write(UUID_imzML, 16); //Write imzML UUID;
   fBrMSI.write(UUID_rMSIXBin, 16); //Write rMSIXBin UUID;
   
-  fBrMSI.write((const char*)mass, sizeof(double) * massLength);
+  //Store mass, average and base spectrum
+  NumericVector massR =  rMSIObj["mass"];
+  fBrMSI.write((const char*)(massR.begin()), sizeof(double) * massLength);
+  NumericVector meanR = rMSIObj["mean"];
+  fBrMSI.write((const char*)(meanR.begin()), sizeof(double) * massLength);
+  NumericVector baseR = rMSIObj["base"];
+  fBrMSI.write((const char*)(baseR.begin()), sizeof(double) * massLength);
   
-  //TODO escriure espectre mig al rMSIXbin (pots omplir amb -1 de moment i ja ho implementaras!)
-  fBrMSI.write((const char*)mass, sizeof(double) * massLength); //TODO de momen faig una copia d l'eix de massa i a correr!
-
   fBrMSI.close();
   if(fBrMSI.fail() || fBrMSI.bad())
   {
@@ -249,7 +217,7 @@ void rMSIXBin::CreateImgStream()
   try
   {
     unsigned int iIon = 0;
-    Rcout << "Encoding m/z:     ";
+    Rcout << "Encoding ion images..." << std::endl;
     while( true )
     {
       iIonImgCount = iIonImgCount <  iRemainingIons ? iIonImgCount :  iRemainingIons;
@@ -261,7 +229,7 @@ void rMSIXBin::CreateImgStream()
         break;
       }
     }
-    Rcout << "\n";
+    Rcout << std::endl;
   }
   catch(std::runtime_error &e)
   {
@@ -269,12 +237,6 @@ void rMSIXBin::CreateImgStream()
     delete imzMLReader;
     stop(e.what());
   }
-
-
-  //TODO: pensar funcionament de la part XML del rMSIXBin, crec que el millor es el seguent:
-   //1. El constructor parseja el fixer XML original (si existeix i guarda les dades)
-   //2. Es modifiquen les dades correponents al ImgStream
-   //3. Es sobrescriu el XML sencer amb les dades originals+les noves dades del ImgStream
 
   delete imzMLReader;
   
@@ -287,6 +249,54 @@ void rMSIXBin::CreateImgStream()
     Rcout << ".XrMSI write error, stopped\n";
   }
   
+}
+
+//Calculate average spectrum, base spectrum and normalizations
+void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
+{
+  double *intensity = new double[massLength];
+  NumericVector averageSpectrum(massLength);
+  NumericVector baseSpectrum(massLength);
+  NumericVector normTIC(_rMSIXBin->numOfPixels);
+  NumericVector normRMS(_rMSIXBin->numOfPixels);
+  NumericVector normMAX(_rMSIXBin->numOfPixels);
+  //TODO TICacq normalisation is not implemented yet!, it must be calculated after TIC calculation appling a sliding window
+  
+  for(int i=0; i < _rMSIXBin->numOfPixels; i++)
+  {
+    progressBar(i, _rMSIXBin->numOfPixels, "=", " ");
+    
+    if(imzMLreader->get_continuous())
+    {
+      imzMLreader->readIntData(imzMLreader->get_intOffset(i), 
+                               imzMLreader->get_intLength(i), 
+                               intensity);
+      
+      for( int j=0; j < massLength; j++)
+      {
+        averageSpectrum(j) += intensity[j] / (double)(_rMSIXBin->numOfPixels);
+        baseSpectrum(j) = intensity[j] > baseSpectrum(j) ? intensity[j] : baseSpectrum(j);
+        normTIC(i) += intensity[j];
+        normRMS(i) += intensity[j]*intensity[j];
+        normMAX(i) =  intensity[j] > normMAX(i) ? intensity[j]: normMAX(i);
+      }
+      normRMS(i) = sqrt(normRMS(i));
+    }
+    else
+    {
+      //TODO not implemented yet! load a intensity spectrum an interpolate it to common mass axis
+      delete[] intensity;
+      throw std::runtime_error("NOT IMPLEMENTED. Average spectrum, normalizations... etc not implemented for processed mode\n"); 
+    }
+    
+  }
+  
+  rMSIObj["mean"] = averageSpectrum;
+  rMSIObj["base"] = baseSpectrum;
+  //TODO normalization to the rMSIObject
+  //TODO store to .BrMSI... maybe I need a fuction for this... o u he de fer desde el create imgstream... pensau
+  
+  delete[] intensity;
 }
 
 void rMSIXBin::encodeMultipleIonImage2ImgStream(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount)
@@ -326,7 +336,7 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHa
   
   for(unsigned int i = 0; i < ionCount; i++)
   { 
-    coutEncodingPersentage(ionIndex + i);
+    progressBar(ionIndex + i, massLength, "=", " ");
 
     //Calculate the scaling factors
     max = 0.0;
@@ -366,8 +376,8 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHa
     {
       //Special case, the first offset is being writen
       //The first ion image in imgStream will be located at iByteOffset[0] positon of the .BrMSI file.
-      //So, 16 bytes for each UUID and massLength bytes for the mass axis and the average spectrum.
-      _rMSIXBin->iByteOffset[0] = 16 + 16 + sizeof(double) * massLength + sizeof(double) * massLength;
+      //So, 16 bytes for each UUID and massLength bytes for the mass axis, the average spectrum and the base spectrum.
+      _rMSIXBin->iByteOffset[0] = 16 + 16 + 3*(sizeof(double) * massLength) ;
     }
     else
     {
@@ -389,18 +399,6 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_processed(ImzMLBinRead* imzMLHan
 {
   //TODO implement the imzML processed mode methods
   throw std::runtime_error("TODO: The imzML processed mode is not implemented yet, sorry.");
-}
-
-//Display the current encoded persentage on console
-void rMSIXBin::coutEncodingPersentage(unsigned int ionIndex)
-{
-  double pp = (double)ionIndex*100.0/((double)massLength - 1.0);
-  static double pp_ant = 0.0;
-  if( (pp - pp_ant) >= 0.9999999999  || ionIndex == 0  || ionIndex == (massLength-1))
-  {
-    Rcout << "\b\b\b\b" << std::fixed << std::setprecision(0) << std::setfill(' ') << std::setw(3) << pp << "%";  
-    pp_ant = pp;
-  }
 }
 
 //Write the XML file, any previous .XrMSI file will be deleted
@@ -877,8 +875,8 @@ void rMSIXBin::readXrMSIfile()
   data_lst["rMSIXBin"] = rMSIXBIN_lst; //Overwrite the rMSIXBin
   
   //Fill imzML info
-  List imzML_lst = List::create(Named("uuid") = sUUID_imzML,  //TODO not working!
-                                Named("file") = strImzML_filename //TODO not working!
+  List imzML_lst = List::create(Named("uuid") = sUUID_imzML,  
+                                Named("file") = strImzML_filename 
                                 );
   imzML_lst.attr("class") = "imzMLData"; //Set class name
   
@@ -905,6 +903,116 @@ void rMSIXBin::copyimgStream2rMSIObj()
   }
   (as<List>((as<List>((as<List>(rMSIObj["data"]))["rMSIXBin"]))["imgStream"]))["ByteLength"] = RByteLengths;
   (as<List>((as<List>((as<List>(rMSIObj["data"]))["rMSIXBin"]))["imgStream"]))["ByteOffset"] = RByteOffsets ;
+}
+
+//read the BrMSI uuid, mass axis, average spectrum and base spectrum
+void rMSIXBin::readBrMSI_header()
+{
+  std::ifstream  binFile;
+  binFile.open(_rMSIXBin->Bin_file, std::fstream::in | std::ios::binary);
+  if(!binFile.is_open())
+  {
+    throw std::runtime_error("ERROR: rMSIXBin::readBrMSI_header could not open the .BrMSI file.\n"); 
+  }
+  
+  //Read imzML UUID and validate it agains already read UUID from XML part
+  char* bin_uuid = new char[16];
+  binFile.read (bin_uuid, 16);
+  if(binFile.eof())
+  {
+    binFile.close();
+    delete[] bin_uuid;
+    throw std::runtime_error("ERROR: rMSIXBin::readBrMSI_header reached EOF reading the .BrMSI file.\n"); 
+  }
+  if(binFile.fail() || binFile.bad())
+  {
+    binFile.close();
+    delete[] bin_uuid;
+    throw std::runtime_error("FATAL ERROR:  rMSIXBin::readBrMSI_header got fail or bad bit condition reading the .BrMSI file.\n"); 
+  }
+  
+  for(int i = 0; i < 16; i++)
+  {
+    if(bin_uuid[i] != UUID_imzML[i])
+    {
+      binFile.close();
+      delete[] bin_uuid;
+      throw std::runtime_error("UUID check error: imzML UUID's from .XrMSI and .BrMSI files differ.\n"); 
+    }
+  }
+  
+  //Read rMSIXBin UUID and validate it agains already read UUID from XML part
+  binFile.read (bin_uuid, 16);
+  if(binFile.eof())
+  {
+    binFile.close();
+    delete[] bin_uuid;
+    throw std::runtime_error("ERROR: rMSIXBin::readBrMSI_header reached EOF reading the .BrMSI file.\n"); 
+  }
+  if(binFile.fail() || binFile.bad())
+  {
+    binFile.close();
+    delete[] bin_uuid;
+    throw std::runtime_error("FATAL ERROR:  rMSIXBin::readBrMSI_header got fail or bad bit condition reading the .BrMSI file.\n"); 
+  }
+  
+  for(int i = 0; i < 16; i++)
+  {
+    if(bin_uuid[i] != UUID_rMSIXBin[i])
+    {
+      binFile.close();
+      delete[] bin_uuid;
+      throw std::runtime_error("UUID check error: rMSIXbin UUID's from .XrMSI and .BrMSI files differ.\n"); 
+    }
+  }
+  delete[] bin_uuid;
+  
+  //Read the mass axis
+  NumericVector mass(massLength);
+  binFile.read ((char*)mass.begin(), massLength*sizeof(double));
+  if(binFile.eof())
+  {
+    binFile.close();
+    throw std::runtime_error("ERROR: rMSIXBin::readBrMSI_header reached EOF reading the .BrMSI file.\n"); 
+  }
+  if(binFile.fail() || binFile.bad())
+  {
+    binFile.close();
+    throw std::runtime_error("FATAL ERROR:  rMSIXBin::readBrMSI_header got fail or bad bit condition reading the .BrMSI file.\n"); 
+  }
+  rMSIObj["mass"] = mass;
+  
+  //Read the average spectrum
+  NumericVector mean(massLength);
+  binFile.read ((char*)mean.begin(), massLength*sizeof(double));
+  if(binFile.eof())
+  {
+    binFile.close();
+    throw std::runtime_error("ERROR: rMSIXBin::readBrMSI_header reached EOF reading the .BrMSI file.\n"); 
+  }
+  if(binFile.fail() || binFile.bad())
+  {
+    binFile.close();
+    throw std::runtime_error("FATAL ERROR:  rMSIXBin::readBrMSI_header got fail or bad bit condition reading the .BrMSI file.\n"); 
+  }
+  rMSIObj["mean"] = mean;
+  
+  //Read the base spectrum
+  NumericVector base(massLength);
+  binFile.read ((char*)base.begin(), massLength*sizeof(double));
+  if(binFile.eof())
+  {
+    binFile.close();
+    throw std::runtime_error("ERROR: rMSIXBin::readBrMSI_header reached EOF reading the .BrMSI file.\n"); 
+  }
+  if(binFile.fail() || binFile.bad())
+  {
+    binFile.close();
+    throw std::runtime_error("FATAL ERROR:  rMSIXBin::readBrMSI_header got fail or bad bit condition reading the .BrMSI file.\n"); 
+  }
+  rMSIObj["base"] = base;
+  
+  binFile.close();
 }
 
 //' decodePngStream2IonImages.

@@ -2,12 +2,12 @@
 % Please edit documentation in R/libimgramdisk.R
 \name{saveImgChunkAtCoords}
 \alias{saveImgChunkAtCoords}
-\title{Stores a data matrix to a part of ff data img.}
+\title{Stores a data matrix to a part of img data.}
 \usage{
 saveImgChunkAtCoords(Img, Coords, dm)
 }
 \arguments{
-\item{Img}{the rMSI object where the data is stored (ramdisk).}
+\item{Img}{the rMSI object where the data is stored.}
 
 \item{Coords}{a coordinates vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.}
 

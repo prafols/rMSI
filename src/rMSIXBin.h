@@ -25,8 +25,6 @@
 #include <fstream>
 #include "imzMLBin.h"
 
-//TODO decidir quants bits em quedo... amb 16bits el brain TOF son 524MB amb 8bits son 327MB, no hi ha tanta differencia?
-//TODO per decidir quants bits son necessaris fes una scala d color rainbow amb diferents tramps: 256, 2^12, 2^16...etc... l'ull hi veu diferencies?
 #define IMG_STREAM_8bits //Comment this line out if you prefere to encode the imgStream as 16bits plus a mask
 
 #define IONIMG_BUFFER_MB 250 //I think 250 MB of RAM is a good balance for fast hdd operation and low memory footprint
@@ -64,14 +62,9 @@ class rMSIXBin
     //The MAX operator will be used to merge all ion images in a single image matrix
     Rcpp::NumericMatrix decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount);
       
-    //TODO add methods for the rest of data encoded in rMSIXBin: normalizations... etc  puc fer un spl metode per passar tot un imzML i calcular:
-    //(Tot aixo hauria d'anar a la classe del imzML ja que u fa amb imzML)
-        // - Espectre mig
-        // - Espectre max o skyline 
-        // - normalitzacions
-        
-        
-      
+    //Calculate average spectrum, base spectrum and normalizations
+    void CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader);
+    
   private:
     unsigned int irMSIFormatVersion; //An integer to record the rMSI format version
     std::string sImgName; //A string to record the MS image name.
@@ -81,7 +74,6 @@ class rMSIXBin
     char UUID_rMSIXBin[16]; //The rMSIXBin UUID in raw bytes
     std::string sUUID_rMSIXBin; //The linked imzML UUID as a string
     
-    double* mass; //The mass axis in C format
     unsigned int massLength; //Number of mass channels
     double pixel_size_um; //pixel resolution in microns
     unsigned int img_width, img_height; //Image size in pixels
@@ -107,9 +99,6 @@ class rMSIXBin
     //Get the byte representation from a 16 bytes uuid string
     void hexstring2byteuuid(std::string hex_str, char* output);
     
-    //Display the current encoded persentage on console
-    void coutEncodingPersentage(unsigned int ionIndex);
-    
     //Write the XML file, any previous .XrMSI file will be deleted
     bool writeXrMSIfile();
     
@@ -118,6 +107,9 @@ class rMSIXBin
     
     //Copy imgStream to the rMSIObject
     void copyimgStream2rMSIObj();
+    
+    //read the BrMSI uuid, mass axis, average spectrum and base spectrum
+    void readBrMSI_header();
     
 };
 

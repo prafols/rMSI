@@ -23,18 +23,18 @@
 #include <fstream>
 #include <Rcpp.h>
 
-enum imzMLDataType
-{
-  int32, //32 bits integer  (int)
-  int64, //64 bits interger (long)
-  float32, //32 bits float  (float)
-  float64  //64 bits float  (double)
-};
-
 class ImzMLBin
 {
   public:
-    ImzMLBin(const char* ibd_fname, unsigned int num_of_pixels, imzMLDataType mzType, imzMLDataType intType, bool continuous);
+    enum imzMLDataType
+    {
+      int32, //32 bits integer  (int)
+      int64, //64 bits interger (long)
+      float32, //32 bits float  (float)
+      float64  //64 bits float  (double)
+    } ;
+    
+    ImzMLBin(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous);
     ~ImzMLBin();
     
     bool get_continuous();
@@ -64,6 +64,9 @@ class ImzMLBin
     unsigned int* iintLength;
     unsigned long* lintOffset;
     
+    //Get the imzMLDataType from a string
+    imzMLDataType string2imzMLDatatype(Rcpp::String data_type);
+    
     template<typename T> 
     void covertBytes2Double(char* inBytes, double* outPtr, unsigned int N);
 };
@@ -71,7 +74,7 @@ class ImzMLBin
 class ImzMLBinRead : public ImzMLBin
 {
   public: 
-    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, imzMLDataType mzType, imzMLDataType intType, bool continuous);
+    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous);
     ~ImzMLBinRead();
     
     //Get the 16 bytes UUID from the imzML ibd file. uuid must be allocated by the user.
@@ -102,7 +105,7 @@ class ImzMLBinRead : public ImzMLBin
 class ImzMLBinWrite : public ImzMLBin
 {
   public: 
-    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, imzMLDataType mzType, imzMLDataType intType, bool continuous);
+    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous);
     ~ImzMLBinWrite();
     
     //Write N elements from the ibd file at the given offset as m/z channels
