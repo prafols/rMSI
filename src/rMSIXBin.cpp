@@ -1093,10 +1093,12 @@ NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigne
   for(int i=0; i < ionCount; i++)
   {
     //Read the scaling factor
-    std::memcpy(&scaling, buffer + _rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex], sizeof(float));
+    std::memcpy(&scaling, buffer + (_rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex]), sizeof(float));
     
+    //Read the png stream
+    raw_image.clear(); //It is really important to clear the vector each time since lodepng appends data to it
     unsigned encode_error = lodepng::decode(raw_image, png_width, png_height,
-                    (const unsigned char*)(buffer + _rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex] + sizeof(float)), _rMSIXBin->iByteLen[i + ionIndex] - sizeof(float),
+                    (const unsigned char*)(buffer + (_rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex] + sizeof(float))), _rMSIXBin->iByteLen[i + ionIndex] - sizeof(float),
                     LodePNGColorType::LCT_GREY, ENCODING_BITS);
     
     if(encode_error)

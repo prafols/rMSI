@@ -412,7 +412,6 @@ saveImageSliceAtMass<-function(Img, Mass, dm)
 #'
 builRasterImageFromCols<-function( Img, IonIndex, IonCount, Normalization = NULL)
 {
- 
   #Set no normalization if is null
   if(is.null(Normalization))
   {
@@ -438,7 +437,7 @@ builRasterImageFromCols<-function( Img, IonIndex, IonCount, Normalization = NULL
 #'
 #' @export
 #'
-builRasterImageFromMass<-function( Img, Mass, Tolerance, method = "max", Normalization = NULL)
+builRasterImageFromMass<-function( Img, Mass, Tolerance, Normalization = NULL)
 {
   location<-getImageColsFromMass(Img, Mass, Tolerance)
   return( list( pixels = builRasterImageFromCols(Img, location$Cols[1], length(location$Cols), Normalization),  Mass = location$Mass, Tolerance = location$Tolerance ) )

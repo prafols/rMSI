@@ -33,7 +33,7 @@
   }
 
   #Get the image slice
-  img_slice<-builRasterImageFromMass( img, mass.peak, tolerance, "max", NormCoefs)
+  img_slice<-builRasterImageFromMass( img, mass.peak, tolerance, NormCoefs)
 
   #Create the raster
   my_raster <- raster::raster( nrow = ncol(img_slice$pixels), ncol = nrow(img_slice$pixels), xmn= 0, xmx= nrow(img_slice$pixels), ymn= 0, ymx= ncol(img_slice$pixels))

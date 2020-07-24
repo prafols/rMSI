@@ -4,13 +4,7 @@
 \alias{builRasterImageFromMass}
 \title{Build a image slice from specified datacube masses.}
 \usage{
-builRasterImageFromMass(
-  Img,
-  Mass,
-  Tolerance,
-  method = "max",
-  Normalization = NULL
-)
+builRasterImageFromMass(Img, Mass, Tolerance, Normalization = NULL)
 }
 \arguments{
 \item{Img}{the rMSI object where the data is stored (ramdisk).}
