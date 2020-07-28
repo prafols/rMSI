@@ -4,9 +4,11 @@
 \alias{Cload_rMSIXBinIonImage}
 \title{Cload_rMSIXBinIonImage.}
 \usage{
-Cload_rMSIXBinIonImage(rMSIobj, ionIndex, ionCount)
+Cload_rMSIXBinIonImage(rMSIobj, ionIndex, ionCount, normalization_coefs)
 }
 \arguments{
+\item{normalization_coefs}{a vector containing the intensy normalization coeficients.}
+
 \item{rMSIobj:}{an rMSI object prefilled with a parsed imzML.}
 
 \item{ionIndex:}{the first mass channel at which the image starts.}

@@ -79,6 +79,7 @@ ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
 #'
 #' @param ionIndex the index of ion to extract from the img stream. C style indexing, starting with zero.
 #' @param ionCount number of ion image to decode.
+#' @param normalization_coefs a vector containing the intensy normalization coeficients.
 #' 
 #' @return A NumerixMatrix containing the ion image.
 #' 
@@ -139,8 +140,10 @@ Cload_rMSIXBinData <- function(path, fname) {
 #' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
 #' @param ionIndex: the first mass channel at which the image starts.
 #' @param ionCount: the numer of mass channels used to construct the ion image (a.k.a. image tolerance window).
+#' @param normalization_coefs a vector containing the intensy normalization coeficients.
+#' 
 #' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
-Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount) {
-    .Call('_rMSI_Cload_rMSIXBinIonImage', PACKAGE = 'rMSI', rMSIobj, ionIndex, ionCount)
+Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount, normalization_coefs) {
+    .Call('_rMSI_Cload_rMSIXBinIonImage', PACKAGE = 'rMSI', rMSIobj, ionIndex, ionCount, normalization_coefs)
 }
 

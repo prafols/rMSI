@@ -60,7 +60,7 @@ class rMSIXBin
     
     //Get multiple ion image in a matrix object by decoding the ImgStream
     //The MAX operator will be used to merge all ion images in a single image matrix
-    Rcpp::NumericMatrix decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount);
+    Rcpp::NumericMatrix decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount, Rcpp::NumericVector normalization_coefs);
       
     //Calculate average spectrum, base spectrum and normalizations
     void CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader);
@@ -87,6 +87,8 @@ class rMSIXBin
       unsigned long* iByteOffset; //ImgStrem byte offset of each ion image
       unsigned int* iX; //Corrected X coordinates (non motor coords)
       unsigned int* iY; //Corrected Y coordinates (non motor coords)
+      unsigned long* normByteOffsets; //the offset of the start of eahc normalization vector in the binary file.
+      std::vector<std::string> normNames; //A vector to store normalization names during XML parsing
     }rMSIXBin_Handler;
     
     rMSIXBin_Handler* _rMSIXBin; 
@@ -95,6 +97,12 @@ class rMSIXBin
     void encodeMultipleIonImage2ImgStream(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
     void encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
     void encodeMultipleIonImage2ImgStream_processed(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
+    
+    //Store normalization vectors
+    void storeNormalizations2Binary();
+    
+    //Load normalization vectors
+    void loadNormalizationFromBinary();
     
     //Get the byte representation from a 16 bytes uuid string
     void hexstring2byteuuid(std::string hex_str, char* output);

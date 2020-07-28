@@ -102,6 +102,9 @@ rMSIXBin::rMSIXBin(List rMSIobject)
     _rMSIXBin->iByteOffset[i]  = RByteOffsets[i];
     _rMSIXBin->iByteLen[i] = RByteLengths[i];
   }
+  
+  //Init with not set normalization vectors
+  _rMSIXBin->normByteOffsets = nullptr;
 }
 
 rMSIXBin::~rMSIXBin()
@@ -112,6 +115,10 @@ rMSIXBin::~rMSIXBin()
     delete[] _rMSIXBin->iByteOffset;
     delete[] _rMSIXBin->iX;
     delete[] _rMSIXBin->iY;
+    if( _rMSIXBin->normByteOffsets != nullptr )
+    {
+      delete[] _rMSIXBin->normByteOffsets;
+    }
   }
   delete _rMSIXBin;
 }
@@ -170,9 +177,6 @@ void rMSIXBin::CreateImgStream()
     delete imzMLReader;
     stop(e.what());
   }
-  
-  
-  
   
   //Calculate the average spectrum, base spectrum and normalizations
   Rcout<< "Processing imzML data..." << std::endl;
@@ -240,6 +244,9 @@ void rMSIXBin::CreateImgStream()
 
   delete imzMLReader;
   
+  Rcout << "Storing normalizations..." << std::endl;
+  storeNormalizations2Binary();
+  
   //Copy the _rMSIXBin C style offset to the R rMSIObj
   copyimgStream2rMSIObj(); 
   
@@ -293,8 +300,10 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
   
   rMSIObj["mean"] = averageSpectrum;
   rMSIObj["base"] = baseSpectrum;
-  //TODO normalization to the rMSIObject
-  //TODO store to .BrMSI... maybe I need a fuction for this... o u he de fer desde el create imgstream... pensau
+  DataFrame normDF = DataFrame::create( Named("TIC") = normTIC, 
+                            Named("RMS") = normRMS,
+                            Named("MAX") = normMAX);
+  rMSIObj["normalizations"] = normDF;
   
   delete[] intensity;
 }
@@ -399,6 +408,77 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_processed(ImzMLBinRead* imzMLHan
 {
   //TODO implement the imzML processed mode methods
   throw std::runtime_error("TODO: The imzML processed mode is not implemented yet, sorry.");
+}
+
+void rMSIXBin::storeNormalizations2Binary()
+{
+  //Get normalization vectors
+  unsigned int n_norms = (as<DataFrame>(rMSIObj["normalizations"])).length();
+  _rMSIXBin->normByteOffsets = new unsigned long[n_norms]; 
+  
+  std::ofstream fBrMSI;
+  fBrMSI.open (_rMSIXBin->Bin_file, std::ios::out | std::ios::app | std::ios::binary);
+  if(!fBrMSI.is_open())
+  {
+    throw std::runtime_error("Error: rMSIXBin could not open the BrMSI file.\n");
+  }
+  
+  //First offset
+  _rMSIXBin->normByteOffsets[0] = _rMSIXBin->iByteOffset[massLength - 1] + _rMSIXBin->iByteLen[massLength - 1];
+  for(int i=0; i<n_norms; i++)
+  {
+    NumericVector norm_buffer = (as<DataFrame>(rMSIObj["normalizations"]))[i];
+    fBrMSI.write((const char*)norm_buffer.begin(), norm_buffer.length() * sizeof(double));
+    //Store the  next offset
+    if(i < (n_norms - 1) )
+    {
+      _rMSIXBin->normByteOffsets[i+1] = _rMSIXBin->normByteOffsets[i] + norm_buffer.length() * sizeof(double);
+    }
+  }
+  fBrMSI.close();
+}
+
+void rMSIXBin::loadNormalizationFromBinary()
+{
+  DataFrame normDF;
+  std::ifstream  binFile;
+  binFile.open(_rMSIXBin->Bin_file, std::fstream::in | std::ios::binary);
+  if(!binFile.is_open())
+  {
+    throw std::runtime_error("ERROR: rMSIXBin::loadNormalizationFromBinary could not open the .BrMSI file.\n"); 
+  }
+  
+  for( int i = 0; i < _rMSIXBin->normNames.size(); i++)
+  {
+    normDF.push_back(NumericVector(_rMSIXBin->numOfPixels), _rMSIXBin->normNames[i]);
+    binFile.seekg(_rMSIXBin->normByteOffsets[i]);
+    if(binFile.eof())
+    {
+      binFile.close();
+      throw std::runtime_error("ERROR: rMSIXBin::loadNormalizationFromBinary reached EOF seeking the .BrMSI file.\n"); 
+    }
+    if(binFile.fail() || binFile.bad())
+    {
+      binFile.close();
+      throw std::runtime_error("FATAL ERROR: rMSIXBin::loadNormalizationFromBinary got fail or bad bit condition seeking the .BrMSI file.\n"); 
+    }
+    
+    binFile.read ((char*)((as<NumericVector>(normDF[i])).begin()), _rMSIXBin->numOfPixels * sizeof(double));
+    if(binFile.eof())
+    {
+      binFile.close();
+      throw std::runtime_error("ERROR: rMSIXBin::loadNormalizationFromBinary reached EOF reading the .BrMSI file.\n"); 
+    }
+    if(binFile.fail() || binFile.bad())
+    {
+      binFile.close();
+      throw std::runtime_error("FATAL ERROR:  rMSIXBin::loadNormalizationFromBinary got fail or bad bit condition reading the .BrMSI file.\n"); 
+    }
+  }
+  
+  rMSIObj["normalizations"] = normDF;
+  normDF.attr("class") = "data.frame";
+  binFile.close();
 }
 
 //Write the XML file, any previous .XrMSI file will be deleted
@@ -608,7 +688,29 @@ bool rMSIXBin::writeXrMSIfile()
   }
   
   //Run data: Normalizations
-  //TODO
+  DataFrame normDF = as<DataFrame>(rMSIObj["normalizations"]);
+  CharacterVector norm_names = normDF.names();
+  unsigned int n_norms = normDF.length();
+  xml_node node_normLst = node_run.append_child("normalizationList");
+  node_normLst.append_attribute("count") = n_norms;
+  xml_node node_norm;
+  for( int i = 0; i < n_norms; i++)
+  {
+    node_norm = node_normLst.append_child("normalization");
+    node_norm.append_attribute("id") = i;
+    
+    cvParam = node_norm.append_child("cvParam");
+    cvParam.append_attribute("accession") = "rMSI:1000070";
+    cvParam.append_attribute("cvRef") = "rMSI";
+    cvParam.append_attribute("name") = "normalization vector name";
+    cvParam.append_attribute("value") = (as<std::string>(norm_names[i])).c_str();
+    
+    cvParam = node_norm.append_child("cvParam");
+    cvParam.append_attribute("accession") = "rMSI:1000071";
+    cvParam.append_attribute("cvRef") = "rMSI";
+    cvParam.append_attribute("name") = "normalization vector byte offset";
+    cvParam.append_attribute("value") = _rMSIXBin->normByteOffsets[i];
+  }
     
   // save document to file
   return(doc.save_file(_rMSIXBin->XML_file.c_str(), "\t", format_default, encoding_utf8 ) );
@@ -832,6 +934,36 @@ void rMSIXBin::readXrMSIfile()
       }
     }
   }
+  
+  //Read the normalizations vectors and place them directely in rMSIObj
+  xml_node normalizationList = run.child("normalizationList");
+  if( normalizationList == NULL )
+  {
+    throw std::runtime_error("XML parse error: no normalizationList node found");
+  }
+  
+  unsigned int num_norms = normalizationList.attribute("count").as_uint();
+  _rMSIXBin->normByteOffsets = new unsigned long[num_norms];
+  _rMSIXBin->normNames.clear();
+  for (xml_node normalization = normalizationList.child("normalization"); normalization; normalization = normalization.next_sibling("normalization"))
+  {
+    id = normalization.attribute("id").as_uint();
+    for (xml_node cvParam = normalization.child("cvParam"); cvParam; cvParam = cvParam.next_sibling("cvParam"))
+    {
+      accession = cvParam.attribute("accession").value();
+      if(accession == "rMSI:1000070")
+      {
+        //Normalization name
+        _rMSIXBin->normNames.push_back(cvParam.attribute("value").value());
+      }
+      if(accession == "rMSI:1000071")
+      {
+        //Normalization offset
+        _rMSIXBin->normByteOffsets[id] = cvParam.attribute("value").as_uint(); 
+      }
+    }
+  }
+  loadNormalizationFromBinary();
 
   //Fill rMSIObj info
   NumericVector base(massLength); //Empty base spectrum
@@ -1022,14 +1154,20 @@ void rMSIXBin::readBrMSI_header()
 //'
 //' @param ionIndex the index of ion to extract from the img stream. C style indexing, starting with zero.
 //' @param ionCount number of ion image to decode.
+//' @param normalization_coefs a vector containing the intensy normalization coeficients.
 //' 
 //' @return A NumerixMatrix containing the ion image.
 //' 
-NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount)
+NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount, NumericVector normalization_coefs)
 {
   if(ionIndex + ionCount > massLength)
   {
     throw std::runtime_error("ERROR in rMSIXBin::decodeImgStream2IonImages(): ionIndex+ionCount is out of range.\n");
+  }
+  
+  if(normalization_coefs.length() != _rMSIXBin->numOfPixels)
+  {
+    throw std::runtime_error("ERROR in rMSIXBin::decodeImgStream2IonImages(): normalization_coefs have a different number of elements than total number of pixels.\n");
   }
   
   //1- Read the complete stream in a buffer
@@ -1135,6 +1273,15 @@ NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigne
       }
     }
   }
+  
+  //Apply normalization
+  for(int i = 0; i < _rMSIXBin->numOfPixels; i++)
+  {
+    if(normalization_coefs[i] > 0.0)
+    {
+      ionImage(_rMSIXBin->iX[i], _rMSIXBin->iY[i]) /= normalization_coefs[i];
+    }
+  }
 
   delete[] buffer;
   return ionImage;
@@ -1214,9 +1361,11 @@ List Cload_rMSIXBinData(String path, String fname)
 //' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
 //' @param ionIndex: the first mass channel at which the image starts.
 //' @param ionCount: the numer of mass channels used to construct the ion image (a.k.a. image tolerance window).
+//' @param normalization_coefs a vector containing the intensy normalization coeficients.
+//' 
 //' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
 // [[Rcpp::export]]
-NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsigned int ionCount)
+NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsigned int ionCount, NumericVector normalization_coefs)
 {
   //Check if ion indeces are valid
   if(ionIndex < 1)
@@ -1229,7 +1378,7 @@ NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsign
   try
   {
     rMSIXBin myXBin(rMSIobj); 
-    return myXBin.decodeImgStream2IonImages(ionIndex, ionCount); //ionIndex-1 to convert from R to C indexing
+    return myXBin.decodeImgStream2IonImages(ionIndex, ionCount, normalization_coefs); //ionIndex-1 to convert from R to C indexing
   }
   catch(std::runtime_error &e)
   {
