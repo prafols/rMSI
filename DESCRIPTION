@@ -1,7 +1,7 @@
 Package: rMSI
 Type: Package
 Title: MSI Tools
-Version: 0.8
+Version: 0.9
 Date: 2015-11-30
 Author: Pere Rafols Soler
 Maintainer: Pere Rafols Soler<pere.rafols@urv.cat>
