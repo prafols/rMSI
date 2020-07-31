@@ -21,6 +21,7 @@
 #include <Rcpp.h>
 
 //#define __DEBUG__
+#define MAX_MEMORY_MB 250 //Maxim usable memory
 
 ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous):
   Npixels(num_of_pixels), bContinuous(continuous)
@@ -367,6 +368,63 @@ void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* p
   //TODO checkout fstream doc: http://www.cplusplus.com/reference/fstream/fstream/
   // seek operation is diferent to the ifstream!
   throw std::runtime_error("TODO: Not implemented yet, sorry :(");
+}
+
+//' Cload_imzMLSpectra
+//' Load spectra into a Matrix object interpolating to the common mass axis when necessary.
+//' @param ibdFname: full path to the ibd file.
+//' @param continuous: true if imzML data is in continuous mode
+//' @param mass: data common mass axis.
+//' @param mz_dataTypeString: mass encoding data type name.
+//' @param int_dataTypeString: mass encoding data type name.
+//' @param offsets: subset of the run data of the imzML parsed file.
+// [[Rcpp::export]]
+Rcpp::NumericMatrix Cload_imzMLSpectra(const char* ibdFname,  bool continuous, Rcpp::NumericVector mass,
+                                       Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, 
+                                       Rcpp::DataFrame offsets)
+{
+  if( ((offsets.nrows() * mass.length() * sizeof(double))/ (1024 * 1024 )) > MAX_MEMORY_MB )
+  {
+    throw std::runtime_error("Error in Cload_imzMLSpectra(): loading data required too much memory.");
+  }
+  
+  Rcpp::NumericMatrix m_spc(offsets.nrows(), mass.length());
+  double *intData_ptr; //Temporaly place to store intensity data
+  
+  try
+  {
+    ImzMLBinRead myReader(ibdFname, offsets.nrow(), mz_dataTypeString, int_dataTypeString, continuous);
+    for( int i = 0; i < offsets.nrows(); i++)
+    {
+      if(continuous)
+      {
+        intData_ptr = new double[mass.length()];
+        
+        myReader.readIntData( (unsigned long)((Rcpp::as<Rcpp::NumericVector>(offsets["intOffset"]))[i]), 
+                              (unsigned int)((Rcpp::as<Rcpp::NumericVector>(offsets["intLength"]))[i]), 
+                              intData_ptr);
+        
+        for(int j=0; j < mass.length(); j++)
+        {
+          m_spc(i,j) = intData_ptr[j];
+        }
+    
+        delete[] intData_ptr;
+      }
+      else
+      {
+        //TODO read mass and intensity and interpolate to common mass axis to be able to put spectra in the matrix
+        throw std::runtime_error("TODO: Not implemented yet, sorry :(");
+      }
+    }
+  }
+  catch(std::runtime_error &e)
+  {
+    delete[] intData_ptr;
+    Rcpp::Rcout << "Catch Error: "<< e.what() << "\n";
+  }
+  
+  return m_spc;
 }
 
 ///DEBUG METHODS////////////////////////////////////////////////////////////////////////

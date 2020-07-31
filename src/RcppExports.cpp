@@ -16,6 +16,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Cload_imzMLSpectra
+Rcpp::NumericMatrix Cload_imzMLSpectra(const char* ibdFname, bool continuous, Rcpp::NumericVector mass, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, Rcpp::DataFrame offsets);
+RcppExport SEXP _rMSI_Cload_imzMLSpectra(SEXP ibdFnameSEXP, SEXP continuousSEXP, SEXP massSEXP, SEXP mz_dataTypeStringSEXP, SEXP int_dataTypeStringSEXP, SEXP offsetsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
+    Rcpp::traits::input_parameter< bool >::type continuous(continuousSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mass(massSEXP);
+    Rcpp::traits::input_parameter< Rcpp::String >::type mz_dataTypeString(mz_dataTypeStringSEXP);
+    Rcpp::traits::input_parameter< Rcpp::String >::type int_dataTypeString(int_dataTypeStringSEXP);
+    Rcpp::traits::input_parameter< Rcpp::DataFrame >::type offsets(offsetsSEXP);
+    rcpp_result_gen = Rcpp::wrap(Cload_imzMLSpectra(ibdFname, continuous, mass, mz_dataTypeString, int_dataTypeString, offsets));
+    return rcpp_result_gen;
+END_RCPP
+}
 // testingimzMLBinRead
 Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz, bool continuous);
 RcppExport SEXP _rMSI_testingimzMLBinRead(SEXP ibdFnameSEXP, SEXP NPixelsSEXP, SEXP NSEXP, SEXP offsetSEXP, SEXP dataTypeStringSEXP, SEXP read_mzSEXP, SEXP continuousSEXP) {
@@ -137,6 +153,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
+    {"_rMSI_Cload_imzMLSpectra", (DL_FUNC) &_rMSI_Cload_imzMLSpectra, 6},
     {"_rMSI_testingimzMLBinRead", (DL_FUNC) &_rMSI_testingimzMLBinRead, 7},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},

@@ -471,7 +471,6 @@ dataPointBinaryEncoding <- function(str_dataType)
 
   return(result)
 }
-  
 
 ##TODO revise and reuse the following code for data interpolation!!! ()
 reuseThisFunctionCodeProperly<-function()

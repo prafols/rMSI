@@ -4,13 +4,14 @@
 \alias{import_rMSIXBin}
 \title{import_rMSIXBin.}
 \usage{
-import_rMSIXBin(data_file)
+import_rMSIXBin(data_file, fun_text = NULL)
 }
 \arguments{
-\item{data_file}{The .XrMSI file containing the MS image in rMSI format.
+\item{data_file}{The .XrMSI file containing the MS image in rMSI format.}
 
- Imports an rMSI data object from an .XrMSI data file
- It is recomanded to use rMSI::LoadMsiData directly instead of this function.}
+\item{fun_text}{This is a callback function to update the label widget of loading data. See details for more information.
+Imports an rMSI data object from an .XrMSI data file
+It is recomanded to use rMSI::LoadMsiData directly instead of this function.}
 }
 \value{
 an rMSI data object.

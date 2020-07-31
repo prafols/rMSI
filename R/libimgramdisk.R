@@ -31,36 +31,24 @@
 #'
 loadImgChunkFromIds<-function(Img, Ids)
 {
-  #TODO re-implement using new rMSIXBin format
-  
   #Avoid duplicates
   Ids <- unique(Ids)
   
-  cubeRows <- getCubeRowFromIds(Img, Ids)
-
-  #Read data from ramdisk
-  dM <-matrix(ncol = length(Img$mass), nrow = length(Ids))
-  istart <- 1
-  for( i in 1:length(cubeRows))
+  #Prepare the imzML file
+  ibd_file <- path.expand(file.path(Img$data$path, paste0(Img$data$imzML$file, ".ibd")))
+  if(!file.exists(ibd_file))
   {
-    istop <- istart + length(cubeRows[[i]]$row) - 1
-    dM[istart:istop , ]<- Img$data[[cubeRows[[i]]$cube]][cubeRows[[i]]$row, ]
-    istart<-istop + 1
+    #TODO rise this error properly to the GUI
+    stop("imzML data is not available")
   }
-  
-  #Re-order the dM matrix accordin the Ids order
-  if(nrow(dM)>1)
-  {
-    sortedIds <- unlist(lapply(cubeRows, function(x){x$id}))
-    sorted_rows <- rep(0, length(Ids))
-    for( i in 1:length(Ids))
-    {
-      sorted_rows[i] <- which( sortedIds == Ids[i] )
-    }
-    dM <- dM[ sorted_rows, ]
-  }
-  
-  return(dM)
+      
+  return (Cload_imzMLSpectra(ibdFname = ibd_file, 
+                     continuous = Img$data$imzML$continuous_mode,
+                     mass = Img$mass,
+                     mz_dataTypeString = Img$data$imzML$mz_dataType,
+                     int_dataTypeString = Img$data$imzML$int_dataType, 
+                     offsets = Img$data$imzML$run[Ids,]
+                     ))
 }
 
 
@@ -134,90 +122,6 @@ loadImgChunkFromCoords<-function(Img, Coords)
 saveImgChunkAtCoords<-function(Img, Coords, dm)
 {
   saveImgChunkAtIds(Img, getIdsFromCoords(Img, Coords), dm)
-}
-
-#' Loads a part of  MSI data in RAM.
-#'
-#' This function loads a specified ff datacubes.
-#' It loads full cubes so it should be the most eficient and fast way of loading data to RAM.
-#'
-#' @param Img the rMSI object where the data is stored.
-#' @param Cube The datacube index to load.
-#'
-#' @return a matrix containing the loaded spectra.
-#'
-#' @export
-#'
-loadImgChunkFromCube<-function(Img, Cube)
-{
-  #TODO remove, this method is deprecated in the new data format.
-  return(Img$data[[Cube]][,])
-}
-
-#' Save a data matrix to a whole cube in rMSI object
-#'
-#' @param Img the rMSI object where the data will be overwrited (ramdisk).
-#' @param Cube the cube index that will be overwrited
-#' @param dm the data matrix that will overwrite the selected cube
-#'
-#' @export
-#'
-saveImgChunkToCube<-function(Img, Cube, dm)
-{
-  #TODO remove, this method is deprecated in the new data format.
-  Img$data[[Cube]][,] <- dm
-}
-
-#' Obtain the cube index and cube row of a given image coords.
-#'
-#' Calculates where is located the data provided by pixel coordinates. The cube index and the cube row are returned.
-#'
-#' @param Img the rMSI object where the data is stored (ramdisk).
-#' @param Coords a coordinates vector of spectra to load represented as complex numbers where real part corresponds to X and imaginary to Y.
-#'
-#' @return a list of two vectors of cube index and row index in ff data objects list corresponding to given coords spectra.
-#'
-#' @export
-#'
-getCubeRowFromCoords<-function(Img, Coords)
-{
-  #TODO remove, this method is deprecated in the new data format.
-  return(getCubeRowFromIds(Img, getIdsFromCoords(Img, Coords)))
-}
-
-#' Obtain the cube index and cube row of a given image Ids.
-#'
-#' Calculates where is located the data provided by pixel Identifiers. The cube index and the cube row are returned.
-#'
-#' @param Img the rMSI object where the data is stored (ramdisk).
-#' @param Ids Identifiers of spectra.
-#'
-#' @return a list of the same length as the total number of read cubes. Each list element contain the cube, a vector of ID's and rows.
-#'
-#' @export
-#'
-getCubeRowFromIds<-function(Img, Ids)
-{
-  #TODO remove, this method is deprecated in the new data format.
-  max_nrow<-nrow(Img$data[[1]])
-  icube<-(1+((Ids - 1) %/% max_nrow))
-  irow<- (Ids - (icube -1) * max_nrow)
-  
-  df.cr <- data.frame( id = Ids, cube = icube, row = irow)
-  rm(icube)
-  rm(irow)
-  df.cr <- df.cr[order(df.cr$id),] 
-  
-  cls<-list()
-  un_icube <- unique(df.cr$cube)
-  for( i in 1:length(un_icube))
-  {
-    selItems <- which(df.cr$cube == un_icube[i])
-    cls[[length(cls) + 1]] <- list( cube = un_icube[i],
-                                    id = df.cr$id[selItems],
-                                    row = df.cr$row[selItems])
-  }
-  return(cls)
 }
 
 #' Obtain the image Identifiers from a given set of images coords

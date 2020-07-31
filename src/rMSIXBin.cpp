@@ -1069,7 +1069,7 @@ void rMSIXBin::readBrMSI_header()
     {
       binFile.close();
       delete[] bin_uuid;
-      throw std::runtime_error("UUID check error: imzML UUID's from .XrMSI and .BrMSI files differ.\n"); 
+      throw std::runtime_error("UUID check error: .imzML UUID's from .XrMSI files differ.\n"); 
     }
   }
   

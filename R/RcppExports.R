@@ -15,6 +15,18 @@ CparseBrukerXML <- function(xml_path) {
     .Call('_rMSI_CparseBrukerXML', PACKAGE = 'rMSI', xml_path)
 }
 
+#' Cload_imzMLSpectra
+#' Load spectra into a Matrix object interpolating to the common mass axis when necessary.
+#' @param ibdFname: full path to the ibd file.
+#' @param continuous: true if imzML data is in continuous mode
+#' @param mass: data common mass axis.
+#' @param mz_dataTypeString: mass encoding data type name.
+#' @param int_dataTypeString: mass encoding data type name.
+#' @param offsets: subset of the run data of the imzML parsed file.
+Cload_imzMLSpectra <- function(ibdFname, continuous, mass, mz_dataTypeString, int_dataTypeString, offsets) {
+    .Call('_rMSI_Cload_imzMLSpectra', PACKAGE = 'rMSI', ibdFname, continuous, mass, mz_dataTypeString, int_dataTypeString, offsets)
+}
+
 #' Testing the imzMLreader
 #' testingimzMLBinRead
 #' @param ibdFname: full path to the ibd file.

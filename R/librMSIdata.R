@@ -16,71 +16,6 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ############################################################################
 
-#' Save a rMSI object to disk in a compressed .tar file.
-#'
-#' @param imgData a rMSI objecte with a image with a working ramdisk.
-#' @param data_file Full path to hdd location to save image as a tar file.
-#'
-#' @export
-SaveMsiData<-function(imgData, data_file)
-{
-  current_wd <- getwd() #Keep a copy of current working directory
-  cat("Saving Image...\n")
-  pt<-proc.time()
-
-  setwd(dirname(data_file)) #Path of the resulting .tar file
-  data_dir<-file.path(dirname(data_file), "ImgData")
-  dir.create(data_dir)
-  uuidObj<-imgData$uuid
-  save(uuidObj, file = file.path(data_dir, "uuid.ImgR")) #Save UUID
-  massObj<-imgData$mass
-  save(massObj, file = file.path(data_dir, "mass.ImgR")) #Save mass axis
-  sizeObj<-imgData$size
-  save(sizeObj, file = file.path(data_dir, "size.ImgR")) #Save size Object
-  posObj<-imgData$pos
-  save(posObj, file = file.path(data_dir, "pos.ImgR")) #Save pos Object
-  if(!is.null(imgData$posMotors))
-  {
-    posMotorsObj<-imgData$posMotors
-    save(posMotorsObj, file = file.path(data_dir, "posMotors.ImgR")) #Save posMotors Object
-  }
-  meanSpcData<-imgData$mean
-  save(meanSpcData, file = file.path(data_dir, "mean.SpcR")) #Save mean spectra
-  resolutionObj<-imgData$pixel_size_um
-  save(resolutionObj, file = file.path(data_dir, "pixel_size_um.ImgR")) #Save pixel size um Object
-  if(!is.null(imgData$normalizations))
-  {
-    normalizationsObj <- imgData$normalizations
-    save(normalizationsObj, file = file.path(data_dir, "normalizations.ImgR")) #Save normalizations Object
-  }
-
-  #Store also a vector of names of ff data in order to be able to restore it
-  ffDataNames <- paste(names(imgData$data), "_ffzip", sep = "")
-  save(ffDataNames, file = file.path(data_dir, "ffnames.ImgR")) #Save ff filenames Object
-
-  ##New approach to avoid long and recursive path issues
-  pb<-txtProgressBar(min = 0, max = length(ffDataNames), style = 3 )
-  for(i in 1:length(ffDataNames))
-  {
-    setTxtProgressBar(pb, i)
-    dm<-imgData$data[[i]][,]
-    ffObj<-ff::ff(vmode = attr(attr(imgData$data[[i]],"physical"), "vmode"), dim = c(nrow(dm), ncol(dm)), filename =  file.path(data_dir, ffDataNames[i]))
-    ffObj[,]<-dm
-    ff::ffsave(ffObj , file =  file.path(data_dir, ffDataNames[i]))
-    ff::delete(ffObj)
-    rm(ffObj)
-  }
-
-  tar(tarfile =  file.path(getwd(), basename(data_file)), files = "ImgData")
-  unlink(data_dir, recursive = T) #Remove intermediate data
-
-  close(pb)
-  pt<-proc.time() - pt
-  cat(paste("Saving time:",round(pt["elapsed"], digits = 1),"seconds\n"))
-  setwd(current_wd) #Restoire the original working directory
-}
-
-
 #' Load rMSI data from a compressed tar.
 #'
 #' @param data_file The tar o imzML file containing the MS image in rMSI format or imzML.
@@ -105,60 +40,130 @@ SaveMsiData<-function(imgData, data_file)
 #' @export
 LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F, fun_label = NULL, close_signal = NULL, imzMLChecksum = F, imzMLRename = NULL, imzMLSubCoords = NULL)
 {
-  cat("Loading Image...\n")
-  pt<-proc.time()
-
-  #1- Check if the specified image ramdisk exists in the restore_path location
-  datacube<-.FastLoad(restore_path)
-  if(!is.null(datacube) && !ff_overwrite)
+  if(!file.exists(data_file))
   {
-    if(!is.null(fun_progress))
-    {
-      fun_progress(100)
-    }
-
-    pt<-proc.time() - pt
-    cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
-    class(datacube) <- "rMSIObj"
-    return(datacube)
+    stop("File not found\n")
   }
+  
+  imgData <- NULL
+  
+  #Default  fun_label()
+  if(is.null(fun_label))
+  {
+    fun_label <- function(text)
+    {
+      cat(text)
+      cat("\n")
+    }
+  }
+  
+  pt<-proc.time()
 
   fileExtension <- unlist(strsplit(basename(data_file), split = "\\."))
   fileExtension <- as.character(fileExtension[length(fileExtension)])
   if( fileExtension == "imzML")
   {
-    return(import_imzML(data_file, ramdisk_path = restore_path, fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum, subImg_rename = imzMLRename, subImg_Coords = imzMLSubCoords))
+    #Check if the .XrMSI file is already there...
+    XrMSI_fname <- path.expand(file.path(dirname(data_file), paste0(  unlist(strsplit(basename(data_file), split = "\\."))[1], ".XrMSI")))
+    if(file.exists(XrMSI_fname))
+    {
+      #.XrMSI file exists so load it
+      fun_label(".XrMSI found, loading data from it...")
+      imgData <- rMSI::import_rMSIXBin(XrMSI_fname)
+    }
+    else
+    {
+      #No .XrMSI file so process the imzML
+      fun_label(".XrMSI not found, loading imzML data...")
+      imgData <- rMSI:::Ccreate_rMSIXBinData(rMSI:::import_imzML(path.expand(data_file),  fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum, subImg_rename = imzMLRename, subImg_Coords = imzMLSubCoords))
+    }
+  }
+  else if(fileExtension == "XrMSI")
+  {
+    #Load the XrMSI file
+    imgData <- rMSI::import_rMSIXBin(data_file, fun_text = fun_label)
   }
   else if(fileExtension == "tar")
   {
-    return(import_rMSItar(data_file,restore_path, fun_progress, fun_text = fun_label, close_signal = close_signal))
+    #TODO convert .tar to imzML and load the imzML
+    stop("NOT IMPLEMENTED YET: old format .tar files will be supported by automatically converting them to imzML but this is not implemented yet.\n")
+    #return(import_rMSItar(data_file,restore_path, fun_progress, fun_text = fun_label, close_signal = close_signal))
   }
   else
   {
-    cat("The slected file is not valid.\n")
+    stop("The slected file is not valid.\n")
   }
   pt<-proc.time() - pt
-  cat(paste("Importing time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+  cat(paste("Data loading time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+  return(imgData)
 }
 
 #' import_rMSIXBin.
 #'
 #' @param data_file The .XrMSI file containing the MS image in rMSI format.
-#'
+#' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
 #'  Imports an rMSI data object from an .XrMSI data file
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
 #'  
 #' @return   an rMSI data object.
 #' @export
 #'
-import_rMSIXBin<-function(data_file)
+import_rMSIXBin<-function(data_file, fun_text = NULL)
 {
+  
+  #Default  fun_text()
+  if(is.null(fun_text))
+  {
+    fun_text <- function(text)
+    {
+      cat(text)  
+      cat("\n")
+    }
+  }
+  
+  fun_text("Loading .XrMSI data...")
   img_path  <-  path.expand(dirname(data_file))
   img_fname <- strsplit(basename(data_file), split = ".XrMSI")[[1]] #Set the .XrMSI file
   img <- Cload_rMSIXBinData( img_path, img_fname )
-  return(img)
   
-  #TODO si hi ha un imzML associat, validar que uuid concorden amb els del .XrMSI
+  #Check if imzML part exists
+  imzML_fname <- path.expand(file.path(img$data$path, paste0( img$data$imzML$file, ".imzML")))
+  ibd_fname <- path.expand(file.path(img$data$path, paste0( img$data$imzML$file, ".ibd")))
+  if(file.exists(imzML_fname))
+  {
+    fun_text("Found imzML file, parsing...")
+    imzML_XML <- rMSI:::CimzMLParse(imzML_fname)
+    img$data$imzML$uuid <- imzML_XML$UUID
+    if(imzML_XML$SHA != "")
+    {
+      img$data$imzML$SHA <- imzML_XML$SHA
+    }
+    if(imzML_XML$MD5 != "")
+    {
+      img$data$imzML$MD5 <- imzML_XML$MD5
+    }
+    img$data$imzML$continuous_mode <- imzML_XML$continuous_mode
+    img$data$imzML$mz_dataType <- imzML_XML$mz_dataType
+    img$data$imzML$int_dataType <- imzML_XML$int_dataType
+    img$data$imzML$run <- imzML_XML$run
+    
+    #Check imzML UUID
+    bincon <- file(description = ibd_fname, open = "rb")
+    binUUID <- paste(sprintf("%.2X", readBin(bincon, integer(), 16, size = 1, signed = F)), collapse = "")
+    if(binUUID != img$data$imzML$uuid)
+    {
+      close(bincon)
+      stop("ERROR: UUID in imzML file does not match UUID in ibd file")
+    }
+    close(bincon)
+  }
+  else
+  {
+    fun_text("imzML file is not available")
+  }
+
+  fun_text("MSI data loaded successfully")
+  return(img)
 }
 
 #' import_rMSItar.
@@ -299,43 +304,6 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
   return(datacube)
 }
 
-#Re-Loads a previously loaded image which still have the ff files on HDD
-#The LoadMsiData whill produce a R objecte image file in the same directory of ramdisk in HDD
-#This function will check for the R objecte image in the provided path if it exist and ff object is correct it will return with the image object
-#In case it is not possible loading the image it will return NULL
-.FastLoad<-function( restorePath )
-{
-  #1- Check if restorePath exists
-  if( !dir.exists(restorePath) )
-  {
-    cat("\nNo ramdisk directory, it will be created\n")
-    return(NULL)
-  }
-
-  #2- Check if fast loading R image object file exists
-  if( !file.exists( file.path(restorePath, "datacube.RImg") ))
-  {
-    cat("\nNo datacube.RImg in ramdisk, new ramdisk will be created\n")
-    return(NULL)
-  }
-
-  #3- Load the Image object
-  load(file.path(restorePath, "datacube.RImg") )
-
-  #4- Check the ramdisk and load it
-  ramDiskExists <- is.element(T, unlist(lapply(datacube$data, function(x) { file.exists(attr(attr(x, "physical"), "filename"))  })))
-  if(!ramDiskExists)
-  {
-    cat("\nCurrent ramdisk has been corrupted, it will be created\n")
-    return(NULL)
-  }
-  lapply(datacube$data, ff::open.ff)
-
-  cat("\nRamdisk has been sucessfully restored\n")
-  return(datacube)
-}
-
-
 #'Remove an rMSI object ramdisk
 #'
 #' @param img an rMSI object.
@@ -452,7 +420,7 @@ CreateEmptyImage<-function(num_of_pixels,
   img$size <- c( NA, NA )
   names(img$size) <- c("x", "y")
 
-#Prepare the pos matrix
+  #Prepare the pos matrix
   img$pos <- matrix( NA, ncol = 2, nrow = num_of_pixels )
   img$posMotors <- matrix( NA, ncol = 2, nrow = num_of_pixels )
   colnames(img$pos)<- c("x", "y")
@@ -736,138 +704,6 @@ PlotTICImage <- function(img, TICs = NULL, rotate = 0, scale_title = "TIC", vlig
   par(oldPar)
 }
 
-#' ConvertrMSIimg2Bin.
-#'
-#' @param img a rMSI image object to be converted.
-#' @param out_data_dir the resulting output data directory.
-#'
-#' @return nothing.
-#' @export
-#'
-ConvertrMSIimg2Bin <- function( img, out_data_dir)
-{
-
-  dir.create(out_data_dir)
-
-  #Export global m/z axis to txt
-  write(img$mass, file.path(out_data_dir, "mz.txt" ), ncolumns = 1)
-
-  #Export metadata as a plain ascii file:
-  img_name_char <- paste("Original image name:\t", img$name, "\n", sep = "")
-  img_size_charX <- paste("Image size in X:\t", img$size["x"], "\n", sep = "")
-  img_size_charY <- paste("Image size in Y:\t", img$size["y"], "\n", sep = "")
-  pixel_size_char <- paste("Pixel size (um):\t", img$pixel_size_um, "\n", sep = "")
-  write( paste(img_name_char, img_size_charX, img_size_charY, pixel_size_char, sep =""), file= file.path(out_data_dir, "metadata.txt")  )
-
-  #Export spectra intensity data
-  spc_id <- 1
-  subdir <- 1
-  dir.create(file.path(out_data_dir, subdir))
-  spc_in_subdir_count <- 0
-  for( ic in 1:length(img$data))
-  {
-    cat(paste("Processing cube", ic, "of", length(img$data), "\n"))
-    cube <- loadImgChunkFromCube(img, ic)
-
-    for( i in 1:nrow(cube))
-    {
-      if(spc_in_subdir_count >= 1e4)
-      {
-        subdir <- subdir + 1
-        dir.create(file.path(out_data_dir, subdir))
-        spc_in_subdir_count <- 0
-      }
-
-      fname <- paste ("ID",spc_id, "_X", img$pos[spc_id, "x"] , "_Y", img$pos[spc_id, "y"], ".bin", sep = "")
-      spc_id <- spc_id + 1
-      spc <- cube[i, ]
-      writeBin(spc, file.path(out_data_dir, subdir, fname ), size = 4, endian="little")
-      spc_in_subdir_count <- spc_in_subdir_count + 1
-    }
-
-  }
-}
-
-#' ConvertBin2rMSIimg.
-#'
-#' @param in_data_dir data dir where the bin image is located.
-#' @param out_img_tar_file if not NULL the imported image will be also stored as a tar file.
-#'
-#' @return the rMSI image object.
-#' @export
-#'
-ConvertBin2rMSIimg <- function( in_data_dir, out_img_tar_file = NULL )
-{
-  #Get the metadata
-  mz_axis <- as.numeric(read.table(file.path(in_data_dir, "mz.txt"))[,1])
-  metadata <- read.table(file.path(in_data_dir, "metadata.txt"), sep = "\t", colClasses = "character")
-  imgName <- as.character(metadata[1,2])
-  xSize <- as.numeric(metadata[2,2])
-  ySize <- as.numeric(metadata[3,2])
-  resolution <- as.numeric(metadata[4,2])
-
-  #List bin files
-  bin_files<-list.files(path=in_data_dir, include.dirs = F, recursive = T, pattern = "*.bin", full.names = T)
-
-  #Fill image fields
-  img <-CreateEmptyImage( num_of_pixels = length(bin_files) , pixel_resolution = resolution, img_name =  imgName, mass_axis = mz_axis )
-  img$size["x"] <- xSize
-  img$size["y"] <- ySize
-
-  #Prepare a dataframe with each bin file info
-  print("Parsing bin file names...")
-  pb<-txtProgressBar(min = 0, max = length(bin_files), style = 3 )
-  pb_i <- 0
-  ID <- c()
-
-  for( bin_file in bin_files)
-  {
-    pb_i <- pb_i + 1
-    setTxtProgressBar(pb, pb_i)
-    pixel_fields <- strsplit(as.character(strsplit(basename(bin_file), split = "\\.")[[1]])[1], split = "_")[[1]]
-    id <- as.numeric(strsplit(pixel_fields[1], split = "ID")[[1]])[2]
-    X_cord <- as.numeric(strsplit(pixel_fields[2], split = "X")[[1]])[2]
-    Y_cord <- as.numeric(strsplit(pixel_fields[3], split = "Y")[[1]])[2]
-    img$pos[id, "x"] <- X_cord
-    img$pos[id, "y"] <- Y_cord
-    ID <- c(ID, id)
-  }
-  data_inf <- data.frame( ID, bin_files )
-  data_inf <- data_inf[order(ID), ] #Sort by ID's (faster datacubes writing)
-  close(pb)
-
-  #Extract bin files
-  print("Extracting spectra from bin files...")
-  pb<-txtProgressBar(min = 0, max = nrow(data_inf), style = 3 )
-  dm <- matrix(nrow = 100, ncol = length( mz_axis )) #Read HDD in chunks of 100 spectra
-  partial_ids <- c()
-  dm_irow <- 1
-  for( i in 1:nrow(data_inf))
-  {
-    setTxtProgressBar(pb, i)
-    dm[dm_irow, ] <- as.integer(readBin(as.character(data_inf[i, "bin_files"]), integer(),n=length(mz_axis) ,size = 4, signed=T, endian="little" ))
-    partial_ids <- c(partial_ids, data_inf[i, "ID"])
-    dm_irow <- dm_irow + 1
-
-    if( dm_irow > nrow(dm) || i == nrow(data_inf))
-    {
-      saveImgChunkAtIds( img,  partial_ids, dm[1:length(partial_ids), ] )
-      partial_ids <- c()
-      dm_irow <- 1
-    }
-  }
-  close(pb)
-
-  print("Calculating average spectrum...")
-  img$mean <- AverageSpectrum(img)
-
-  if(!is.null(out_img_tar_file))
-  {
-    SaveMsiData(img, out_img_tar_file)
-  }
-  return(img)
-}
-
 #' plotParamAcqOrdered.
 #'
 #' @param img rMSI object from wich data must be ploted.
@@ -885,8 +721,6 @@ plotParamAcqOrdered <- function( img, Param, yAxisLabel = "Param" )
   idxArray <- idxArray[order(idxArray[,"y"], idxArray[,"x"]), ]
   plot(Param[idxArray[,"id"]], type="l", col ="red", ylab = yAxisLabel, xlab = "Pixel" )
 }
-
-
 
 #' remap2ImageCoords.
 #'
