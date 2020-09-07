@@ -128,9 +128,10 @@ NULL
 #' creates new rMSIXBin files (.XrMSI and .BrMSI). Previous files will be deleted.
 #'
 #' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
+#' @param number_of_threads: number of threads used for imgStream encoding.
 #' @return the rMSI object with rMSIXBin inforation completed. 
-Ccreate_rMSIXBinData <- function(rMSIobj) {
-    .Call('_rMSI_Ccreate_rMSIXBinData', PACKAGE = 'rMSI', rMSIobj)
+Ccreate_rMSIXBinData <- function(rMSIobj, number_of_threads) {
+    .Call('_rMSI_Ccreate_rMSIXBinData', PACKAGE = 'rMSI', rMSIobj, number_of_threads)
 }
 
 #' Cload_rMSIXBinData.

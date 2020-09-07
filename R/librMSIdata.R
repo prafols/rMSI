@@ -38,7 +38,16 @@
 #' The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
 #'
 #' @export
-LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")) , fun_progress = NULL, ff_overwrite = F, fun_label = NULL, close_signal = NULL, imzMLChecksum = F, imzMLRename = NULL, imzMLSubCoords = NULL)
+LoadMsiData<-function(data_file,
+                      restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")),
+                      fun_progress = NULL, 
+                      ff_overwrite = F,
+                      fun_label = NULL, 
+                      close_signal = NULL,
+                      imzMLChecksum = F, 
+                      imzMLRename = NULL,
+                      imzMLSubCoords = NULL,
+                      encoding_threads = parallel::detectCores())
 {
   if(!file.exists(data_file))
   {
@@ -75,7 +84,8 @@ LoadMsiData<-function(data_file, restore_path = file.path(dirname(data_file), pa
     {
       #No .XrMSI file so process the imzML
       fun_label(".XrMSI not found, loading imzML data...")
-      imgData <- rMSI:::Ccreate_rMSIXBinData(rMSI:::import_imzML(path.expand(data_file),  fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum, subImg_rename = imzMLRename, subImg_Coords = imzMLSubCoords))
+      imgData <- rMSI:::Ccreate_rMSIXBinData(rMSI:::import_imzML(path.expand(data_file),  fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum, subImg_rename = imzMLRename, subImg_Coords = imzMLSubCoords),
+                                             encoding_threads)
     }
   }
   else if(fileExtension == "XrMSI")

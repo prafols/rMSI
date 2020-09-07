@@ -49,7 +49,7 @@ class rMSIXBin
     rMSIXBin(Rcpp::String path, Rcpp::String fname);
     
     //Constructor using an already filled rMSIobject
-    rMSIXBin(Rcpp::List rMSIobject);
+    rMSIXBin(Rcpp::List rMSIobject, int nThreads);
     ~rMSIXBin();
     
     //Return a copy of the rMSIObj
@@ -78,6 +78,8 @@ class rMSIXBin
     double pixel_size_um; //pixel resolution in microns
     unsigned int img_width, img_height; //Image size in pixels
     
+    unsigned int number_of_encoding_threads; //Max number of threads to use for the imgStream encoding
+    
     typedef struct
     {
       unsigned int numOfPixels; //Total number of pixel in the image;
@@ -93,10 +95,21 @@ class rMSIXBin
     
     rMSIXBin_Handler* _rMSIXBin; 
     
-    //Encoide various Ion images to ImgStream in a single buffered execution
-    void encodeMultipleIonImage2ImgStream(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
-    void encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
-    void encodeMultipleIonImage2ImgStream_processed(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount);
+    typedef struct
+    {
+      unsigned int ionIndex; //Ion index of the current encoded image
+      float scaling; //The scaling factor of an ion image
+      std::vector<unsigned char> png_stream; //the encoded png stream
+    }ImgStreamEncoder_result;
+    
+    //Threaded encoding model 
+    ImgStreamEncoder_result encodeBuffer2SingleImgStream(double *buffer, unsigned int ionIndex, unsigned int bufferIonIndex, unsigned int bufferIonCount); //Threaded method
+    void startThreadedEncoding(double *buffer, unsigned int ionIndex, unsigned int ionCount); //Threaded method
+    
+    //Threaded normalizations and average spectrum
+    void startThreadedAverageBaseNormalizations(double *intensity, int pixel, 
+                                                Rcpp::NumericVector *averageSpectrum, Rcpp::NumericVector *baseSpectrum,
+                                                Rcpp::NumericVector *normTIC, Rcpp::NumericVector *normRMS, Rcpp::NumericVector *normMAX );
     
     //Store normalization vectors
     void storeNormalizations2Binary();

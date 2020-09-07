@@ -8,11 +8,14 @@ Maintainer: Pere Rafols Soler<pere.rafols@urv.cat>
 Description: MSI data handling and visualization in R
 License: GPL3
 LazyData: TRUE
-Imports:
+SystemRequirements: C++11
+Depends:
+    R (>= 3.6),
     gWidgets2 (>= 1.0),
     RGtk2 (>= 2.20.25),
     cairoDevice (>= 2.22),
-    gWidgets2RGtk2 (>= 1.0),
+    gWidgets2RGtk2 (>= 1.0)
+Imports:
     ff (>= 2.2),
     bit (>= 1.1-12),
     raster (>= 2.4),

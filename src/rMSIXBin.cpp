@@ -22,6 +22,7 @@
 #include <stdexcept>
 #include <string>
 #include <cstdlib>
+#include <future>
 
 #include "rMSIXBin.h"
 #include "lodepng.h"
@@ -33,7 +34,8 @@ using namespace Rcpp;
 using namespace pugi;
 
 //This constructor is used to load the rMSIObj from already present .XrMSI and .BrMSI file
-rMSIXBin::rMSIXBin(String path, String fname)
+rMSIXBin::rMSIXBin(String path, String fname):
+  number_of_encoding_threads(1)
 {
   //Start setting pointers to null to let the destructor to not crash in case of error
   _rMSIXBin = nullptr;
@@ -44,7 +46,8 @@ rMSIXBin::rMSIXBin(String path, String fname)
  readBrMSI_header();
 }
 
-rMSIXBin::rMSIXBin(List rMSIobject)
+rMSIXBin::rMSIXBin(List rMSIobject, int nThreads):
+  number_of_encoding_threads(nThreads)
 {
   rMSIObj = rMSIobject;
   
@@ -222,22 +225,65 @@ void rMSIXBin::CreateImgStream()
   {
     unsigned int iIon = 0;
     Rcout << "Encoding ion images..." << std::endl;
+    
+    double *LoadBuffer_ptr = nullptr;
+    double *EncodeBuffer_ptr = nullptr;
+    std::future <void> future;
+    
+    if(!imzMLReader->get_continuous())
+    {
+      //TODO implement the processed mode reader
+      throw std::runtime_error("TODO: The imzML processed mode is not implemented yet, sorry.");
+    }
+    
     while( true )
     {
-      iIonImgCount = iIonImgCount <  iRemainingIons ? iIonImgCount :  iRemainingIons;
-      encodeMultipleIonImage2ImgStream(imzMLReader, iIon, iIonImgCount);
-      iIon += iIonImgCount;
-      iRemainingIons = iRemainingIons - iIonImgCount;
-      if(iRemainingIons == 0)
+      //Refresh progress...
+      progressBar(iIon, massLength, "=", " ");
+      
+      if( iRemainingIons > 0 ) //check if there is available imzML data
       {
+        iIonImgCount = iIonImgCount <  iRemainingIons ? iIonImgCount :  iRemainingIons;
+        
+        LoadBuffer_ptr = new double[iIonImgCount*_rMSIXBin->numOfPixels];
+        
+        //TODO encapsulate the continuous mode buffer read in a method and create another method to implement the process mode reader
+        for(int i=0; i < _rMSIXBin->numOfPixels; i++)
+        {
+          imzMLReader->readIntData(imzMLReader->get_intOffset(i) + iIon*imzMLReader->get_intEncodingBytes(), iIonImgCount, LoadBuffer_ptr + (i*iIonImgCount) );
+        }
+        iRemainingIons = iRemainingIons - iIonImgCount;
+      }
+      else
+      {
+        LoadBuffer_ptr = nullptr;
+      }
+      
+      if( EncodeBuffer_ptr != nullptr )
+      {
+        future.get(); //wait for the encoding thread to finish
+        delete[] EncodeBuffer_ptr;
+      }
+      
+      EncodeBuffer_ptr = LoadBuffer_ptr;
+      
+      if(EncodeBuffer_ptr == nullptr)
+      {
+        //Loop end condition
         break;
+      }
+      else
+      {
+        //start encoding threads
+        future = std::async(std::launch::async, &rMSIXBin::startThreadedEncoding, this, EncodeBuffer_ptr, iIon, iIonImgCount);
+        iIon += iIonImgCount;
       }
     }
     Rcout << std::endl;
   }
   catch(std::runtime_error &e)
   {
-    Rcout << "Encoder Error, stopped\n";
+    Rcout << "\nEncoder Error, stopped\n";
     delete imzMLReader;
     stop(e.what());
   }
@@ -261,12 +307,15 @@ void rMSIXBin::CreateImgStream()
 //Calculate average spectrum, base spectrum and normalizations
 void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
 {
-  double *intensity = new double[massLength];
+  double *intensity_load;
+  double *intensity_process;
   NumericVector averageSpectrum(massLength);
   NumericVector baseSpectrum(massLength);
   NumericVector normTIC(_rMSIXBin->numOfPixels);
   NumericVector normRMS(_rMSIXBin->numOfPixels);
   NumericVector normMAX(_rMSIXBin->numOfPixels);
+  std::future <void> future;
+  bool bFutureWorking = false;
   //TODO TICacq normalisation is not implemented yet!, it must be calculated after TIC calculation appling a sliding window
   
   for(int i=0; i < _rMSIXBin->numOfPixels; i++)
@@ -275,27 +324,30 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
     
     if(imzMLreader->get_continuous())
     {
+      intensity_load = new double[massLength];
       imzMLreader->readIntData(imzMLreader->get_intOffset(i), 
                                imzMLreader->get_intLength(i), 
-                               intensity);
-      
-      for( int j=0; j < massLength; j++)
-      {
-        averageSpectrum(j) += intensity[j] / (double)(_rMSIXBin->numOfPixels);
-        baseSpectrum(j) = intensity[j] > baseSpectrum(j) ? intensity[j] : baseSpectrum(j);
-        normTIC(i) += intensity[j];
-        normRMS(i) += intensity[j]*intensity[j];
-        normMAX(i) =  intensity[j] > normMAX(i) ? intensity[j]: normMAX(i);
-      }
-      normRMS(i) = sqrt(normRMS(i));
+                               intensity_load);
     }
     else
     {
       //TODO not implemented yet! load a intensity spectrum an interpolate it to common mass axis
-      delete[] intensity;
       throw std::runtime_error("NOT IMPLEMENTED. Average spectrum, normalizations... etc not implemented for processed mode\n"); 
     }
     
+    if(bFutureWorking)
+    {
+      //Wait for working thread to complete
+      future.get();
+      bFutureWorking = false;
+    }
+    
+    intensity_process = intensity_load;
+    future = std::async(std::launch::async, &rMSIXBin::startThreadedAverageBaseNormalizations, this,
+                        intensity_process, i,
+                        &averageSpectrum, &baseSpectrum,
+                        &normTIC, &normRMS, &normMAX);
+    bFutureWorking = true;
   }
   
   rMSIObj["mean"] = averageSpectrum;
@@ -304,38 +356,76 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
                             Named("RMS") = normRMS,
                             Named("MAX") = normMAX);
   rMSIObj["normalizations"] = normDF;
-  
+}
+
+//Threaded normalizations and average spectrum
+void rMSIXBin::startThreadedAverageBaseNormalizations(double *intensity, int pixel,
+                                            NumericVector *averageSpectrum, NumericVector *baseSpectrum,
+                                            NumericVector *normTIC, NumericVector *normRMS, NumericVector *normMAX )
+{
+  for( int j=0; j < massLength; j++)
+  {
+    (*averageSpectrum)(j) += intensity[j] / (double)(_rMSIXBin->numOfPixels);
+    (*baseSpectrum)(j) = intensity[j] > (*baseSpectrum)(j) ? intensity[j] : (*baseSpectrum)(j);
+    (*normTIC)(pixel) += intensity[j];
+    (*normRMS)(pixel) += intensity[j]*intensity[j];
+    (*normMAX)(pixel) =  intensity[j] > (*normMAX)(pixel) ? intensity[j]: (*normMAX)(pixel);
+  }
+  (*normRMS)(pixel) = sqrt((*normRMS)(pixel));
   delete[] intensity;
 }
 
-void rMSIXBin::encodeMultipleIonImage2ImgStream(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount)
+//Method to be run in multithreading
+//Encode a single image in the ImgStream from a preloaded buffer
+//buffer: potiner to the preloaded buffer with imzML data
+//ionIndex: ion index to be stored in ImgStreamEncoder_result
+//bufferIonIndex: ion index in the buffer to encoded
+//bufferIonCount: number of ions stored in the buffer
+rMSIXBin::ImgStreamEncoder_result rMSIXBin::encodeBuffer2SingleImgStream(double *buffer, unsigned int ionIndex, unsigned int bufferIonIndex, unsigned int bufferIonCount)
 {
-  if(imzMLHandler->get_continuous())
-  {
-    encodeMultipleIonImage2ImgStream_continuous(imzMLHandler, ionIndex, ionCount);
-  }
-  else
-  {
-    encodeMultipleIonImage2ImgStream_processed(imzMLHandler, ionIndex, ionCount);
-  }
-}
-
-//ionIndex: the ion index at which the partial encoding process is started.
-//ionCount: the number of ion images to encode at current encoding exectuion.
-void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount)
-{
-  std::vector<double> buffer(ionCount*_rMSIXBin->numOfPixels); 
-  for(int i=0; i < _rMSIXBin->numOfPixels; i++)
-  {
-    imzMLHandler->readIntData(imzMLHandler->get_intOffset(i) + ionIndex*imzMLHandler->get_intEncodingBytes(), ionCount, buffer.data() + (i*ionCount) );
-  }
-  
+  ImgStreamEncoder_result result;
+  result.ionIndex = ionIndex;
+ 
   //Prepare the image buffer to encode
   //Init with zeros, observe that non-existing MSI pixels will be zero for all spectra, so there is no need to initialize zeros each time
   std::vector<imgstreamencoding_type> image(img_width * img_height, 0);
   double max;
-  float scaling;
   
+  //Calculate the scaling factors
+  max = 0.0;
+  for(int j=0; j < _rMSIXBin->numOfPixels; j++)
+  {
+    max = buffer[j*bufferIonCount + bufferIonIndex] > max ? buffer[j*bufferIonCount + bufferIonIndex] : max;
+  }
+  result.scaling = (float) max;
+  
+  //Prepare the ion image
+  for(int j=0; j < _rMSIXBin->numOfPixels; j++)
+  {
+    image[ _rMSIXBin->iX[j]  + img_width*_rMSIXBin->iY[j] ] = ENCODING_BIT_MASK & (imgstreamencoding_type)(ENCODER_RANGE*((buffer[j*bufferIonCount + bufferIonIndex]/max))); //apply scalling and adjust dynamic range
+  }
+  
+  //Encode the current ion image
+  unsigned encode_error = lodepng::encode(result.png_stream, 
+                                          (const unsigned char*) image.data(), img_width, img_height,
+                                          LodePNGColorType::LCT_GREY, ENCODING_BITS);
+  
+  if(encode_error)
+  {
+    std::stringstream ss; 
+    ss << "Error: rMSIXBin png encoding excepion: " << lodepng_error_text(encode_error) << "\n";
+    throw std::runtime_error(ss.str());
+  }
+  
+  return result;
+}
+
+//Start the encoding of multiple ion images in separated threads
+//buffer: potiner to the preloaded buffer with imzML data.
+//ionIndex: the ion index at which the partial encoding process is started.
+//ionCount: the number of ion images to encode at current encoding exectuion.
+void rMSIXBin::startThreadedEncoding(double *buffer, unsigned int ionIndex, unsigned int ionCount)
+{
   std::ofstream fBrMSI;
   fBrMSI.open (_rMSIXBin->Bin_file, std::ios::out | std::ios::app | std::ios::binary);
   if(!fBrMSI.is_open())
@@ -343,71 +433,62 @@ void rMSIXBin::encodeMultipleIonImage2ImgStream_continuous(ImzMLBinRead* imzMLHa
     throw std::runtime_error("Error: rMSIXBin could not open the BrMSI file.\n");
   }
   
-  for(unsigned int i = 0; i < ionCount; i++)
-  { 
-    progressBar(ionIndex + i, massLength, "=", " ");
-
-    //Calculate the scaling factors
-    max = 0.0;
-    for(int j=0; j < _rMSIXBin->numOfPixels; j++)
+  std::vector< std::future <ImgStreamEncoder_result> > futures;
+  ImgStreamEncoder_result thread_result;
+  unsigned int i_encoding = 0; //Ion iterator
+  unsigned int i_completed = 0; //Ion enconding completed index
+  unsigned int running_threads = 0; //Threads counter
+  bool bThreadResultReady = false;
+  while(i_completed < ionCount)
+  {
+    while((running_threads < number_of_encoding_threads) && (i_encoding < ionCount))
     {
-      max = buffer[j*ionCount + i] > max ? buffer[j*ionCount + i] : max;
+      futures.emplace_back(std::async(std::launch::async, &rMSIXBin::encodeBuffer2SingleImgStream, this, buffer, ionIndex + i_encoding, i_encoding, ionCount));
+      running_threads++;
+      i_encoding++;
     }
     
-    scaling = (float) max;
-    
-    for(int j=0; j < _rMSIXBin->numOfPixels; j++)
+    if(bThreadResultReady)
     {
-      image[ _rMSIXBin->iX[j]  + img_width*_rMSIXBin->iY[j] ] = ENCODING_BIT_MASK & (imgstreamencoding_type)(ENCODER_RANGE*((buffer[j*ionCount + i]/max))); //apply scalling and adjust dynamic range
-    }
-    
-    //Encode the current ion image
-    std::vector<unsigned char> png_stream;
-    unsigned encode_error = lodepng::encode(png_stream, 
-                    (const unsigned char*) image.data(), img_width, img_height,
-                    LodePNGColorType::LCT_GREY, ENCODING_BITS);
-        
-    if(encode_error)
-    {
-      std::stringstream ss; 
-      ss << "Error: rMSIXBin png encoding excepion: " << lodepng_error_text(encode_error) << "\n";
-      fBrMSI.close();
-      throw std::runtime_error(ss.str());
-    }
-    
-    //Save the current image to the imgStream on hdd
-    fBrMSI.write((const char*)(&scaling), sizeof(float));  
-    fBrMSI.write((const char*)png_stream.data(), png_stream.size());
-
-    //Store offsets info
-    _rMSIXBin->iByteLen[i + ionIndex] = sizeof(float) + png_stream.size(); //The encoded bytes are 1) the scaling in a float and 2) the bytes in the png
-    if((i + ionIndex) == 0)
-    {
-      //Special case, the first offset is being writen
-      //The first ion image in imgStream will be located at iByteOffset[0] positon of the .BrMSI file.
-      //So, 16 bytes for each UUID and massLength bytes for the mass axis, the average spectrum and the base spectrum.
-      _rMSIXBin->iByteOffset[0] = 16 + 16 + 3*(sizeof(double) * massLength) ;
-    }
-    else
-    {
+      //Save the current image to the imgStream on hdd
+      fBrMSI.write((const char*)(&(thread_result.scaling)), sizeof(float));  
+      fBrMSI.write((const char*)(thread_result.png_stream.data()), thread_result.png_stream.size());
       
-      _rMSIXBin->iByteOffset[i + ionIndex] = _rMSIXBin->iByteOffset[i + ionIndex - 1] + _rMSIXBin->iByteLen[i + ionIndex - 1]; 
+      //Store offsets info
+      _rMSIXBin->iByteLen[thread_result.ionIndex] = sizeof(float) + thread_result.png_stream.size(); //The encoded bytes are 1) the scaling in a float and 2) the bytes in the png
+      if(thread_result.ionIndex == 0)
+      {
+        //Special case, the first offset is being writen
+        //The first ion image in imgStream will be located at iByteOffset[0] positon of the .BrMSI file.
+        //So, 16 bytes for each UUID and massLength bytes for the mass axis, the average spectrum and the base spectrum.
+        _rMSIXBin->iByteOffset[0] = 16 + 16 + 3*(sizeof(double) * massLength) ;
+      }
+      else
+      {
+        _rMSIXBin->iByteOffset[thread_result.ionIndex] = _rMSIXBin->iByteOffset[thread_result.ionIndex - 1] + _rMSIXBin->iByteLen[thread_result.ionIndex - 1]; 
+      }
+      
+      if(fBrMSI.fail() || fBrMSI.bad())
+      {
+        fBrMSI.close();
+        throw std::runtime_error("FATAL ERROR: ImzMLBin got fail or bad bit condition reading the imzML ibd file.\n"); 
+      }
+       
+      i_completed++;
+      bThreadResultReady = false;
     }
-    
-    if(fBrMSI.fail() || fBrMSI.bad())
+      
+    //Wait for a thread to finish
+    if(futures.size() > 0)
     {
-      fBrMSI.close();
-      throw std::runtime_error("FATAL ERROR: ImzMLBin got fail or bad bit condition reading the imzML ibd file.\n"); 
+      thread_result = futures.front().get();
+      running_threads--;
+      futures.erase(futures.begin());
+      bThreadResultReady = true;
     }
-
   }
+  
   fBrMSI.close();
-}
-
-void rMSIXBin::encodeMultipleIonImage2ImgStream_processed(ImzMLBinRead* imzMLHandler, unsigned int ionIndex, unsigned int ionCount)
-{
-  //TODO implement the imzML processed mode methods
-  throw std::runtime_error("TODO: The imzML processed mode is not implemented yet, sorry.");
 }
 
 void rMSIXBin::storeNormalizations2Binary()
@@ -1314,13 +1395,14 @@ void rMSIXBin::hexstring2byteuuid(std::string hex_str, char* output)
 //' creates new rMSIXBin files (.XrMSI and .BrMSI). Previous files will be deleted.
 //'
 //' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
+//' @param number_of_threads: number of threads used for imgStream encoding.
 //' @return the rMSI object with rMSIXBin inforation completed. 
 // [[Rcpp::export]]
-List Ccreate_rMSIXBinData(List rMSIobj)
+List Ccreate_rMSIXBinData(List rMSIobj, int number_of_threads)
 {
   try
   {
-    rMSIXBin myXBin(rMSIobj); 
+    rMSIXBin myXBin(rMSIobj, number_of_threads); 
     myXBin.CreateImgStream();
     return myXBin.get_rMSIObj();
   }
@@ -1377,7 +1459,7 @@ NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsign
   
   try
   {
-    rMSIXBin myXBin(rMSIobj); 
+    rMSIXBin myXBin(rMSIobj, 1); 
     return myXBin.decodeImgStream2IonImages(ionIndex, ionCount, normalization_coefs); //ionIndex-1 to convert from R to C indexing
   }
   catch(std::runtime_error &e)

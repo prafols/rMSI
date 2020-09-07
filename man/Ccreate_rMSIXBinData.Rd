@@ -4,10 +4,12 @@
 \alias{Ccreate_rMSIXBinData}
 \title{Ccreate_rMSIXBinData.}
 \usage{
-Ccreate_rMSIXBinData(rMSIobj)
+Ccreate_rMSIXBinData(rMSIobj, number_of_threads)
 }
 \arguments{
 \item{rMSIobj:}{an rMSI object prefilled with a parsed imzML.}
+
+\item{number_of_threads:}{number of threads used for imgStream encoding.}
 }
 \value{
 the rMSI object with rMSIXBin inforation completed.

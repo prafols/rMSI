@@ -14,7 +14,8 @@ LoadMsiData(
   close_signal = NULL,
   imzMLChecksum = F,
   imzMLRename = NULL,
-  imzMLSubCoords = NULL
+  imzMLSubCoords = NULL,
+  encoding_threads = parallel::detectCores()
 )
 }
 \arguments{

@@ -314,10 +314,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   {
     subImg_rename <-  basename(imzML_File)
   }
-  if(!is.null(fun_text))
-  {
-    fun_text("Loading data...")
-  }
   img <- CreateEmptyImage(num_of_pixels = nrow(xmlRes$run_data), mass_axis = mzAxis, pixel_resolution = xmlRes$pixel_size_um,
                                img_name = subImg_rename,
                                rMSIXBin_path = path.expand(dirname(imzML_File)),
@@ -351,27 +347,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   img$size["x"] <- max(img$pos[,"x"])
   img$size["y"] <- max(img$pos[,"y"])
   
-  
-  #6- Read all spectra and creat the ImgStrem
-  if(createImgStream && (xmlRes$continuous_mode || (!xmlRes$continuous_mode && convertProcessed2Continuous) ))
-  {
-    pt <- proc.time()
-    cat("\nReading spectra from binary file...\n")
-    
-    #TODO call the function to create the imgStream here, such function still does not exsit
-    #The rMSIXBin files (.XrMSI and .BrMSI) must be present at this point! so here, both file will be filled with the imgstream
-    
-    pt<-proc.time() - pt
-    cat(paste("\nBinary file reading time:",round(pt["elapsed"], digits = 1),"seconds\n\n"))
-  
-    #Compute average spectrum
-    #TODO aixo va abans d crear el imgStream ja que caal guardarho en el rMSIXBin, utilitzar imzML directament per calcularho, 
-    #TODO     crec k pots passar del Multithreading pq es molt rapid el calcul i lectura disc es sequencial, 
-    #TODO     la propia classe imzMLBin pot tenir un metode per calcul espectre mig (aixi ho pot cridar el rMSIXBin directament).
-    #img$mean <- AverageSpectrum(img) #TODO si bull nomes peak list aixo no s'ha de cridar
-  }
-  
-  #7- Just reading the peak lists
+  #6- Just reading the peak lists
   if(!xmlRes$continuous_mode && !convertProcessed2Continuous)
   {
     pt <- proc.time()
@@ -381,16 +357,12 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
     cat(paste("\nBinary file reading time:",round(pt["elapsed"], digits = 1),"seconds\n\n"))
   }
 
-  #8- And it's done, just return de rMSI object
+  #7- And it's done, just return de rMSI object
   if(!is.null(pb))
   {
     close(pb)
   }
   gc()
-  if(!is.null(fun_text))
-  {
-    fun_text("Done")
-  }
   return(img)
 }
 
