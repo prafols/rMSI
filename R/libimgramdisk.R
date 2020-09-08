@@ -42,13 +42,7 @@ loadImgChunkFromIds<-function(Img, Ids)
     stop("imzML data is not available")
   }
       
-  return (Cload_imzMLSpectra(ibdFname = ibd_file, 
-                     continuous = Img$data$imzML$continuous_mode,
-                     mass = Img$mass,
-                     mz_dataTypeString = Img$data$imzML$mz_dataType,
-                     int_dataTypeString = Img$data$imzML$int_dataType, 
-                     offsets = Img$data$imzML$run[Ids,]
-                     ))
+  return (Cload_imzMLSpectra(Img, Ids - 1)) #Ids-1 to translate from R-style indexting to C indexing
 }
 
 

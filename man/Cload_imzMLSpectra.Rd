@@ -5,27 +5,12 @@
 \title{Cload_imzMLSpectra
 Load spectra into a Matrix object interpolating to the common mass axis when necessary.}
 \usage{
-Cload_imzMLSpectra(
-  ibdFname,
-  continuous,
-  mass,
-  mz_dataTypeString,
-  int_dataTypeString,
-  offsets
-)
+Cload_imzMLSpectra(rMSIobj, pixelIDs)
 }
 \arguments{
-\item{ibdFname:}{full path to the ibd file.}
+\item{rMSIobj:}{an rMSI object prefilled with a parsed imzML.}
 
-\item{continuous:}{true if imzML data is in continuous mode}
-
-\item{mass:}{data common mass axis.}
-
-\item{mz_dataTypeString:}{mass encoding data type name.}
-
-\item{int_dataTypeString:}{mass encoding data type name.}
-
-\item{offsets:}{subset of the run data of the imzML parsed file.}
+\item{pixelIDs:}{pixel ID's of the spectra to load in C-style indexing (starting at 0).}
 }
 \description{
 Cload_imzMLSpectra

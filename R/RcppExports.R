@@ -15,18 +15,6 @@ CparseBrukerXML <- function(xml_path) {
     .Call('_rMSI_CparseBrukerXML', PACKAGE = 'rMSI', xml_path)
 }
 
-#' Cload_imzMLSpectra
-#' Load spectra into a Matrix object interpolating to the common mass axis when necessary.
-#' @param ibdFname: full path to the ibd file.
-#' @param continuous: true if imzML data is in continuous mode
-#' @param mass: data common mass axis.
-#' @param mz_dataTypeString: mass encoding data type name.
-#' @param int_dataTypeString: mass encoding data type name.
-#' @param offsets: subset of the run data of the imzML parsed file.
-Cload_imzMLSpectra <- function(ibdFname, continuous, mass, mz_dataTypeString, int_dataTypeString, offsets) {
-    .Call('_rMSI_Cload_imzMLSpectra', PACKAGE = 'rMSI', ibdFname, continuous, mass, mz_dataTypeString, int_dataTypeString, offsets)
-}
-
 #' Testing the imzMLreader
 #' testingimzMLBinRead
 #' @param ibdFname: full path to the ibd file.
@@ -158,5 +146,13 @@ Cload_rMSIXBinData <- function(path, fname) {
 #' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
 Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount, normalization_coefs) {
     .Call('_rMSI_Cload_rMSIXBinIonImage', PACKAGE = 'rMSI', rMSIobj, ionIndex, ionCount, normalization_coefs)
+}
+
+#' Cload_imzMLSpectra
+#' Load spectra into a Matrix object interpolating to the common mass axis when necessary.
+#' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
+#' @param pixelIDs: pixel ID's of the spectra to load in C-style indexing (starting at 0).
+Cload_imzMLSpectra <- function(rMSIobj, pixelIDs) {
+    .Call('_rMSI_Cload_imzMLSpectra', PACKAGE = 'rMSI', rMSIobj, pixelIDs)
 }
 

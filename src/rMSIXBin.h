@@ -55,6 +55,12 @@ class rMSIXBin
     //Return a copy of the rMSIObj
     Rcpp::List get_rMSIObj(); 
     
+    //Get the number number of mass channels in the common mass axis
+    unsigned int get_massChannels();
+    
+    //Get the number of pixels
+    unsigned int get_numOfPixels();
+    
     //Create the ImgStream in the rMSXBin (both XML and binary parts). Any previois rMSXBin files will be deleted!
     void CreateImgStream(); 
     
@@ -63,7 +69,17 @@ class rMSIXBin
     Rcpp::NumericMatrix decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount, Rcpp::NumericVector normalization_coefs);
       
     //Calculate average spectrum, base spectrum and normalizations
+    //imzMLreader: pointer to an imzMLreader initialized object
     void CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader);
+    
+    //Read a single spectrum from the imzML data
+    //If data is in processed mode the spectrum will be interpolated to the common mass axis
+    //imzMLreader: pointer to an imzMLreader initialized object
+    //pixelID: the pixel ID of the spectrum to read.
+    //ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
+    //ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
+    //out: a pointer where data will be stored (must be allocated before calling this function).
+    void ReadSpectrum(ImzMLBinRead *imzMLreader, int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out);
     
   private:
     unsigned int irMSIFormatVersion; //An integer to record the rMSI format version
@@ -74,7 +90,7 @@ class rMSIXBin
     char UUID_rMSIXBin[16]; //The rMSIXBin UUID in raw bytes
     std::string sUUID_rMSIXBin; //The linked imzML UUID as a string
     
-    unsigned int massLength; //Number of mass channels
+    Rcpp::NumericVector massAxis; //The common mass axis
     double pixel_size_um; //pixel resolution in microns
     unsigned int img_width, img_height; //Image size in pixels
     

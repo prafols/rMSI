@@ -29,6 +29,7 @@
 #include "pugixml.hpp"
 #include "common_methods.h"
 #include "progressbar.h"
+#include "mlinterp.hpp" //Used for linear interpolation
 
 using namespace Rcpp;
 using namespace pugi;
@@ -76,8 +77,7 @@ rMSIXBin::rMSIXBin(List rMSIobject, int nThreads):
   _rMSIXBin->Bin_file = sFilePath + "/" + sFnameImgStream + ".BrMSI";
   
   //Get the mass axis
-  NumericVector massAxis =  rMSIObj["mass"];
-  massLength = massAxis.length();
+  massAxis =  rMSIObj["mass"];
   
   //Get the pixel resolution
   pixel_size_um = as<double>(rMSIObj["pixel_size_um"]);
@@ -95,12 +95,12 @@ rMSIXBin::rMSIXBin(List rMSIobject, int nThreads):
   }
   
   //Get the imgStream from the rMSIObject
-  _rMSIXBin->iByteLen = new unsigned long[massLength]; //using long instead of int to allow extra room to store all offsets!
-  _rMSIXBin->iByteOffset = new unsigned long[massLength]; //using long instead of int to allow extra room to store all offsets!
+  _rMSIXBin->iByteLen = new unsigned long[massAxis.length()]; //using long instead of int to allow extra room to store all offsets!
+  _rMSIXBin->iByteOffset = new unsigned long[massAxis.length()]; //using long instead of int to allow extra room to store all offsets!
 
   NumericVector RByteLengths = (as<List>((as<List>((as<List>(rMSIObj["data"]))["rMSIXBin"]))["imgStream"]))["ByteLength"];
   NumericVector RByteOffsets = (as<List>((as<List>((as<List>(rMSIObj["data"]))["rMSIXBin"]))["imgStream"]))["ByteOffset"];
-  for(int i=0; i < massLength; i++)
+  for(int i=0; i < massAxis.length(); i++)
   {
     _rMSIXBin->iByteOffset[i]  = RByteOffsets[i];
     _rMSIXBin->iByteLen[i] = RByteLengths[i];
@@ -129,6 +129,16 @@ rMSIXBin::~rMSIXBin()
 List rMSIXBin::get_rMSIObj()
 {
   return rMSIObj; 
+}
+
+unsigned int rMSIXBin::get_massChannels()
+{
+  return massAxis.length();
+}
+
+unsigned int rMSIXBin::get_numOfPixels()
+{
+  return _rMSIXBin->numOfPixels;
 }
 
 void rMSIXBin::CreateImgStream()
@@ -183,7 +193,15 @@ void rMSIXBin::CreateImgStream()
   
   //Calculate the average spectrum, base spectrum and normalizations
   Rcout<< "Processing imzML data..." << std::endl;
-  CalculateAverageBaseNormalizations(imzMLReader);
+  try
+  {
+    CalculateAverageBaseNormalizations(imzMLReader);
+  }
+  catch(std::runtime_error &e)
+  {
+    delete imzMLReader;
+    stop(e.what());
+  }
   Rcout << std::endl;
   
   //Create the binary file (.BrMSI) any previous file will be deleted.
@@ -199,12 +217,11 @@ void rMSIXBin::CreateImgStream()
   fBrMSI.write(UUID_rMSIXBin, 16); //Write rMSIXBin UUID;
   
   //Store mass, average and base spectrum
-  NumericVector massR =  rMSIObj["mass"];
-  fBrMSI.write((const char*)(massR.begin()), sizeof(double) * massLength);
+  fBrMSI.write((const char*)(massAxis.begin()), sizeof(double) * massAxis.length());
   NumericVector meanR = rMSIObj["mean"];
-  fBrMSI.write((const char*)(meanR.begin()), sizeof(double) * massLength);
+  fBrMSI.write((const char*)(meanR.begin()), sizeof(double) * massAxis.length());
   NumericVector baseR = rMSIObj["base"];
-  fBrMSI.write((const char*)(baseR.begin()), sizeof(double) * massLength);
+  fBrMSI.write((const char*)(baseR.begin()), sizeof(double) * massAxis.length());
   
   fBrMSI.close();
   if(fBrMSI.fail() || fBrMSI.bad())
@@ -219,7 +236,7 @@ void rMSIXBin::CreateImgStream()
    *  iIonImgCount = IONIMG_BUFFER_MB * 1024 * 1024 / bytesPerIonImg
    */
   unsigned int iIonImgCount = (unsigned int)(  ((double)(IONIMG_BUFFER_MB * 1024 * 1024)) / ((double)( img_width *img_height * ENCODING_BITS/8 + 4 )) );
-  unsigned int iRemainingIons = massLength;
+  unsigned int iRemainingIons = massAxis.length();
 
   try
   {
@@ -230,16 +247,10 @@ void rMSIXBin::CreateImgStream()
     double *EncodeBuffer_ptr = nullptr;
     std::future <void> future;
     
-    if(!imzMLReader->get_continuous())
-    {
-      //TODO implement the processed mode reader
-      throw std::runtime_error("TODO: The imzML processed mode is not implemented yet, sorry.");
-    }
-    
     while( true )
     {
       //Refresh progress...
-      progressBar(iIon, massLength, "=", " ");
+      progressBar(iIon, massAxis.length(), "=", " ");
       
       if( iRemainingIons > 0 ) //check if there is available imzML data
       {
@@ -247,10 +258,9 @@ void rMSIXBin::CreateImgStream()
         
         LoadBuffer_ptr = new double[iIonImgCount*_rMSIXBin->numOfPixels];
         
-        //TODO encapsulate the continuous mode buffer read in a method and create another method to implement the process mode reader
         for(int i=0; i < _rMSIXBin->numOfPixels; i++)
         {
-          imzMLReader->readIntData(imzMLReader->get_intOffset(i) + iIon*imzMLReader->get_intEncodingBytes(), iIonImgCount, LoadBuffer_ptr + (i*iIonImgCount) );
+          ReadSpectrum(imzMLReader, i, iIon, iIonImgCount, LoadBuffer_ptr + (i*iIonImgCount));
         }
         iRemainingIons = iRemainingIons - iIonImgCount;
       }
@@ -309,32 +319,30 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
 {
   double *intensity_load;
   double *intensity_process;
-  NumericVector averageSpectrum(massLength);
-  NumericVector baseSpectrum(massLength);
+  NumericVector averageSpectrum(massAxis.length());
+  NumericVector baseSpectrum(massAxis.length());
   NumericVector normTIC(_rMSIXBin->numOfPixels);
   NumericVector normRMS(_rMSIXBin->numOfPixels);
   NumericVector normMAX(_rMSIXBin->numOfPixels);
   std::future <void> future;
   bool bFutureWorking = false;
   //TODO TICacq normalisation is not implemented yet!, it must be calculated after TIC calculation appling a sliding window
-  
+
   for(int i=0; i < _rMSIXBin->numOfPixels; i++)
   {
     progressBar(i, _rMSIXBin->numOfPixels, "=", " ");
     
-    if(imzMLreader->get_continuous())
+    try
     {
-      intensity_load = new double[massLength];
-      imzMLreader->readIntData(imzMLreader->get_intOffset(i), 
-                               imzMLreader->get_intLength(i), 
-                               intensity_load);
+      intensity_load = new double[massAxis.length()];
+      ReadSpectrum(imzMLreader, i, 0, massAxis.length(), intensity_load);
     }
-    else
+    catch(std::runtime_error &e)
     {
-      //TODO not implemented yet! load a intensity spectrum an interpolate it to common mass axis
-      throw std::runtime_error("NOT IMPLEMENTED. Average spectrum, normalizations... etc not implemented for processed mode\n"); 
+      delete[] intensity_load;
+      throw std::runtime_error(e.what());
     }
-    
+
     if(bFutureWorking)
     {
       //Wait for working thread to complete
@@ -349,7 +357,7 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
                         &normTIC, &normRMS, &normMAX);
     bFutureWorking = true;
   }
-  
+
   rMSIObj["mean"] = averageSpectrum;
   rMSIObj["base"] = baseSpectrum;
   DataFrame normDF = DataFrame::create( Named("TIC") = normTIC, 
@@ -358,12 +366,71 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
   rMSIObj["normalizations"] = normDF;
 }
 
+//Read a single spectrum from the imzML data
+//If data is in processed mode the spectrum will be interpolated to the common mass axis
+//imzMLreader: pointer to an imzMLreader initialized object
+//pixelID: the pixel ID of the spectrum to read.
+//ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
+//ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
+//out: a pointer where data will be stored.
+void rMSIXBin::ReadSpectrum(ImzMLBinRead *imzMLreader, int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out)
+{
+  if( (ionIndex+ionCount) > massAxis.length() )
+  {
+    throw std::runtime_error("Error: mass channels out of range\n"); 
+  }
+  
+  if(imzMLreader->get_continuous())
+  {
+    //Continuous mode, just load the spectrum intensity vector
+    imzMLreader->readIntData(imzMLreader->get_intOffset(pixelID) + ionIndex*imzMLreader->get_intEncodingBytes(), ionCount, out);  
+  }
+  else
+  {
+    //Processed mode, interpolation needed
+    
+    //Intermediate buffers to load data before interpolation
+    const int massLength = imzMLreader->get_mzLength(pixelID);
+    if( massLength != imzMLreader->get_intLength(pixelID))
+    {
+      throw std::runtime_error("Error: different mass and intensity length in the imzML data\n"); 
+    }
+    double *mzBuffer = new double[massLength];
+    double *intBuffer = new double[massLength];
+    
+    //Read processed mode mass and intensity
+    try
+    {
+      imzMLreader->readMzData (imzMLreader->get_mzOffset(pixelID),  imzMLreader->get_mzLength(pixelID),  mzBuffer);
+      imzMLreader->readIntData(imzMLreader->get_intOffset(pixelID), imzMLreader->get_intLength(pixelID), intBuffer);  
+    }
+    catch(std::runtime_error &e)
+    {
+      delete[] mzBuffer;
+      delete[] intBuffer;
+      throw std::runtime_error(e.what());
+    }
+    
+    //Linear interpolation
+    double test[massAxis.length()];
+    mlinterp::interp(
+      &massLength, (int)ionCount, // Number of points (imzML original, interpolated )
+      intBuffer, out, // Y axis  (imzML original, interpolated )
+      mzBuffer, massAxis.begin() + ionIndex // X axis  (imzML original, interpolated )
+    );
+    
+    delete[] mzBuffer;
+    delete[] intBuffer;
+  }
+  
+}
+
 //Threaded normalizations and average spectrum
 void rMSIXBin::startThreadedAverageBaseNormalizations(double *intensity, int pixel,
                                             NumericVector *averageSpectrum, NumericVector *baseSpectrum,
                                             NumericVector *normTIC, NumericVector *normRMS, NumericVector *normMAX )
 {
-  for( int j=0; j < massLength; j++)
+  for( int j=0; j < massAxis.length(); j++)
   {
     (*averageSpectrum)(j) += intensity[j] / (double)(_rMSIXBin->numOfPixels);
     (*baseSpectrum)(j) = intensity[j] > (*baseSpectrum)(j) ? intensity[j] : (*baseSpectrum)(j);
@@ -460,8 +527,8 @@ void rMSIXBin::startThreadedEncoding(double *buffer, unsigned int ionIndex, unsi
       {
         //Special case, the first offset is being writen
         //The first ion image in imgStream will be located at iByteOffset[0] positon of the .BrMSI file.
-        //So, 16 bytes for each UUID and massLength bytes for the mass axis, the average spectrum and the base spectrum.
-        _rMSIXBin->iByteOffset[0] = 16 + 16 + 3*(sizeof(double) * massLength) ;
+        //So, 16 bytes for each UUID and massAxis.length() bytes for the mass axis, the average spectrum and the base spectrum.
+        _rMSIXBin->iByteOffset[0] = 16 + 16 + 3*(sizeof(double) * massAxis.length()) ;
       }
       else
       {
@@ -505,7 +572,7 @@ void rMSIXBin::storeNormalizations2Binary()
   }
   
   //First offset
-  _rMSIXBin->normByteOffsets[0] = _rMSIXBin->iByteOffset[massLength - 1] + _rMSIXBin->iByteLen[massLength - 1];
+  _rMSIXBin->normByteOffsets[0] = _rMSIXBin->iByteOffset[massAxis.length() - 1] + _rMSIXBin->iByteLen[massAxis.length() - 1];
   for(int i=0; i<n_norms; i++)
   {
     NumericVector norm_buffer = (as<DataFrame>(rMSIObj["normalizations"]))[i];
@@ -686,7 +753,7 @@ bool rMSIXBin::writeXrMSIfile()
   cvParam.append_attribute("accession") = "rMSI:1000010";
   cvParam.append_attribute("cvRef") = "rMSI";
   cvParam.append_attribute("name") = "max count of m/z channels";
-  cvParam.append_attribute("value") = massLength;
+  cvParam.append_attribute("value") = massAxis.length();
   
   cvParam = node_scanSet.append_child("cvParam");
   cvParam.append_attribute("accession") = "IMS:1000042";
@@ -749,8 +816,8 @@ bool rMSIXBin::writeXrMSIfile()
   //Run data: imgStream
   xml_node node_ionimg; //Reusable ionimg node
   xml_node node_imgStream = node_run.append_child("imgStreamList");
-  node_imgStream.append_attribute("count") = massLength;
-  for( int i = 0; i < massLength; i++)
+  node_imgStream.append_attribute("count") = massAxis.length();
+  for( int i = 0; i < massAxis.length(); i++)
   {
     node_ionimg = node_imgStream.append_child("ionImage");
     node_ionimg.append_attribute("id") = i;
@@ -899,6 +966,7 @@ void rMSIXBin::readXrMSIfile()
     throw std::runtime_error("XML parse error: no scanSettings node found");
   } 
   
+  int massLength = 0;
   for (xml_node cvParam = scanSettings.child("cvParam"); cvParam; cvParam = cvParam.next_sibling("cvParam"))
   {
     accession = cvParam.attribute("accession").value();
@@ -906,6 +974,7 @@ void rMSIXBin::readXrMSIfile()
     {
       //mass channels
       massLength = cvParam.attribute("value").as_uint();
+      massAxis = NumericVector(massLength); //Empty mass axis
     }
     if(accession == "IMS:1000042")
     {
@@ -922,6 +991,10 @@ void rMSIXBin::readXrMSIfile()
       //pixel size
       pixel_size_um = sqrt(cvParam.attribute("value").as_double());
     }
+  }
+  if(massLength == 0)
+  {
+    throw std::runtime_error("XML parse error: mass axis contains zero mass channels");
   }
   
   //Parse run node
@@ -943,7 +1016,7 @@ void rMSIXBin::readXrMSIfile()
     throw std::runtime_error("XML parse error: no imgStreamList node found");
   }
   
-  if(imgStreamList.attribute("count").as_uint() != massLength)
+  if(imgStreamList.attribute("count").as_uint() != massAxis.length())
   {
     throw std::runtime_error("XML parse error: imgStreamList length is different than mass axis length");
   }
@@ -956,8 +1029,8 @@ void rMSIXBin::readXrMSIfile()
   _rMSIXBin->numOfPixels = spectrumList.attribute("count").as_uint();
   _rMSIXBin->iX = new unsigned int[_rMSIXBin->numOfPixels]; 
   _rMSIXBin->iY = new unsigned int[_rMSIXBin->numOfPixels]; 
-  _rMSIXBin->iByteLen = new unsigned long[massLength];
-  _rMSIXBin->iByteOffset = new unsigned long[massLength];
+  _rMSIXBin->iByteLen = new unsigned long[massAxis.length()];
+  _rMSIXBin->iByteOffset = new unsigned long[massAxis.length()];
   unsigned int  id;
   
   //Read the position matrices
@@ -1063,8 +1136,7 @@ void rMSIXBin::readXrMSIfile()
   size.push_back(img_height, "y");
   rMSIObj.push_front(size, "size");
   
-  NumericVector mass(massLength); //Empty mass
-  rMSIObj.push_front(mass, "mass");
+  rMSIObj.push_front(massAxis, "mass");
   
   rMSIObj.push_front(sImgName, "name");
   
@@ -1107,9 +1179,9 @@ void rMSIXBin::readXrMSIfile()
 //Copy imgStream to the rMSIObject
 void rMSIXBin::copyimgStream2rMSIObj()
 {
-  NumericVector RByteLengths(massLength);
-  NumericVector RByteOffsets(massLength);
-  for(int i=0; i < massLength; i++)
+  NumericVector RByteLengths(massAxis.length());
+  NumericVector RByteOffsets(massAxis.length());
+  for(int i=0; i < massAxis.length(); i++)
   {
     RByteOffsets[i] = _rMSIXBin->iByteOffset[i]; 
     RByteLengths[i] = _rMSIXBin->iByteLen[i];
@@ -1181,8 +1253,7 @@ void rMSIXBin::readBrMSI_header()
   delete[] bin_uuid;
   
   //Read the mass axis
-  NumericVector mass(massLength);
-  binFile.read ((char*)mass.begin(), massLength*sizeof(double));
+  binFile.read ((char*)massAxis.begin(), massAxis.length()*sizeof(double));
   if(binFile.eof())
   {
     binFile.close();
@@ -1193,11 +1264,11 @@ void rMSIXBin::readBrMSI_header()
     binFile.close();
     throw std::runtime_error("FATAL ERROR:  rMSIXBin::readBrMSI_header got fail or bad bit condition reading the .BrMSI file.\n"); 
   }
-  rMSIObj["mass"] = mass;
+  rMSIObj["mass"] = massAxis;
   
   //Read the average spectrum
-  NumericVector mean(massLength);
-  binFile.read ((char*)mean.begin(), massLength*sizeof(double));
+  NumericVector mean(massAxis.length());
+  binFile.read ((char*)mean.begin(), massAxis.length()*sizeof(double));
   if(binFile.eof())
   {
     binFile.close();
@@ -1211,8 +1282,8 @@ void rMSIXBin::readBrMSI_header()
   rMSIObj["mean"] = mean;
   
   //Read the base spectrum
-  NumericVector base(massLength);
-  binFile.read ((char*)base.begin(), massLength*sizeof(double));
+  NumericVector base(massAxis.length());
+  binFile.read ((char*)base.begin(), massAxis.length()*sizeof(double));
   if(binFile.eof())
   {
     binFile.close();
@@ -1241,7 +1312,7 @@ void rMSIXBin::readBrMSI_header()
 //' 
 NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigned int ionCount, NumericVector normalization_coefs)
 {
-  if(ionIndex + ionCount > massLength)
+  if(ionIndex + ionCount > massAxis.length())
   {
     throw std::runtime_error("ERROR in rMSIXBin::decodeImgStream2IonImages(): ionIndex+ionCount is out of range.\n");
   }
@@ -1469,26 +1540,86 @@ NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsign
   return NumericMatrix(); //Returning empty matrix in cas of error
 }
 
+//' Cload_imzMLSpectra
+//' Load spectra into a Matrix object interpolating to the common mass axis when necessary.
+//' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
+//' @param pixelIDs: pixel ID's of the spectra to load in C-style indexing (starting at 0).
+// [[Rcpp::export]]
+NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
+{
+  NumericMatrix m_spc;
+  double *buffer = nullptr;
+  
+  try
+  {
+    rMSIXBin myXBin(rMSIobj, 1); 
+    buffer = new double[myXBin.get_massChannels()];
+    
+    if( ((pixelIDs.length() * myXBin.get_massChannels() * sizeof(double))/ (1024 * 1024 )) > IONIMG_BUFFER_MB )
+    {
+      throw std::runtime_error("Error in Cload_imzMLSpectra(): loading data required too much memory.");
+    }
+    
+    //Allocate the output matrix
+    m_spc = NumericMatrix(pixelIDs.length(), myXBin.get_massChannels());
+    
+    //Set the imzML reader
+    List data = rMSIobj["data"];
+    List imzML = data["imzML"];
+    std::string sFilePath = as<std::string>(data["path"]);
+    std::string sFnameImzML = as<std::string>(imzML["file"]);
+    sFnameImzML= sFilePath + "/" + sFnameImzML + ".ibd";
+    ImzMLBinRead imzMLReader(sFnameImzML.c_str(), 
+                              myXBin.get_numOfPixels(), 
+                              as<String>(imzML["mz_dataType"]),
+                              as<String>(imzML["int_dataType"]) ,
+                              as<bool>(imzML["continuous_mode"]));
+    
+    DataFrame imzMLrun = as<DataFrame>(imzML["run"]);
+    NumericVector imzML_mzLength = imzMLrun["mzLength"];
+    NumericVector imzML_mzOffsets = imzMLrun["mzOffset"];
+    NumericVector imzML_intLength = imzMLrun["intLength"];
+    NumericVector imzML_intOffsets = imzMLrun["intOffset"];
+    imzMLReader.set_mzLength(&imzML_mzLength);  
+    imzMLReader.set_mzOffset(&imzML_mzOffsets);
+    imzMLReader.set_intLength(&imzML_intLength);
+    imzMLReader.set_intOffset(&imzML_intOffsets);
+    
+    //Load spectra and copy to the output array
+    for(int i=0; i < pixelIDs.length(); i++)
+    {
+      myXBin.ReadSpectrum(&imzMLReader, pixelIDs[i], 0, myXBin.get_massChannels(), buffer); 
+      for(int j = 0; j < myXBin.get_massChannels(); j++)
+      {
+        m_spc(i,j) = buffer[j];
+      }
+    }
+    
+    delete[] buffer;
+  }
+  catch(std::runtime_error &e)
+  {
+    if(buffer != nullptr)
+    {
+      delete[] buffer;
+    }
+    stop(e.what());
+  }
+
+  return m_spc;
+}
+
 
 //' TODO ideas varies:
 //' 
-
 //' - compatibilitat: puc fer que el nou rMSI i rMSIproc detecti automaticament si les dades son nou o antic format i ho carregui?
 //' 
 //' - comentar coses en el lodepng.h per fer el binary resultant mes petit: el que no facis servir fora! esta documentat en el propi lodepng.h
 //' 
-//' - imzML processats: no cal crear el imzML continu equivalent, pots mantenir el processat com a "ramdisk" i constriuir els png mitjancant funcio
-//'   approx() o interpolacio. Aixi doncs, un paramatre sera l'eix de massa merged previament calculat. 
-//'   Es a dir rMSI no convertira imzML processat en continu sino que simplement calculara leix d massa commu i fara servir una interpolacio quan calgui obtenir un espectre concret.
-//'   El mateix passara en la part d processat d rMSIproc, en anar carregant espectres s'anira calculant la interpolacio "on the fly"
-//'
 //' - ajuntar rMSI i rMSIproc: importar tots els metodes de rMSIproc dins del rMSI, es a dir, rMSIproc deixara d existir. Aixi sera mes facil d mantenir.
 //'   tb em permetra fer us d funcions d rMSIproc en rMSI (per exemple multi-threading d boost)
 //'   oju amb el Namespace d R, crec que rMSI el fa automatic amb roxigen i rMSIproc el fa manual, que vull al final?
 //'
-//' - creacio d pngstream amb 2 threads. un thread accedeix a disc i l'altre fa encoding. 
-//'   Axi sera mes rapid pq mentres un thread fa encoding laltre ja va carregnat el seguent buffer.
-//'   
 //' - Reconstruccio d'imatges multi-threading. Per construir la imatge dun io i mostrar-la per pantalla cal llegir N png's del pngstream 
 //'   (on N correspont al numero d mass chanels o frames de disc), per tan N es correspon amb el valor de tolerancia selecionat per usuari.
 //'   La lectura de disc la faria un sol thread k carregaria en RAM N frames. Despres, varis threads es poden repartir la feina de fer el decoding dels N frames.
