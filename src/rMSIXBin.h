@@ -72,15 +72,6 @@ class rMSIXBin
     //imzMLreader: pointer to an imzMLreader initialized object
     void CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader);
     
-    //Read a single spectrum from the imzML data
-    //If data is in processed mode the spectrum will be interpolated to the common mass axis
-    //imzMLreader: pointer to an imzMLreader initialized object
-    //pixelID: the pixel ID of the spectrum to read.
-    //ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
-    //ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
-    //out: a pointer where data will be stored (must be allocated before calling this function).
-    void ReadSpectrum(ImzMLBinRead *imzMLreader, int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out);
-    
   private:
     unsigned int irMSIFormatVersion; //An integer to record the rMSI format version
     std::string sImgName; //A string to record the MS image name.

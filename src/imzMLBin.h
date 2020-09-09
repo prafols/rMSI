@@ -92,6 +92,16 @@ class ImzMLBinRead : public ImzMLBin
     //ptr: Data will be stored at the ptr pointer
     void readIntData(unsigned long offset, unsigned int N, double* ptr );
     
+    //Read a single spectrum from the imzML data
+    //If data is in processed mode the spectrum will be interpolated to the common mass axis
+    //pixelID: the pixel ID of the spectrum to read.
+    //ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
+    //ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
+    //out: a pointer where data will be stored (must be allocated before calling this function).
+    //commonMassLength: number of points in the common mass axis.
+    //commonMass: pointer to the common mass axis
+    void ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass);
+    
   private:
     //Read N elements from the ibd file and decode them.
     //offset: offset in bytes at which the reading operation is started.

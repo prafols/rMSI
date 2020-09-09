@@ -7,6 +7,7 @@ bool progressBar(int i, int n, std::string fill, std::string null)
     null_bar = makeBar(null);
   if (fill_bar.size() == 0)
     fill_bar = makeBar(fill);
+  if (i == n) { i--; } //Ensure i is below n at 100%
   if (i < n) {
     int progress = ((i+1)*100)/n;
     printf("\r%d%%|", progress);

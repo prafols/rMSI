@@ -17,6 +17,7 @@
  **************************************************************************/
 
 #include "imzMLBin.h"
+#include "mlinterp.hpp" //Used for linear interpolation
 #include <stdexcept>
 #include <Rcpp.h>
 
@@ -338,6 +339,65 @@ void ImzMLBinRead::readMzData(unsigned long offset, unsigned int N, double* ptr 
 void ImzMLBinRead::readIntData(unsigned long offset, unsigned int N, double* ptr )
 {
   readDataCommon(offset, N, ptr, intDataPointBytes, intDataType);
+}
+
+//Read a single spectrum from the imzML data
+//If data is in processed mode the spectrum will be interpolated to the common mass axis
+//pixelID: the pixel ID of the spectrum to read.
+//ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
+//ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
+//out: a pointer where data will be stored.
+//commonMassLength: number of points in the common mass axis.
+//commonMass: pointer to the common mass axis
+void ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass)
+{
+  if( (ionIndex+ionCount) > commonMassLength )
+  {
+    throw std::runtime_error("Error: mass channels out of range\n"); 
+  }
+  
+  if(get_continuous())
+  {
+    //Continuous mode, just load the spectrum intensity vector
+    readIntData(get_intOffset(pixelID) + ionIndex*get_intEncodingBytes(), ionCount, out);  
+  }
+  else
+  {
+    //Processed mode, interpolation needed
+    
+    //Intermediate buffers to load data before interpolation
+    const int massLength = get_mzLength(pixelID);
+    if( massLength != get_intLength(pixelID))
+    {
+      throw std::runtime_error("Error: different mass and intensity length in the imzML data\n"); 
+    }
+    double *mzBuffer = new double[massLength];
+    double *intBuffer = new double[massLength];
+    
+    //Read processed mode mass and intensity
+    try
+    {
+      readMzData(get_mzOffset(pixelID),  get_mzLength(pixelID),  mzBuffer);
+      readIntData(get_intOffset(pixelID), get_intLength(pixelID), intBuffer);  
+    }
+    catch(std::runtime_error &e)
+    {
+      delete[] mzBuffer;
+      delete[] intBuffer;
+      throw std::runtime_error(e.what());
+    }
+    
+    //Linear interpolation
+    mlinterp::interp(
+      &massLength, (int)ionCount, // Number of points (imzML original, interpolated )
+      intBuffer, out, // Y axis  (imzML original, interpolated )
+      mzBuffer, commonMass + ionIndex // X axis  (imzML original, interpolated ) //TODO set mas axis!
+    );
+    
+    delete[] mzBuffer;
+    delete[] intBuffer;
+  }
+  
 }
 
 ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous) :

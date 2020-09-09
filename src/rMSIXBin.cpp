@@ -29,7 +29,6 @@
 #include "pugixml.hpp"
 #include "common_methods.h"
 #include "progressbar.h"
-#include "mlinterp.hpp" //Used for linear interpolation
 
 using namespace Rcpp;
 using namespace pugi;
@@ -260,7 +259,7 @@ void rMSIXBin::CreateImgStream()
         
         for(int i=0; i < _rMSIXBin->numOfPixels; i++)
         {
-          ReadSpectrum(imzMLReader, i, iIon, iIonImgCount, LoadBuffer_ptr + (i*iIonImgCount));
+          imzMLReader->ReadSpectrum(i, iIon, iIonImgCount, LoadBuffer_ptr + (i*iIonImgCount), massAxis.length(), massAxis.begin());
         }
         iRemainingIons = iRemainingIons - iIonImgCount;
       }
@@ -335,7 +334,7 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
     try
     {
       intensity_load = new double[massAxis.length()];
-      ReadSpectrum(imzMLreader, i, 0, massAxis.length(), intensity_load);
+      imzMLreader->ReadSpectrum(i, 0, massAxis.length(), intensity_load, massAxis.length(), massAxis.begin());
     }
     catch(std::runtime_error &e)
     {
@@ -364,65 +363,6 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
                             Named("RMS") = normRMS,
                             Named("MAX") = normMAX);
   rMSIObj["normalizations"] = normDF;
-}
-
-//Read a single spectrum from the imzML data
-//If data is in processed mode the spectrum will be interpolated to the common mass axis
-//imzMLreader: pointer to an imzMLreader initialized object
-//pixelID: the pixel ID of the spectrum to read.
-//ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
-//ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
-//out: a pointer where data will be stored.
-void rMSIXBin::ReadSpectrum(ImzMLBinRead *imzMLreader, int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out)
-{
-  if( (ionIndex+ionCount) > massAxis.length() )
-  {
-    throw std::runtime_error("Error: mass channels out of range\n"); 
-  }
-  
-  if(imzMLreader->get_continuous())
-  {
-    //Continuous mode, just load the spectrum intensity vector
-    imzMLreader->readIntData(imzMLreader->get_intOffset(pixelID) + ionIndex*imzMLreader->get_intEncodingBytes(), ionCount, out);  
-  }
-  else
-  {
-    //Processed mode, interpolation needed
-    
-    //Intermediate buffers to load data before interpolation
-    const int massLength = imzMLreader->get_mzLength(pixelID);
-    if( massLength != imzMLreader->get_intLength(pixelID))
-    {
-      throw std::runtime_error("Error: different mass and intensity length in the imzML data\n"); 
-    }
-    double *mzBuffer = new double[massLength];
-    double *intBuffer = new double[massLength];
-    
-    //Read processed mode mass and intensity
-    try
-    {
-      imzMLreader->readMzData (imzMLreader->get_mzOffset(pixelID),  imzMLreader->get_mzLength(pixelID),  mzBuffer);
-      imzMLreader->readIntData(imzMLreader->get_intOffset(pixelID), imzMLreader->get_intLength(pixelID), intBuffer);  
-    }
-    catch(std::runtime_error &e)
-    {
-      delete[] mzBuffer;
-      delete[] intBuffer;
-      throw std::runtime_error(e.what());
-    }
-    
-    //Linear interpolation
-    double test[massAxis.length()];
-    mlinterp::interp(
-      &massLength, (int)ionCount, // Number of points (imzML original, interpolated )
-      intBuffer, out, // Y axis  (imzML original, interpolated )
-      mzBuffer, massAxis.begin() + ionIndex // X axis  (imzML original, interpolated )
-    );
-    
-    delete[] mzBuffer;
-    delete[] intBuffer;
-  }
-  
 }
 
 //Threaded normalizations and average spectrum
@@ -1548,34 +1488,36 @@ NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsign
 NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
 {
   NumericMatrix m_spc;
-  double *buffer = nullptr;
+  double *buffer;
   
   try
   {
-    rMSIXBin myXBin(rMSIobj, 1); 
-    buffer = new double[myXBin.get_massChannels()];
+    //Get the common mass axis
+    NumericVector commonMassAxis = rMSIobj["mass"];
     
-    if( ((pixelIDs.length() * myXBin.get_massChannels() * sizeof(double))/ (1024 * 1024 )) > IONIMG_BUFFER_MB )
+    //Allocate the spectra reading buffer
+    buffer = new double[commonMassAxis.length()];
+    
+    //Allocate the output matrix
+    if( ((pixelIDs.length() * commonMassAxis.length() * sizeof(double))/ (1024 * 1024 )) > IONIMG_BUFFER_MB )
     {
       throw std::runtime_error("Error in Cload_imzMLSpectra(): loading data required too much memory.");
     }
-    
-    //Allocate the output matrix
-    m_spc = NumericMatrix(pixelIDs.length(), myXBin.get_massChannels());
+    m_spc = NumericMatrix(pixelIDs.length(), commonMassAxis.length());
     
     //Set the imzML reader
     List data = rMSIobj["data"];
     List imzML = data["imzML"];
+    DataFrame imzMLrun = as<DataFrame>(imzML["run"]);
     std::string sFilePath = as<std::string>(data["path"]);
     std::string sFnameImzML = as<std::string>(imzML["file"]);
     sFnameImzML= sFilePath + "/" + sFnameImzML + ".ibd";
     ImzMLBinRead imzMLReader(sFnameImzML.c_str(), 
-                              myXBin.get_numOfPixels(), 
+                              imzMLrun.nrows(), 
                               as<String>(imzML["mz_dataType"]),
                               as<String>(imzML["int_dataType"]) ,
                               as<bool>(imzML["continuous_mode"]));
     
-    DataFrame imzMLrun = as<DataFrame>(imzML["run"]);
     NumericVector imzML_mzLength = imzMLrun["mzLength"];
     NumericVector imzML_mzOffsets = imzMLrun["mzOffset"];
     NumericVector imzML_intLength = imzMLrun["intLength"];
@@ -1588,8 +1530,8 @@ NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
     //Load spectra and copy to the output array
     for(int i=0; i < pixelIDs.length(); i++)
     {
-      myXBin.ReadSpectrum(&imzMLReader, pixelIDs[i], 0, myXBin.get_massChannels(), buffer); 
-      for(int j = 0; j < myXBin.get_massChannels(); j++)
+      imzMLReader.ReadSpectrum(pixelIDs[i], 0, commonMassAxis.length(), buffer, commonMassAxis.length(), commonMassAxis.begin() ); 
+      for(int j = 0; j < commonMassAxis.length(); j++)
       {
         m_spc(i,j) = buffer[j];
       }
@@ -1599,10 +1541,7 @@ NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
   }
   catch(std::runtime_error &e)
   {
-    if(buffer != nullptr)
-    {
-      delete[] buffer;
-    }
+    delete[] buffer;
     stop(e.what());
   }
 

@@ -87,24 +87,14 @@ NULL
 
 #' TODO ideas varies:
 #' 
-NULL
-
 #' - compatibilitat: puc fer que el nou rMSI i rMSIproc detecti automaticament si les dades son nou o antic format i ho carregui?
 #' 
 #' - comentar coses en el lodepng.h per fer el binary resultant mes petit: el que no facis servir fora! esta documentat en el propi lodepng.h
 #' 
-#' - imzML processats: no cal crear el imzML continu equivalent, pots mantenir el processat com a "ramdisk" i constriuir els png mitjancant funcio
-#'   approx() o interpolacio. Aixi doncs, un paramatre sera l'eix de massa merged previament calculat. 
-#'   Es a dir rMSI no convertira imzML processat en continu sino que simplement calculara leix d massa commu i fara servir una interpolacio quan calgui obtenir un espectre concret.
-#'   El mateix passara en la part d processat d rMSIproc, en anar carregant espectres s'anira calculant la interpolacio "on the fly"
-#'
 #' - ajuntar rMSI i rMSIproc: importar tots els metodes de rMSIproc dins del rMSI, es a dir, rMSIproc deixara d existir. Aixi sera mes facil d mantenir.
 #'   tb em permetra fer us d funcions d rMSIproc en rMSI (per exemple multi-threading d boost)
 #'   oju amb el Namespace d R, crec que rMSI el fa automatic amb roxigen i rMSIproc el fa manual, que vull al final?
 #'
-#' - creacio d pngstream amb 2 threads. un thread accedeix a disc i l'altre fa encoding. 
-#'   Axi sera mes rapid pq mentres un thread fa encoding laltre ja va carregnat el seguent buffer.
-#'   
 #' - Reconstruccio d'imatges multi-threading. Per construir la imatge dun io i mostrar-la per pantalla cal llegir N png's del pngstream 
 #'   (on N correspont al numero d mass chanels o frames de disc), per tan N es correspon amb el valor de tolerancia selecionat per usuari.
 #'   La lectura de disc la faria un sol thread k carregaria en RAM N frames. Despres, varis threads es poden repartir la feina de fer el decoding dels N frames.
