@@ -488,16 +488,16 @@ CreateEmptyImage<-function(num_of_pixels, mass_axis, pixel_resolution, img_name 
   cat("Calculating Average Spectrum...\n")
   avgSpectrum <- tryCatch(
     {
-      return(rMSIproc::AverageSpectrum(img, NumOfThreads = min(parallel::detectCores()/2, 6)))
+      return(rMSIproc::AverageSpectrum_rMSIproc(img, NumOfThreads = min(parallel::detectCores()/2, 6)))
     },
     warning = function(war)
     {
-        print(paste("WARNING in rMSI AverageSpectrum calling rMSIproc::AverageSpectrum: ",war))
+        print(paste("WARNING in rMSI AverageSpectrum calling rMSIproc::AverageSpectrum_rMSIproc: ",war))
         return(NULL)
     }, 
     error = function(err) 
     {
-      #No rMSIproc::AverageSpectrum present... so using rMSI slow average
+      #No rMSIproc::AverageSpectrum_rMSIproc present... so using rMSI slow average
       pbavg <- txtProgressBar(min = 0, max = length(img$data), style = 3)
       avgI <- rep(0, length(img$mass))
       for( i in 1:length(img$data))
