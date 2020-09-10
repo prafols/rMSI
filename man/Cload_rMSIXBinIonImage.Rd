@@ -4,7 +4,13 @@
 \alias{Cload_rMSIXBinIonImage}
 \title{Cload_rMSIXBinIonImage.}
 \usage{
-Cload_rMSIXBinIonImage(rMSIobj, ionIndex, ionCount, normalization_coefs)
+Cload_rMSIXBinIonImage(
+  rMSIobj,
+  ionIndex,
+  ionCount,
+  normalization_coefs,
+  number_of_threads
+)
 }
 \arguments{
 \item{normalization_coefs}{a vector containing the intensy normalization coeficients.}
@@ -14,6 +20,8 @@ Cload_rMSIXBinIonImage(rMSIobj, ionIndex, ionCount, normalization_coefs)
 \item{ionIndex:}{the first mass channel at which the image starts.}
 
 \item{ionCount:}{the numer of mass channels used to construct the ion image (a.k.a. image tolerance window).}
+
+\item{number_of_threads:}{number of threads used for imgStream encoding.}
 }
 \value{
 the ion image as a NumericMatrix using max operator with all the ion images of the mass channels.

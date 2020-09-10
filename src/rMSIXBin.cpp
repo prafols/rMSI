@@ -1276,7 +1276,7 @@ NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigne
     throw std::runtime_error("ERROR in rMSIXBin::decodeImgStream2IonImages(): number of mass channels too large to load in memory.\n");
   }
   
-  //Read tje complete buffer
+  //Read the complete buffer
   char* buffer = new char[byte_count];
   std::ifstream  binFile;
   binFile.open(_rMSIXBin->Bin_file, std::fstream::in | std::ios::binary);
@@ -1317,55 +1317,45 @@ NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigne
   
   //2- Decode the buffer
   NumericMatrix ionImage(img_width, img_height);
-  std::vector<unsigned char> raw_image;
-  float scaling;
-  unsigned int png_width, png_height;
-  for(int i=0; i < ionCount; i++)
+  std::vector< std::future <void> > futures;
+  unsigned int running_threads = 0; //Threads counter
+  int i = 0; //Current ion image
+  try
   {
-    //Read the scaling factor
-    std::memcpy(&scaling, buffer + (_rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex]), sizeof(float));
-    
-    //Read the png stream
-    raw_image.clear(); //It is really important to clear the vector each time since lodepng appends data to it
-    unsigned encode_error = lodepng::decode(raw_image, png_width, png_height,
-                    (const unsigned char*)(buffer + (_rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex] + sizeof(float))), _rMSIXBin->iByteLen[i + ionIndex] - sizeof(float),
-                    LodePNGColorType::LCT_GREY, ENCODING_BITS);
-    
-    if(encode_error)
+    while(true)
     {
-      std::stringstream ss; 
-      ss << "Error: rMSIXBin png decoding excepion: " << lodepng_error_text(encode_error) << "\n";
-      delete[] buffer;
-      throw std::runtime_error(ss.str());
-    }
-    
-    if(png_width != img_width || png_height != img_height)
-    {
-      delete[] buffer;
-      throw std::runtime_error("ERROR:  rMSIXBin::decodeImgStream2IonImages decoded image size is invalid, possible data corruption in .BrMSI file.\n");
-    }
-    
-    imgstreamencoding_type pixel_value_raw; //Current pixel value in raw format
-    double pixel_value; //Current pixel value in R format
-    unsigned int img_offset; //Offset inside the raw image
-    unsigned int img_x = 0; //current x coordinate in the image
-    unsigned int img_y = 0; //current y coordinate in the image
-    for( int iPixel = 0; iPixel <  img_width * img_height; iPixel++)
-    {
-      img_offset = img_x  + img_width*img_y;
-      std::memcpy(&pixel_value_raw, raw_image.data() + img_offset*sizeof(imgstreamencoding_type), sizeof(imgstreamencoding_type));
-      pixel_value = (((double)pixel_value_raw)/ENCODER_RANGE) * (double)scaling; 
-      ionImage(img_x,img_y) = pixel_value > ionImage(img_x,img_y) ? pixel_value : ionImage(img_x,img_y);
-      
-      img_x++;
-      if(img_x >= img_width)
+      while((running_threads < number_of_encoding_threads) && (i < ionCount))
       {
-        img_x = 0;
-        img_y++;
+        futures.emplace_back(std::async(std::launch::async, &rMSIXBin::startThreadIonImageDecoding, this, 
+                                        buffer,
+                                        (_rMSIXBin->iByteOffset[i + ionIndex] - _rMSIXBin->iByteOffset[ionIndex]), 
+                                        _rMSIXBin->iByteLen[i + ionIndex],
+                                        &ionImage));
+        
+        running_threads++;
+        i++;
+      }
+  
+      //Wait for a thread to finish
+      if(futures.size() > 0)
+      {
+        futures.front().get();
+        running_threads--;
+        futures.erase(futures.begin());
+      }
+      else
+      {
+        //End condition
+        break;
       }
     }
   }
-  
+  catch(std::runtime_error &e)
+  {
+    delete[] buffer;
+    throw std::runtime_error(e.what());
+  }
+
   //Apply normalization
   for(int i = 0; i < _rMSIXBin->numOfPixels; i++)
   {
@@ -1377,6 +1367,62 @@ NumericMatrix rMSIXBin::decodeImgStream2IonImages(unsigned int ionIndex, unsigne
 
   delete[] buffer;
   return ionImage;
+}
+
+//Threaded decoding method
+//buffer: pointer to char with the raw imgStream readed form hdd
+//bufferOffset: buffer offsets in bytes to read the corresponfing scaling factor
+//bufferLength: number of bytes for a single ion image including scaling in the buffer
+//ionImage: pointer to the finall ion image
+void rMSIXBin::startThreadIonImageDecoding(char* buffer, unsigned long bufferOffset, unsigned long bufferLength, NumericMatrix *ionImage)
+{
+  float scaling;
+  std::vector<unsigned char> raw_image;
+  unsigned int png_width, png_height;
+  
+  //Read the scaling factor
+  std::memcpy(&scaling, buffer + bufferOffset, sizeof(float));
+  
+  //Read the png stream
+  raw_image.clear(); //It is really important to clear the vector each time since lodepng appends data to it
+  unsigned encode_error = lodepng::decode(raw_image, png_width, png_height,
+                                          (const unsigned char*)(buffer + bufferOffset + sizeof(float)), bufferLength - sizeof(float),
+                                          LodePNGColorType::LCT_GREY, ENCODING_BITS);
+  
+  if(encode_error)
+  {
+    std::stringstream ss; 
+    ss << "Error: rMSIXBin png decoding excepion: " << lodepng_error_text(encode_error) << "\n";
+    throw std::runtime_error(ss.str());
+  }
+  
+  if(png_width != img_width || png_height != img_height)
+  {
+    throw std::runtime_error("ERROR:  rMSIXBin::decodeImgStream2IonImages decoded image size is invalid, possible data corruption in .BrMSI file.\n");
+  }
+  
+  //Set ionImage which is shared across all threads
+  mtx_dec.lock();
+  imgstreamencoding_type pixel_value_raw; //Current pixel value in raw format
+  double pixel_value; //Current pixel value in R format
+  unsigned int img_offset; //Offset inside the raw image
+  unsigned int img_x = 0; //current x coordinate in the image
+  unsigned int img_y = 0; //current y coordinate in the image
+  for( int iPixel = 0; iPixel <  img_width * img_height; iPixel++)
+  {
+    img_offset = img_x  + img_width*img_y;
+    std::memcpy(&pixel_value_raw, raw_image.data() + img_offset*sizeof(imgstreamencoding_type), sizeof(imgstreamencoding_type));
+    pixel_value = (((double)pixel_value_raw)/ENCODER_RANGE) * (double)scaling; 
+    (*ionImage)(img_x,img_y) = pixel_value > (*ionImage)(img_x,img_y) ? pixel_value : (*ionImage)(img_x,img_y);
+    
+    img_x++;
+    if(img_x >= img_width)
+    {
+      img_x = 0;
+      img_y++;
+    }
+  }
+  mtx_dec.unlock();
 }
 
 //Convert a std::string containing a 16 bytes UUID to a big-endian formate byte stream ready to write it to a binary file
@@ -1455,10 +1501,11 @@ List Cload_rMSIXBinData(String path, String fname)
 //' @param ionIndex: the first mass channel at which the image starts.
 //' @param ionCount: the numer of mass channels used to construct the ion image (a.k.a. image tolerance window).
 //' @param normalization_coefs a vector containing the intensy normalization coeficients.
+//' @param number_of_threads: number of threads used for imgStream encoding.
 //' 
 //' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
 // [[Rcpp::export]]
-NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsigned int ionCount, NumericVector normalization_coefs)
+NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsigned int ionCount, NumericVector normalization_coefs, int number_of_threads)
 {
   //Check if ion indeces are valid
   if(ionIndex < 1)
@@ -1470,7 +1517,7 @@ NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsign
   
   try
   {
-    rMSIXBin myXBin(rMSIobj, 1); 
+    rMSIXBin myXBin(rMSIobj, number_of_threads); 
     return myXBin.decodeImgStream2IonImages(ionIndex, ionCount, normalization_coefs); //ionIndex-1 to convert from R to C indexing
   }
   catch(std::runtime_error &e)
@@ -1552,15 +1599,9 @@ NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
 //' TODO ideas varies:
 //' 
 //' - compatibilitat: puc fer que el nou rMSI i rMSIproc detecti automaticament si les dades son nou o antic format i ho carregui?
-//' 
-//' - comentar coses en el lodepng.h per fer el binary resultant mes petit: el que no facis servir fora! esta documentat en el propi lodepng.h
-//' 
+//'
 //' - ajuntar rMSI i rMSIproc: importar tots els metodes de rMSIproc dins del rMSI, es a dir, rMSIproc deixara d existir. Aixi sera mes facil d mantenir.
 //'   tb em permetra fer us d funcions d rMSIproc en rMSI (per exemple multi-threading d boost)
 //'   oju amb el Namespace d R, crec que rMSI el fa automatic amb roxigen i rMSIproc el fa manual, que vull al final?
-//'
-//' - Reconstruccio d'imatges multi-threading. Per construir la imatge dun io i mostrar-la per pantalla cal llegir N png's del pngstream 
-//'   (on N correspont al numero d mass chanels o frames de disc), per tan N es correspon amb el valor de tolerancia selecionat per usuari.
-//'   La lectura de disc la faria un sol thread k carregaria en RAM N frames. Despres, varis threads es poden repartir la feina de fer el decoding dels N frames.
-//'     
+
 

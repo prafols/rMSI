@@ -23,6 +23,7 @@
 #include <Rcpp.h>
 #include <string>
 #include <fstream>
+#include <mutex>
 #include "imzMLBin.h"
 
 #define IMG_STREAM_8bits //Comment this line out if you prefere to encode the imgStream as 16bits plus a mask
@@ -87,6 +88,8 @@ class rMSIXBin
     
     unsigned int number_of_encoding_threads; //Max number of threads to use for the imgStream encoding
     
+    std::mutex mtx_dec; //Lock mechanism for signalling decoder image
+    
     typedef struct
     {
       unsigned int numOfPixels; //Total number of pixel in the image;
@@ -117,6 +120,13 @@ class rMSIXBin
     void startThreadedAverageBaseNormalizations(double *intensity, int pixel, 
                                                 Rcpp::NumericVector *averageSpectrum, Rcpp::NumericVector *baseSpectrum,
                                                 Rcpp::NumericVector *normTIC, Rcpp::NumericVector *normRMS, Rcpp::NumericVector *normMAX );
+    
+    //Threaded decoding method
+    //buffer: pointer to char with the raw imgStream readed form hdd
+    //bufferOffset: buffer offsets in bytes to read the corresponfing scaling factor
+    //bufferLength: number of bytes for a single ion image including scaling in the buffer
+    //ionImage: pointer to the finall ion image
+    void startThreadIonImageDecoding(char* buffer, unsigned long bufferOffset, unsigned long bufferLength, Rcpp::NumericMatrix *ionImage);
     
     //Store normalization vectors
     void storeNormalizations2Binary();

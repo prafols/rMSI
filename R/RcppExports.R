@@ -89,7 +89,6 @@ NULL
 #' 
 #' - compatibilitat: puc fer que el nou rMSI i rMSIproc detecti automaticament si les dades son nou o antic format i ho carregui?
 #' 
-#' - comentar coses en el lodepng.h per fer el binary resultant mes petit: el que no facis servir fora! esta documentat en el propi lodepng.h
 #' 
 #' - ajuntar rMSI i rMSIproc: importar tots els metodes de rMSIproc dins del rMSI, es a dir, rMSIproc deixara d existir. Aixi sera mes facil d mantenir.
 #'   tb em permetra fer us d funcions d rMSIproc en rMSI (per exemple multi-threading d boost)
@@ -132,10 +131,11 @@ Cload_rMSIXBinData <- function(path, fname) {
 #' @param ionIndex: the first mass channel at which the image starts.
 #' @param ionCount: the numer of mass channels used to construct the ion image (a.k.a. image tolerance window).
 #' @param normalization_coefs a vector containing the intensy normalization coeficients.
+#' @param number_of_threads: number of threads used for imgStream encoding.
 #' 
 #' @return the ion image as a NumericMatrix using max operator with all the ion images of the mass channels. 
-Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount, normalization_coefs) {
-    .Call('_rMSI_Cload_rMSIXBinIonImage', PACKAGE = 'rMSI', rMSIobj, ionIndex, ionCount, normalization_coefs)
+Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount, normalization_coefs, number_of_threads) {
+    .Call('_rMSI_Cload_rMSIXBinIonImage', PACKAGE = 'rMSI', rMSIobj, ionIndex, ionCount, normalization_coefs, number_of_threads)
 }
 
 #' Cload_imzMLSpectra

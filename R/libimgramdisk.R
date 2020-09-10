@@ -317,7 +317,7 @@ builRasterImageFromCols<-function( Img, IonIndex, IonCount, Normalization = NULL
   }
 
   #Get the ion image
-  zplots <- Cload_rMSIXBinIonImage(Img, IonIndex, IonCount, Normalization)
+  zplots <- Cload_rMSIXBinIonImage(Img, IonIndex, IonCount, Normalization, parallel::detectCores())
   
   return( zplots )
 }
