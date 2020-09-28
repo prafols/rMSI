@@ -252,7 +252,7 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
     }
   }
 
-  lapply(spectra, ff::open.ff)
+  lapply(spectra, function(x){open(x)})
   datacube<-list(name = basename(data_file), uuid = uuidObj, mass = massObj,  size = sizeObj,  pos = posObj, pixel_size_um = resolutionObj, mean = meanSpcData, data = spectra)
   if(!is.null(posMotorsObj))
   {
@@ -309,7 +309,7 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
     cat("\nCurrent ramdisk has been corrupted, it will be created\n")
     return(NULL)
   }
-  lapply(datacube$data, ff::open.ff)
+  lapply(datacube$data, function(x){open(x)})
 
   cat("\nRamdisk has been sucessfully restored\n")
   return(datacube)
@@ -325,7 +325,7 @@ import_rMSItar<-function(data_file, restore_path, fun_progress = NULL, fun_text 
 #' @export
 DeleteRamdisk<-function(img)
 {
-  lapply(img$data, function(x){ ff::close.ff(x) })
+  lapply(img$data, function(x){ close(x) })
   ramdisk_path <- dirname(attr(attributes(img$data[[1]])$physical, "filename"))
   ramdisk_path_splited <- unlist(strsplit(ramdisk_path, "/"))
   if(.Platform$OS.type == "unix")

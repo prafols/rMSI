@@ -6,8 +6,8 @@
 \usage{
 LoadMsiData(
   data_file,
-  restore_path = file.path(dirname(data_file), paste("ramdisk", basename(data_file), sep
-    = "_")),
+  restore_path = file.path(dirname(data_file), paste("ramdisk", basename(data_file),
+    sep = "_")),
   fun_progress = NULL,
   ff_overwrite = F,
   fun_label = NULL,

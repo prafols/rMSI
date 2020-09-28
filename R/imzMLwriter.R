@@ -72,7 +72,7 @@ export_imzML <- function(img, save_path)
 
   #1- Store the binary data
   cat("Writing the .ibd file(binary)...\n")
-  lapply(img$data, function(x){ ff::open.ff(x) })
+  lapply(img$data, function(x){ open(x) })
   pb <- txtProgressBar(min = 0, max = nrow(img$pos), initial = 0, style = 3)
   iPixel <- 0
   ibd_fname <- file.path(path.expand(save_path), paste0(baseFileName, ".ibd"))
