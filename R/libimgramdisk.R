@@ -536,3 +536,20 @@ insertRasterImageAtMass<-function( Img, Mass, Tolerance, raster_matrix)
   }
   return(dataCube)
 }
+
+#' ffVector2Matrix.
+#' 
+#' Ensures the returned ff object is always a numeric matrix. This solves the problem of new ff release retuning a numeric vector when matrix has only a single row.
+#'
+#' @param ff_object the ff object.
+#'
+#' @return a numeric matrix
+#'
+ffVector2Matrix <- function(ff_object)
+{
+  if(class(ff_object) == "numeric")
+  {
+    ff_object <- matrix(ff_object, nrow = 1, ncol = length(ff_object))
+  }
+  return(ff_object)
+}

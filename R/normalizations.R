@@ -32,7 +32,7 @@ NormalizeTIC <- function(img, remove_empty_pixels = FALSE)
   TICs <- c()
   for( i in 1:length(img$data))
   {
-    TICs <- c(TICs, rowSums(img$data[[i]][,]))
+    TICs <- c(TICs, rowSums(ffVector2Matrix(img$data[[i]][,])))
     setTxtProgressBar(pb, i)
   }
   TICs <- TICs/length(img$mass)
@@ -69,7 +69,7 @@ NormalizeRMS <- function(img, remove_empty_pixels = FALSE)
   RMSs <- c()
   for( i in 1:length(img$data))
   {
-    RMSs <- c(RMSs, sqrt(rowSums(  (img$data[[i]][,])^2 ) ))
+    RMSs <- c(RMSs, sqrt(rowSums(ffVector2Matrix((img$data[[i]][,])^2 ))))
     setTxtProgressBar(pb, i)
   }
   RMSs <- RMSs / sqrt(length(img$mass))
@@ -155,7 +155,7 @@ NormalizeTargetPeaks <- function(img, mz_vector, mz_window_size = 0.1, norm_name
   Norms <- c()
   for( i in 1:length(img$data))
   {
-    Norms <- c(Norms, rowSums(img$data[[i]][,iCols]))
+    Norms <- c(Norms, rowSums(ffVector2Matrix(img$data[[i]][,iCols])))
     setTxtProgressBar(pb, i)
   }
   close(pb)
@@ -186,7 +186,7 @@ NormalizeByAcqDegradation <- function( img, winSize = 0.1 )
   TICs <- c()
   for( i in 1:length(img$data))
   {
-    TICs <- c(TICs, rowSums(img$data[[i]][,]))
+    TICs <- c(TICs, rowSums(ffVector2Matrix(img$data[[i]][,])))
     setTxtProgressBar(pb, i)
   }
   close(pb)
@@ -259,7 +259,7 @@ NormalizeByAcqDegradationOnTargetPeaks <- function(img, mz_vector, mz_window_siz
   Norms <- c()
   for( i in 1:length(img$data))
   {
-    Norms <- c(Norms, rowSums(img$data[[i]][,iCols]))
+    Norms <- c(Norms, rowSums(ffVector2Matrix(img$data[[i]][,iCols])))
     setTxtProgressBar(pb, i)
   }
   close(pb)
