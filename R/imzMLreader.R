@@ -233,7 +233,19 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       
       #Read only the first mass axis to compare if others are identical, this is the case for Bruker FTICR
       seek(bincon, rw = "read", where = xmlRes$run_data[1, "mzOffset"] )
-      firstMassAxis <- unique(readBin(bincon, readDataTypeMz, xmlRes$run_data[1, "mzLength"], size = bytes2ReadMz, signed = T))
+      mzdd <- readBin(bincon, readDataTypeMz, xmlRes$run_data[1, "mzLength"], size = bytes2ReadMz, signed = T)
+      
+      #Read the intensity of the first mass axis 
+      seek(bincon, rw = "read", where = xmlRes$run_data[1, "intOffset"] )
+      dd <- readBin(bincon, readDataTypeInt, xmlRes$run_data[1, "intLength"], size = bytes2ReadInt, signed = T)
+      
+      #Fix duplicates and zero drops
+      FirstSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
+      
+      #Calculate first mass axis bin size to avoid having to calculate it at each iteration
+      firstMassAxis <- FirstSpectrumFixed$mass
+      firstMassAxisBinSize <- rMSI::CalcMassAxisBinSize( firstMassAxis, FirstSpectrumFixed$intensity )
+      rm(FirstSpectrumFixed)
       
       while(TRUE)
       {
@@ -252,15 +264,15 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           
            #Get Bin size at peaks
           LoadMass <- CurrSpectrumFixed$mass
-          bMassMerge <- T
           if(identical(firstMassAxis, LoadMass))
           {
             bMassMerge <- F
-            LoadBins <- NULL
+            LoadBins <- firstMassAxisBinSize
           }
           else
           {
-            LoadBins <- rMSI::CalcMassAxisBinSize( LoadMass, CurrSpectrumFixed$intensity)
+            bMassMerge <- T
+            LoadBins <- rMSI::CalcMassAxisBinSize( LoadMass, CurrSpectrumFixed$intensity)  
           }
           bNoNeed2Resample <- bNoNeed2Resample & (!bMassMerge)
           
@@ -295,7 +307,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           if(MergedSpc[[1]]$level == MergedSpc[[2]]$level || icurr > nrow(xmlRes$run_data))
           { 
             #Merge!
-            if( MergedSpc[[2]]$merge)
+            if( MergedSpc[[2]]$merge )
             {
               mam <- rMSI::MergeMassAxis(MergedSpc[[1]]$mass, MergedSpc[[1]]$bins, MergedSpc[[2]]$mass, MergedSpc[[2]]$bins )
             }
