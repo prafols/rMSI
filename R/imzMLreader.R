@@ -198,7 +198,19 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       
       #Read only the first mass axis to compare if others are identical, this is the case for Bruker FTICR
       seek(bincon, rw = "read", where = xmlRes$run_data[1, "mzOffset"] )
-      firstMassAxis <- unique(readBin(bincon, dataPointEncoding_Mz$dataType, xmlRes$run_data[1, "mzLength"], size = dataPointEncoding_Mz$bytes, signed = T))
+      mzdd <- readBin(bincon,  dataPointEncoding_Mz$dataType, xmlRes$run_data[1, "mzLength"], size = dataPointEncoding_Mz$bytes, signed = T)
+      
+      #Read the intensity of the first mass axis 
+      seek(bincon, rw = "read", where = xmlRes$run_data[1, "intOffset"] )
+      dd <- readBin(bincon, dataPointEncoding_Int$dataType, xmlRes$run_data[1, "intLength"], size = dataPointEncoding_Int$bytes, signed = T)
+      
+      #Fix duplicates and zero drops
+      FirstSpectrumFixed <- fixImzMLDuplicates(mzdd, dd)
+      
+      #Calculate first mass axis bin size to avoid having to calculate it at each iteration
+      firstMassAxis <- FirstSpectrumFixed$mass
+      firstMassAxisBinSize <- rMSI::CalcMassAxisBinSize( firstMassAxis, FirstSpectrumFixed$intensity )
+      rm(FirstSpectrumFixed)
       
       while(TRUE)
       {
@@ -217,14 +229,15 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
           
           #Get Bin size at peaks
           LoadMass <- CurrSpectrumFixed$mass
-          bMassMerge <- T
+          
           if(identical(firstMassAxis, LoadMass))
           {
             bMassMerge <- F
-            LoadBins <- NULL
+            LoadBins <- firstMassAxisBinSize
           }
           else
           {
+            bMassMerge <- T
             LoadBins <- CalcMassAxisBinSize( LoadMass, CurrSpectrumFixed$intensity)
           }
           
