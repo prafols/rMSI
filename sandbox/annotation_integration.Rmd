@@ -1,0 +1,29 @@
+---
+title: "Annotation_Integration"
+author: "Lluc Sementé"
+date: "22/2/2021"
+output: pdf_document
+---
+
+# New peakMatrix API
+
+## get_annotations(rMSIprocPeakMatrix, mz, tag = c(“mono”,”frag”,”all”,”iso”,”etc...), topN)
+Output: 
+data frame with all the annotations information
+m/z, adduct, m/z mono, neutral mass, precursor, fragmentation, parental molecule, score_Frag, ILS, score_Matrix, matrix molecule, carbon atoms, 
+
+
+## get_filter_peak_matrix(rMSIprocPeakMatrix, tag = c(“mono”,”frag”,”all”,”iso”,”etc...), score)
+ Output:
+is: vector with selected indexes
+labels: Vector with labels for each mass in the dataset
+
+
+## estimateParameters(resolving_power,mz,mass_analyzer)
+Output:
+All thresholds (vector)
+
+## getMonoisotopicIons(rMSIprocPeakMatrix)
+## getIsotopicIons(rMSIprocPeakMatrix)
+
+## annotationWizard(rMSIprocPeakMatrix, scoreThresholds, path_parameters_input = NULL, path_parameters_output = NULL, annotation_modules = c(“all”,”frag”,”matrix”,”iso”))
