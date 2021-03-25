@@ -11,10 +11,9 @@ import_imzML(
   fun_text = NULL,
   close_signal = NULL,
   verifyChecksum = F,
-  createImgStream = T,
+  convertProcessed2Continuous = T,
   subImg_rename = NULL,
-  subImg_Coords = NULL,
-  convertProcessed2Continuous = T
+  subImg_Coords = NULL
 )
 }
 \arguments{
@@ -30,13 +29,11 @@ import_imzML(
 
 \item{verifyChecksum}{if the binary file checksum must be verified, it is disabled by default for convenice with really big files.}
 
-\item{createImgStream}{true if the ion image stream must be created.}
+\item{convertProcessed2Continuous}{if true (the default) an imzML file in processed mode will be converted to a continuous mode.}
 
 \item{subImg_rename}{alternative image name, new rMSI files will be created with the given name.}
 
-\item{subImg_Coords}{a Complex vector with the motors coordinates to be included in the rMSI data.}
-
-\item{convertProcessed2Continuous}{if true (the default) an imzML file in processed mode will be converted to a continuous mode.
+\item{subImg_Coords}{a Complex vector with the motors coordinates to be included in the rMSI data.
 
  Imports an imzML image to an rMSI data object.
  It is recomanded to use rMSI::LoadMsiData directly instead of this function.}

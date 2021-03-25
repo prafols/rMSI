@@ -6,10 +6,7 @@
 \usage{
 LoadMsiData(
   data_file,
-  restore_path = file.path(dirname(data_file), paste("ramdisk", basename(data_file),
-    sep = "_")),
   fun_progress = NULL,
-  ff_overwrite = F,
   fun_label = NULL,
   close_signal = NULL,
   imzMLChecksum = F,
@@ -21,11 +18,7 @@ LoadMsiData(
 \arguments{
 \item{data_file}{The tar o imzML file containing the MS image in rMSI format or imzML.}
 
-\item{restore_path}{Where the ramdisk will be created.}
-
 \item{fun_progress}{This is a callback function to update the progress of loading data. See details for more information.}
-
-\item{ff_overwrite}{Tell ff to overwrite or not current ramdisk files.}
 
 \item{fun_label}{This is a callback function to update the progress bar dialog text.}
 
@@ -36,16 +29,16 @@ LoadMsiData(
 \item{imzMLRename}{the image name, if NULL a default name based on the file name will be used.}
 
 \item{imzMLSubCoords}{a Complex vector with the motors coordinates to be included in the ramdisk, if NULL all positions will be used.}
+
+\item{encoding_threads}{numeber of threads to use during the pngstream encoding process.}
 }
 \value{
 an rMSI object pointing to ramdisk stored data
 
-Loads a rMSI data object from .tar compressed file or imzML format. It will be uncompressed at specified restore_path.
+Loads a rMSI data object from .tar compressed file or imzML format. 
 fun_progress can be NULL or a function with the following prototipe: fun_progress( currentState ). If NULL is used
 a default command line progress bar is used.
 This function will be called periodically to monitor the loading status. This is usefull to implement progressbars.
-If ramdisk is already created befor calling this method the parameter ff_overwrite will control the loadin behaviour. If it is set to false (default)
-The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
 }
 \description{
 Load rMSI data from a compressed tar.

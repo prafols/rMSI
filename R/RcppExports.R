@@ -62,10 +62,30 @@ CalcMassAxisBinSize <- function(mass, intensity) {
 #' @param intensity2 the spectral intensities corresponding to the second mass axis.
 #' 
 #' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
-#' @export
 #' 
 MergeMassAxis <- function(mz1, bins1, mz2, bins2) {
     .Call('_rMSI_MergeMassAxis', PACKAGE = 'rMSI', mz1, bins1, mz2, bins2)
+}
+
+#' MergeMassAxisAutoBinSize.
+#' 
+#' Merges two mass axis in a single one using an apropiate bin size without having to specify the bin sizes.
+#' The resulting mass axis will display a bin size equal to the minimum of two supplied vectors. 
+#' The bin size is calculated relative to the m/z for better accuracy.
+#' The resulting mass axis range is calculated using the common range between the two mass axis.
+#' If there is no overlao between the two mass axis range an error will be raised.
+#' 
+#' @param mz1 the first mass axis to merge.
+#' @param mz2 the second mass axis to merge.
+#' 
+#' @return a list containing the common mass axis that represents mz1 and mz1 accurately and a boolean indicating if and error was raised.
+#' 
+MergeMassAxisAutoBinSize <- function(mz1, mz2) {
+    .Call('_rMSI_MergeMassAxisAutoBinSize', PACKAGE = 'rMSI', mz1, mz2)
+}
+
+COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB) {
+    .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB)
 }
 
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {

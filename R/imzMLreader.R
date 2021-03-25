@@ -47,10 +47,9 @@ fixImzMLDuplicates <- function(mass, intensity)
 #' @param fun_text This is a callback function to update the label widget of loading data. See details for more information.
 #' @param close_signal function to be called if loading process is abored.
 #' @param verifyChecksum if the binary file checksum must be verified, it is disabled by default for convenice with really big files.
-#' @param createImgStream true if the ion image stream must be created.
+#' @param convertProcessed2Continuous if true (the default) an imzML file in processed mode will be converted to a continuous mode.
 #' @param subImg_rename alternative image name, new rMSI files will be created with the given name.
 #' @param subImg_Coords a Complex vector with the motors coordinates to be included in the rMSI data.
-#' @param convertProcessed2Continuous if true (the default) an imzML file in processed mode will be converted to a continuous mode.
 #'
 #'  Imports an imzML image to an rMSI data object.
 #'  It is recomanded to use rMSI::LoadMsiData directly instead of this function.
@@ -60,24 +59,13 @@ fixImzMLDuplicates <- function(mass, intensity)
 #' 
 import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzML_File), ".ibd", sep = "" ),
                          fun_progress = NULL, fun_text = NULL, close_signal = NULL, 
-                         verifyChecksum = F, createImgStream = T,
-                         subImg_rename = NULL, subImg_Coords = NULL, convertProcessed2Continuous = T)
+                         verifyChecksum = F, convertProcessed2Continuous = T,
+                         subImg_rename = NULL, subImg_Coords = NULL)
 {
   setPbarValue<-function(progress)
   {
     setTxtProgressBar(pb, progress)
     return(T)
-  }
-
-  if(is.null(fun_progress))
-  {
-    pb<-txtProgressBar(min = 0, max = 100, style = 3 )
-    fun_progress <- setPbarValue
-    cat("\n")
-  }
-  else
-  {
-    pb<-NULL
   }
 
   #1- Parse XML data
@@ -184,6 +172,18 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       {
         fun_text("Process mode, re-calculating mass axis...")
       }
+      
+      if(is.null(fun_progress))
+      {
+        pb<-txtProgressBar(min = 0, max = 100, style = 3 )
+        fun_progress <- setPbarValue
+        cat("\n")
+      }
+      else
+      {
+        pb<-NULL
+      }
+      
       ppStep<-100/nrow(xmlRes$run_data)
       pp<-0
       #Update progress bar
@@ -276,7 +276,7 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
             #Merge!
             if( MergedSpc[[2]]$merge)
             {
-              mam <- rMSI::MergeMassAxis(MergedSpc[[1]]$mass, MergedSpc[[1]]$bins, MergedSpc[[2]]$mass, MergedSpc[[2]]$bins )
+              mam <- MergeMassAxis(MergedSpc[[1]]$mass, MergedSpc[[1]]$bins, MergedSpc[[2]]$mass, MergedSpc[[2]]$bins )
             }
             else
             {
@@ -314,6 +314,10 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       
       mzAxis <-  MergedSpc[[1]]$mass
       rm(MergedSpc)
+      if(!is.null(pb))
+      {
+        close(pb)
+      }
       gc()
       pt<-proc.time() - pt
       cat(paste("\nMass axis calculation time:",round(pt["elapsed"], digits = 1),"seconds\n"))
@@ -336,7 +340,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   #Fill missing data
   img$data$rMSIXBin$file <- sub("\\.[^.]*$", "", basename(imzML_File))
   #img$data$rMSIXBin$uuid has been set by CreateEmptyImage
-  #TODO fill all rMSIXBin data!
   
   img$data$imzML$file <- sub("\\.[^.]*$", "", basename(imzML_File))
   #img$data$imzML$uuid has been set by CreateEmptyImage
@@ -371,10 +374,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
   }
 
   #7- And it's done, just return de rMSI object
-  if(!is.null(pb))
-  {
-    close(pb)
-  }
   gc()
   return(img)
 }

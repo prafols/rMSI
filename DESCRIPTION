@@ -11,6 +11,7 @@ LazyData: TRUE
 SystemRequirements: C++11
 Depends:
     R (>= 3.6),
+    methods,
     gWidgets2 (>= 1.0),
     RGtk2 (>= 2.20.25),
     cairoDevice (>= 2.22),

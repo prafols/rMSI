@@ -19,29 +19,24 @@
 #' Load rMSI data from a compressed tar.
 #'
 #' @param data_file The tar o imzML file containing the MS image in rMSI format or imzML.
-#' @param restore_path Where the ramdisk will be created.
 #' @param fun_progress This is a callback function to update the progress of loading data. See details for more information.
-#' @param ff_overwrite Tell ff to overwrite or not current ramdisk files.
 #' @param fun_label This is a callback function to update the progress bar dialog text.
 #' @param close_signal function to be called if the loading process is aborted.
 #' @param imzMLChecksum if the binary file checksum must be verified, it can be disabled for convenice with really big files.
 #' @param imzMLRename the image name, if NULL a default name based on the file name will be used.
 #' @param imzMLSubCoords a Complex vector with the motors coordinates to be included in the ramdisk, if NULL all positions will be used.
+#' @param encoding_threads numeber of threads to use during the pngstream encoding process.
 #'
 #' @return an rMSI object pointing to ramdisk stored data
 #'
-#' Loads a rMSI data object from .tar compressed file or imzML format. It will be uncompressed at specified restore_path.
+#' Loads a rMSI data object from .tar compressed file or imzML format. 
 #' fun_progress can be NULL or a function with the following prototipe: fun_progress( currentState ). If NULL is used
 #' a default command line progress bar is used.
 #' This function will be called periodically to monitor the loading status. This is usefull to implement progressbars.
-#' If ramdisk is already created befor calling this method the parameter ff_overwrite will control the loadin behaviour. If it is set to false (default)
-#' The ramdisk will be kept and the imaged loaded imediatelly. Otherwise if is set to true, the while dataset will be reloaded from tar file.
 #'
 #' @export
 LoadMsiData<-function(data_file,
-                      restore_path = file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_")),
                       fun_progress = NULL, 
-                      ff_overwrite = F,
                       fun_label = NULL, 
                       close_signal = NULL,
                       imzMLChecksum = F, 
@@ -78,25 +73,26 @@ LoadMsiData<-function(data_file,
     {
       #.XrMSI file exists so load it
       fun_label(".XrMSI found, loading data from it...")
-      imgData <- rMSI::import_rMSIXBin(XrMSI_fname)
+      imgData <- import_rMSIXBin(XrMSI_fname)
     }
     else
     {
       #No .XrMSI file so process the imzML
       fun_label(".XrMSI not found, loading imzML data...")
-      imgData <- rMSI:::Ccreate_rMSIXBinData(rMSI:::import_imzML(path.expand(data_file),  fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum, subImg_rename = imzMLRename, subImg_Coords = imzMLSubCoords),
+      imgData <- Ccreate_rMSIXBinData(import_imzML(path.expand(data_file),  fun_progress = fun_progress, fun_text = fun_label, close_signal = close_signal, verifyChecksum = imzMLChecksum, subImg_rename = imzMLRename, subImg_Coords = imzMLSubCoords),
                                              encoding_threads)
     }
   }
   else if(fileExtension == "XrMSI")
   {
     #Load the XrMSI file
-    imgData <- rMSI::import_rMSIXBin(data_file, fun_text = fun_label)
+    imgData <- import_rMSIXBin(data_file, fun_text = fun_label)
   }
   else if(fileExtension == "tar")
   {
     #TODO convert .tar to imzML and load the imzML
     stop("NOT IMPLEMENTED YET: old format .tar files will be supported by automatically converting them to imzML but this is not implemented yet.\n")
+    #restore_path <- file.path(dirname(data_file), paste("ramdisk",basename(data_file), sep = "_"))
     #return(import_rMSItar(data_file,restore_path, fun_progress, fun_text = fun_label, close_signal = close_signal))
   }
   else

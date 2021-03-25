@@ -25,7 +25,7 @@
 #define MAX_MEMORY_MB 250 //Maxim usable memory
 
 ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous):
-  Npixels(num_of_pixels), bContinuous(continuous)
+  ibdFname(ibd_fname), Npixels(num_of_pixels), bContinuous(continuous)
 {
   
   mzDataType = string2imzMLDatatype(Str_mzType);
@@ -85,16 +85,7 @@ Rcpp::Rcout << "lintOffset addr: " << lintOffset << "\n";
 
 ImzMLBin::~ImzMLBin()
 {
-#ifdef __DEBUG__
-  Rcpp::Rcout << "ImzMLBin() destructor start...";
-#endif
-  if(ibdFile.is_open())
-  {
-    ibdFile.close();
-#ifdef __DEBUG__
-    Rcpp::Rcout << "ibdFile closed...\n";
-#endif
-  }
+  close();
   
 #ifdef __DEBUG__
   Rcpp::Rcout << "imzLength addr: " << imzLength << "\n";
@@ -111,6 +102,11 @@ ImzMLBin::~ImzMLBin()
 #ifdef __DEBUG__
   Rcpp::Rcout << "ImzMLBin() destructor end successfuly\n";
 #endif
+}
+
+const char* ImzMLBin::getIbdFilePath()
+{
+  return ibdFname.get_cstring();
 }
 
 bool ImzMLBin::get_continuous()
@@ -196,6 +192,20 @@ unsigned int ImzMLBin::get_intEncodingBytes()
   return intDataPointBytes;
 }
 
+void ImzMLBin::close()
+{
+#ifdef __DEBUG__
+  Rcpp::Rcout << "ImzMLBin() destructor start...";
+#endif
+  if(ibdFile.is_open())
+  {
+    ibdFile.close();
+#ifdef __DEBUG__
+    Rcpp::Rcout << "ibdFile closed...\n";
+#endif
+  }
+}
+
 ImzMLBin::imzMLDataType ImzMLBin::string2imzMLDatatype(Rcpp::String data_type)
 {
   imzMLDataType dataType;
@@ -239,16 +249,12 @@ void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
   delete[] auxBuffer;
 }
 
-ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous):
+ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd):
   ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous)
 {
-#ifdef __DEBUG__
-  Rcpp::Rcout << "ImzMLBinRead() constructor start...\nibdfile is:"<<  ibd_fname << "\n";
-#endif
-  ibdFile.open(ibd_fname, std::fstream::in | std::ios::binary);
-  if(!ibdFile.is_open())
+  if(openIbd)
   {
-    throw std::runtime_error("ERROR: ImzMLBinRead could not open the imzML ibd file.\n"); 
+    open();
   }
 #ifdef __DEBUG__
   Rcpp::Rcout << "ImzMLBinRead() constructor end successfuly\n";
@@ -258,6 +264,18 @@ ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rc
 ImzMLBinRead::~ImzMLBinRead()
 {
   //Empty desctructor
+}
+
+void ImzMLBinRead::open()
+{
+#ifdef __DEBUG__
+  Rcpp::Rcout << "ImzMLBinRead() open start...\nibdfile is:"<<  ibdFname.get_cstring() << "\n";
+#endif
+  ibdFile.open(ibdFname.get_cstring(), std::fstream::in | std::ios::binary);
+  if(!ibdFile.is_open())
+  {
+    throw std::runtime_error("ERROR: ImzMLBinRead could not open the imzML ibd file.\n"); 
+  }
 }
 
 void ImzMLBinRead::readDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
@@ -391,7 +409,7 @@ void ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int
     mlinterp::interp(
       &massLength, (int)ionCount, // Number of points (imzML original, interpolated )
       intBuffer, out, // Y axis  (imzML original, interpolated )
-      mzBuffer, commonMass + ionIndex // X axis  (imzML original, interpolated ) //TODO set mas axis!
+      mzBuffer, commonMass + ionIndex // X axis  (imzML original, interpolated )
     );
     
     delete[] mzBuffer;
@@ -400,21 +418,28 @@ void ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int
   
 }
 
-ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous) :
+ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous,bool openIbd) :
   ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous)
 {
-  
-  ibdFile.open(ibd_fname, std::fstream::out | std::ios::binary); //TODO do I want ot truncate the file or just modify it?
-  if(!ibdFile.is_open())
+  if(openIbd)
   {
-    throw std::runtime_error("Error: ImzMLBinRead could not open the imzML ibd file.\n");
+    open();
   }
 }
 
 ImzMLBinWrite::~ImzMLBinWrite()
 {
   //Empty desctructor
-}   
+}
+
+void ImzMLBinWrite::open()
+{
+  ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary); //TODO do I want ot truncate the file or just modify it?
+  if(!ibdFile.is_open())
+  {
+    throw std::runtime_error("Error: ImzMLBinRead could not open the imzML ibd file.\n");
+  }
+}
 
 void ImzMLBinWrite::writeMzData(unsigned long offset, unsigned int N, double* ptr )
 {

@@ -37,6 +37,7 @@ class ImzMLBin
     ImzMLBin(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous);
     ~ImzMLBin();
     
+    const char* getIbdFilePath();
     bool get_continuous();
     unsigned int get_mzLength(unsigned int index);
     unsigned long get_mzOffset(unsigned int index);
@@ -52,7 +53,11 @@ class ImzMLBin
     unsigned int get_mzEncodingBytes();
     unsigned int get_intEncodingBytes();
     
+    //Close the file connection
+    void close();
+    
   protected:
+    Rcpp::String ibdFname;
     std::fstream ibdFile; 
     unsigned int Npixels; //Total number of pixels in the image;
     unsigned int mzDataPointBytes; //Number of bytes used to encode a mass channel 
@@ -74,8 +79,11 @@ class ImzMLBin
 class ImzMLBinRead : public ImzMLBin
 {
   public: 
-    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous);
+    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true);
     ~ImzMLBinRead();
+    
+    //Open the ibd file in reading mode
+    void open();
     
     //Get the 16 bytes UUID from the imzML ibd file. uuid must be allocated by the user.
     void readUUID(char* uuid);
@@ -115,8 +123,11 @@ class ImzMLBinRead : public ImzMLBin
 class ImzMLBinWrite : public ImzMLBin
 {
   public: 
-    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous);
+    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true);
     ~ImzMLBinWrite();
+    
+    //Open the ibd file in writing mode
+    void open();
     
     //Write N elements from the ibd file at the given offset as m/z channels
     //Data is obtained from ptr pointer
