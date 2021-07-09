@@ -80,7 +80,6 @@ ProcessImages <- function(proc_params,
     
     # Calculate the new common mass axis 
     #TODO this is only needed when alignment is enabled
-    cat("Calculating overall average spectrum...")
     common_mass <- img_lst[[1]]$mass
     if(!identicalMassAxis)
     {
@@ -106,6 +105,11 @@ ProcessImages <- function(proc_params,
     
   }
 
+  #Calculate reference spectrum for label free alignment
+  refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum)
+  cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
+  refSpc <- refSpc$spectrum
+  
   return(AverageSpectrum)
   
   

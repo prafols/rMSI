@@ -33,6 +33,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// testingimzMLBinWriteSequential
+void testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, const char* uuid, Rcpp::NumericMatrix mzArray, Rcpp::NumericMatrix intArray);
+RcppExport SEXP _rMSI_testingimzMLBinWriteSequential(SEXP ibdFnameSEXP, SEXP mz_dataTypeStringSEXP, SEXP int_dataTypeStringSEXP, SEXP uuidSEXP, SEXP mzArraySEXP, SEXP intArraySEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
+    Rcpp::traits::input_parameter< Rcpp::String >::type mz_dataTypeString(mz_dataTypeStringSEXP);
+    Rcpp::traits::input_parameter< Rcpp::String >::type int_dataTypeString(int_dataTypeStringSEXP);
+    Rcpp::traits::input_parameter< const char* >::type uuid(uuidSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type mzArray(mzArraySEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type intArray(intArraySEXP);
+    testingimzMLBinWriteSequential(ibdFname, mz_dataTypeString, int_dataTypeString, uuid, mzArray, intArray);
+    return R_NilValue;
+END_RCPP
+}
 // CimzMLParse
 List CimzMLParse(String xml_path);
 RcppExport SEXP _rMSI_CimzMLParse(SEXP xml_pathSEXP) {
@@ -53,6 +68,28 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< String >::type fname(fnameSEXP);
     Rcpp::traits::input_parameter< List >::type imgInfo(imgInfoSEXP);
     rcpp_result_gen = Rcpp::wrap(CimzMLStore(fname, imgInfo));
+    return rcpp_result_gen;
+END_RCPP
+}
+// AlignSpectrumToReference
+Rcpp::List AlignSpectrumToReference(NumericVector mass, NumericVector ref, NumericVector spectrumInterpolated, NumericVector massProcessedMode, bool bilinear, double lagRefLow, double lagRefMid, double lagRefHigh, int iterations, double lagLimitppm, int fftOverSampling, double winSizeRelative);
+RcppExport SEXP _rMSI_AlignSpectrumToReference(SEXP massSEXP, SEXP refSEXP, SEXP spectrumInterpolatedSEXP, SEXP massProcessedModeSEXP, SEXP bilinearSEXP, SEXP lagRefLowSEXP, SEXP lagRefMidSEXP, SEXP lagRefHighSEXP, SEXP iterationsSEXP, SEXP lagLimitppmSEXP, SEXP fftOverSamplingSEXP, SEXP winSizeRelativeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type mass(massSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type ref(refSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type spectrumInterpolated(spectrumInterpolatedSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type massProcessedMode(massProcessedModeSEXP);
+    Rcpp::traits::input_parameter< bool >::type bilinear(bilinearSEXP);
+    Rcpp::traits::input_parameter< double >::type lagRefLow(lagRefLowSEXP);
+    Rcpp::traits::input_parameter< double >::type lagRefMid(lagRefMidSEXP);
+    Rcpp::traits::input_parameter< double >::type lagRefHigh(lagRefHighSEXP);
+    Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
+    Rcpp::traits::input_parameter< double >::type lagLimitppm(lagLimitppmSEXP);
+    Rcpp::traits::input_parameter< int >::type fftOverSampling(fftOverSamplingSEXP);
+    Rcpp::traits::input_parameter< double >::type winSizeRelative(winSizeRelativeSEXP);
+    rcpp_result_gen = Rcpp::wrap(AlignSpectrumToReference(mass, ref, spectrumInterpolated, massProcessedMode, bilinear, lagRefLow, lagRefMid, lagRefHigh, iterations, lagLimitppm, fftOverSampling, winSizeRelative));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -104,6 +141,22 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
     Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
     rcpp_result_gen = Rcpp::wrap(COverallAverageSpectrum(rMSIObj_list, numOfThreads, memoryPerThreadMB));
+    return rcpp_result_gen;
+END_RCPP
+}
+// FullImageAlign
+List FullImageAlign(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::Reference preProcessingParams, Rcpp::NumericVector mass, Rcpp::NumericVector reference);
+RcppExport SEXP _rMSI_FullImageAlign(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP preProcessingParamsSEXP, SEXP massSEXP, SEXP referenceSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIObj_list(rMSIObj_listSEXP);
+    Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
+    Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Reference >::type preProcessingParams(preProcessingParamsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mass(massSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type reference(referenceSEXP);
+    rcpp_result_gen = Rcpp::wrap(FullImageAlign(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, mass, reference));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -177,12 +230,15 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
     {"_rMSI_testingimzMLBinRead", (DL_FUNC) &_rMSI_testingimzMLBinRead, 7},
+    {"_rMSI_testingimzMLBinWriteSequential", (DL_FUNC) &_rMSI_testingimzMLBinWriteSequential, 6},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
+    {"_rMSI_AlignSpectrumToReference", (DL_FUNC) &_rMSI_AlignSpectrumToReference, 12},
     {"_rMSI_CalcMassAxisBinSize", (DL_FUNC) &_rMSI_CalcMassAxisBinSize, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_MergeMassAxisAutoBinSize", (DL_FUNC) &_rMSI_MergeMassAxisAutoBinSize, 2},
     {"_rMSI_COverallAverageSpectrum", (DL_FUNC) &_rMSI_COverallAverageSpectrum, 3},
+    {"_rMSI_FullImageAlign", (DL_FUNC) &_rMSI_FullImageAlign, 6},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {"_rMSI_Ccreate_rMSIXBinData", (DL_FUNC) &_rMSI_Ccreate_rMSIXBinData, 2},
     {"_rMSI_Cload_rMSIXBinData", (DL_FUNC) &_rMSI_Cload_rMSIXBinData, 2},

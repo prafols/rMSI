@@ -110,7 +110,8 @@ CrMSIDataCubeIO::DataCube *CrMSIDataCubeIO::loadDataCube(int iCube)
   data_ptr->cubeID = iCube;
   data_ptr->nrows = dataCubesDesc[iCube].size();
   data_ptr->ncols = mass.length();
-  data_ptr->data = new double*[data_ptr->nrows];
+  data_ptr->dataOriginal = new imzMLSpectrum[data_ptr->nrows];
+  data_ptr->dataInterpolated = new double*[data_ptr->nrows];
 
   //Data reading
   int current_imzML_id;
@@ -133,11 +134,11 @@ CrMSIDataCubeIO::DataCube *CrMSIDataCubeIO::loadDataCube(int iCube)
       imzMLReaders[current_imzML_id]->open();
     }
     
-    data_ptr->data[i] = new double[data_ptr->ncols];
-    imzMLReaders[current_imzML_id]->ReadSpectrum(dataCubesDesc[iCube][i].pixel_ID, //pixel id to read
+    data_ptr->dataInterpolated[i] = new double[data_ptr->ncols];
+    data_ptr->dataOriginal[i] = imzMLReaders[current_imzML_id]->ReadSpectrum(dataCubesDesc[iCube][i].pixel_ID, //pixel id to read
                                                 0, //unsigned int ionIndex
                                                 mass.length(),//unsigned int ionCount
-                                                data_ptr->data[i], //Store data directely at the datacube mem
+                                                data_ptr->dataInterpolated[i], //Store data directely at the datacube mem
                                                 mass.length(),  //commonMassLength,
                                                 mass.begin()); //double *commonMass
                                   
@@ -152,9 +153,10 @@ void CrMSIDataCubeIO::freeDataCube(DataCube *data_ptr)
 {
   for( int i = 0; i < data_ptr->nrows; i++ )
   {
-    delete[] data_ptr->data[i];
+    delete[] data_ptr->dataInterpolated[i];
   }
-  delete[] data_ptr->data;
+  delete[] data_ptr->dataOriginal;
+  delete[] data_ptr->dataInterpolated;
   delete data_ptr;
 }
 

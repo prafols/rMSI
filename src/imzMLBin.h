@@ -21,7 +21,15 @@
 #define IMZML_BIN_H
 
 #include <fstream>
+#include <vector>
 #include <Rcpp.h>
+
+typedef struct
+{
+  int pixelID;
+  std::vector<double> imzMLmass; 
+  std::vector<double> imzMLintensity; 
+}imzMLSpectrum; //If data is in continuous mode the std::vectors will be empty
 
 class ImzMLBin
 {
@@ -73,7 +81,10 @@ class ImzMLBin
     imzMLDataType string2imzMLDatatype(Rcpp::String data_type);
     
     template<typename T> 
-    void covertBytes2Double(char* inBytes, double* outPtr, unsigned int N);
+    void convertBytes2Double(char* inBytes, double* outPtr, unsigned int N);
+    
+    template<typename T> 
+    void convertDouble2Bytes(double* inPtr, char* outBytes, unsigned int N);
 };
 
 class ImzMLBinRead : public ImzMLBin
@@ -105,10 +116,10 @@ class ImzMLBinRead : public ImzMLBin
     //pixelID: the pixel ID of the spectrum to read.
     //ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
     //ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
-    //out: a pointer where data will be stored (must be allocated before calling this function).
+    //out: a pointer where data will be stored.
     //commonMassLength: number of points in the common mass axis.
     //commonMass: pointer to the common mass axis
-    void ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass);
+    imzMLSpectrum ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass);
     
   private:
     //Read N elements from the ibd file and decode them.
@@ -123,19 +134,54 @@ class ImzMLBinRead : public ImzMLBin
 class ImzMLBinWrite : public ImzMLBin
 {
   public: 
-    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true);
+    enum Mode { SequentialWriteFile, ModifyFile }; //The mode must be spcified in the constructor
+    
+    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, Mode mode, bool openIbd = true);
     ~ImzMLBinWrite();
     
     //Open the ibd file in writing mode
     void open();
     
-    //Write N elements from the ibd file at the given offset as m/z channels
+    //Write the 16 bytes UUID to the imzML ibd file.
+    void writeUUID(const char* uuid);
+    
+    //Write N elements to the ibd file at the given offset as m/z channels
     //Data is obtained from ptr pointer
     void writeMzData(unsigned long offset, unsigned int N, double* ptr );
     
-    //Write N elements from the ibd file at the given offset as spectrum intensities
+    //Append N elements to the ibd file (write in sequential mode)
+    //Data is obtained from ptr pointer
+    void writeMzData( unsigned int N, double* ptr );
+    
+    //Write N elements to the ibd file at the given offset as spectrum intensities
     //Data is obtained from ptr pointer
     void writeIntData(unsigned long offset, unsigned int N, double* ptr );
+    
+    //Append N elements to the ibd file (write in sequential mode)
+    //Data is obtained from ptr pointer
+    void writeIntData( unsigned int N, double* ptr );
+    
+  private:
+    Mode writeMode; //Store the file write
+    unsigned int sequentialWriteIndex_MzData; //When sequentially writing data, this integers provides the index of the next pixel to store
+    unsigned int sequentialWriteIndex_IntData; //When sequentially writing data, this integers provides the index of the next pixel to store
+    
+    //Write N elements to the ibd file encoded in the specified format.
+    //This method is tailored to data modification mode
+    //offset: offset in bytes at which the writing operation is started.
+    //N: number of elements to write to the ibd file (N is elements, not bytes!)
+    //ptr: Pointer to the data to write
+    //dataPointBytes: number of bytes used to encode a single data point.
+    //dataType: data type used for the encoding.
+    void writeDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
+    
+    //Write N elements to the ibd file encoded in the specified format.
+    //This method is tailored to sequential writing mode
+    //N: number of elements to write to the ibd file (N is elements, not bytes!)
+    //ptr: Pointer to the data to write
+    //dataPointBytes: number of bytes used to encode a single data point.
+    //dataType: data type used for the encoding.
+    void writeDataCommon(unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
 };
 
 #endif

@@ -234,7 +234,7 @@ ImzMLBin::imzMLDataType ImzMLBin::string2imzMLDatatype(Rcpp::String data_type)
 }
 
 template<typename T> 
-void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
+void ImzMLBin::convertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
 {
   //First, copy the data to an intermediate vector with the desired type
   T* auxBuffer = new T[N];
@@ -245,6 +245,22 @@ void ImzMLBin::covertBytes2Double(char* inBytes, double* outPtr, unsigned int N)
   {
     outPtr[i] = (double)auxBuffer[i];
   }
+  
+  delete[] auxBuffer;
+}
+
+template<typename T> 
+void ImzMLBin::convertDouble2Bytes(double* inPtr, char* outBytes, unsigned int N)
+{
+  //First, copy the data to an intermediate vector with the desired type
+  T* auxBuffer = new T[N];
+  for(int i = 0; i < N; i++)
+  {
+    auxBuffer[i] = (T)inPtr[i]; //Conversion from double to T type
+  }
+  
+  //Finally, move the data to the output bytes buffer
+  memcpy(outBytes, auxBuffer, sizeof(T)*N);
   
   delete[] auxBuffer;
 }
@@ -306,19 +322,19 @@ void ImzMLBinRead::readDataCommon(unsigned long offset, unsigned int N, double* 
   switch(dataType)
   {
   case int32:
-    covertBytes2Double<int>(buffer, ptr, N);
+    convertBytes2Double<int>(buffer, ptr, N);
     break;
     
   case float32:  
-    covertBytes2Double<float>(buffer, ptr, N);
+    convertBytes2Double<float>(buffer, ptr, N);
     break;
     
   case int64:
-    covertBytes2Double<long>(buffer, ptr, N);
+    convertBytes2Double<long>(buffer, ptr, N);
     break;
     
   case float64:
-    //covertBytes2Double<double>(buffer, ptr, N); If double there is no need of intermediate conversion
+    //convertBytes2Double<double>(buffer, ptr, N); If double there is no need of intermediate conversion
     memcpy(ptr, buffer, sizeof(double)*N);
     break;
   }
@@ -367,12 +383,15 @@ void ImzMLBinRead::readIntData(unsigned long offset, unsigned int N, double* ptr
 //out: a pointer where data will be stored.
 //commonMassLength: number of points in the common mass axis.
 //commonMass: pointer to the common mass axis
-void ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass)
+imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass)
 {
   if( (ionIndex+ionCount) > commonMassLength )
   {
     throw std::runtime_error("Error: mass channels out of range\n"); 
   }
+  
+  imzMLSpectrum imzMLSpc;
+  imzMLSpc.pixelID = pixelID;
   
   if(get_continuous())
   {
@@ -389,37 +408,37 @@ void ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int
     {
       throw std::runtime_error("Error: different mass and intensity length in the imzML data\n"); 
     }
-    double *mzBuffer = new double[massLength];
-    double *intBuffer = new double[massLength];
+    imzMLSpc.imzMLmass.resize(massLength);
+    imzMLSpc.imzMLintensity.resize(massLength);
     
     //Read processed mode mass and intensity
     try
     {
-      readMzData(get_mzOffset(pixelID),  get_mzLength(pixelID),  mzBuffer);
-      readIntData(get_intOffset(pixelID), get_intLength(pixelID), intBuffer);  
+      readMzData(get_mzOffset(pixelID),  get_mzLength(pixelID),  imzMLSpc.imzMLmass.data());
+      readIntData(get_intOffset(pixelID), get_intLength(pixelID), imzMLSpc.imzMLintensity.data());  
     }
     catch(std::runtime_error &e)
     {
-      delete[] mzBuffer;
-      delete[] intBuffer;
       throw std::runtime_error(e.what());
     }
     
     //Linear interpolation
     mlinterp::interp(
       &massLength, (int)ionCount, // Number of points (imzML original, interpolated )
-      intBuffer, out, // Y axis  (imzML original, interpolated )
-      mzBuffer, commonMass + ionIndex // X axis  (imzML original, interpolated )
+      imzMLSpc.imzMLintensity.data(), out, // Y axis  (imzML original, interpolated )
+      imzMLSpc.imzMLmass.data(), commonMass + ionIndex // X axis  (imzML original, interpolated )
     );
     
-    delete[] mzBuffer;
-    delete[] intBuffer;
   }
   
+  return imzMLSpc;
 }
 
-ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous,bool openIbd) :
-  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous)
+ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, Mode mode, bool openIbd) :
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous),
+  writeMode(mode), 
+  sequentialWriteIndex_IntData(0), 
+  sequentialWriteIndex_MzData(0)
 {
   if(openIbd)
   {
@@ -434,25 +453,148 @@ ImzMLBinWrite::~ImzMLBinWrite()
 
 void ImzMLBinWrite::open()
 {
-  ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary); //TODO do I want ot truncate the file or just modify it?
+  if(writeMode == Mode::ModifyFile)
+  {
+    //Open for modifing registers in the ibd file
+    ibdFile.open(ibdFname.get_cstring(), std::fstream::in | std::fstream::out | std::ios::binary); //TODO check the following comment and validate this works!
+        ///According some discussion in stackoverflows... 
+        ///std::ios::binary|std::ios::out|std::ios::in mus be used to replace contents in binary files... raro....
+  }
+  else
+  {
+    //Open for serial writing, any content of the ibd file will be removed
+    ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary | std::fstream::trunc);
+  }
+  
   if(!ibdFile.is_open())
   {
-    throw std::runtime_error("Error: ImzMLBinRead could not open the imzML ibd file.\n");
+    throw std::runtime_error("Error: ImzMLBinWrite could not open the imzML ibd file.\n");
+  }
+}
+
+void ImzMLBinWrite::writeUUID(const char* uuid)
+{
+  if(writeMode == Mode::ModifyFile)
+  {
+    throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing and UUID can only be set in sequential mode");
+  }
+  
+  if(ibdFile.tellp() != 0)
+  {
+    throw std::runtime_error("ERROR: the ibd writing pointer is not at zero so UUID cannot be writen");
+  }
+  
+  ibdFile.write (uuid, 16);
+  if(ibdFile.fail() || ibdFile.bad())
+  {
+    throw std::runtime_error("FATAL ERROR: ImzMLBinWrite got fail or bad bit condition writing the imzML ibd file.\n"); 
   }
 }
 
 void ImzMLBinWrite::writeMzData(unsigned long offset, unsigned int N, double* ptr )
 {
-  //TODO checkout fstream doc: http://www.cplusplus.com/reference/fstream/fstream/
-  // seek operation is diferent to the ifstream!
-    throw std::runtime_error("TODO: Not implemented yet, sorry :(");
+  if(writeMode == Mode::SequentialWriteFile)
+  {
+    throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for data modification");
+  }
+  
+  writeDataCommon(offset, N, ptr, mzDataPointBytes, mzDataType);
+}
+
+void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
+{
+  if(writeMode == Mode::ModifyFile)
+  {
+    throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing");
+  }
+  
+  //Store the mz offset and length
+  if(sequentialWriteIndex_MzData >= Npixels)
+  {
+    throw std::runtime_error("ERROR: trying to write more spectral data than the maximum number of pixels set in the constructor");
+  }
+  lmzOffset[sequentialWriteIndex_MzData] = ibdFile.tellp();
+  imzLength[sequentialWriteIndex_MzData] = N;
+  sequentialWriteIndex_MzData++;
+  
+  //Write data
+  writeDataCommon(N, ptr, mzDataPointBytes, mzDataType);
 }
 
 void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* ptr )
 {
-  //TODO checkout fstream doc: http://www.cplusplus.com/reference/fstream/fstream/
-  // seek operation is diferent to the ifstream!
-  throw std::runtime_error("TODO: Not implemented yet, sorry :(");
+  if(writeMode == Mode::SequentialWriteFile)
+  {
+    throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for data modification");
+  }
+  
+  writeDataCommon(offset, N, ptr, intDataPointBytes, intDataType);
+}
+
+void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
+{
+  if(writeMode == Mode::ModifyFile)
+  {
+    throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing");
+  }
+  
+  //Store the mz offset and length
+  if(sequentialWriteIndex_IntData >= Npixels)
+  {
+    throw std::runtime_error("ERROR: trying to write more spectral data than the maximum number of pixels set in the constructor");
+  }
+  lintOffset[sequentialWriteIndex_IntData] = ibdFile.tellp();
+  iintLength[sequentialWriteIndex_IntData] = N;
+  sequentialWriteIndex_IntData++;
+  
+  //Write data
+  writeDataCommon(N, ptr, intDataPointBytes, intDataType);
+}
+
+void ImzMLBinWrite::writeDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
+{
+  ibdFile.seekp(offset);
+  if(ibdFile.fail() || ibdFile.bad())
+  {
+    throw std::runtime_error("FATAL ERROR: ImzMLBinWrite got fail or bad bit condition seeking the imzML ibd file.\n"); 
+  }
+  
+  writeDataCommon(N, ptr, dataPointBytes, dataType);
+}
+
+void ImzMLBinWrite::writeDataCommon(unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
+{
+  unsigned int byteCount = N*dataPointBytes;
+  char* buffer = new char [byteCount];
+  
+  //copy the ptr contents to the wrting buffer in the apropiate format 
+  switch(dataType)
+  {
+    case int32:
+      convertDouble2Bytes<int>(ptr, buffer, N);
+      break;
+      
+    case float32:  
+      convertDouble2Bytes<float>(ptr, buffer, N);
+      break;
+      
+    case int64:
+      convertDouble2Bytes<long>(ptr, buffer, N);
+      break;
+      
+    case float64:
+      //convertDouble2Bytes<double>(ptr, buffer, N); If double there is no need of intermediate conversion
+      memcpy(buffer, ptr, sizeof(double)*N);
+      break;
+  }
+  
+  ibdFile.write (buffer, byteCount);
+  if(ibdFile.fail() || ibdFile.bad())
+  {
+    throw std::runtime_error("FATAL ERROR: ImzMLBinWrite got fail or bad bit condition writing the imzML ibd file.\n"); 
+  }
+  
+  delete[] buffer;
 }
 
 ///DEBUG METHODS////////////////////////////////////////////////////////////////////////
@@ -489,3 +631,65 @@ Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int NPixe
 
   return x;
 }
+
+//' Testing the imzMLwriter in sequential mode
+//' This function creates a new ibd file with the provided data descibed in the following params
+//' @param ibdFname: full path to the ibd file.
+//' @param mz_dataTypeString: String to specify the data format used to encode m/z values.
+//' @param int_dataTypeString: String to specify the data format used to encode intensity values.
+//' @param uuid: 16 bytes long UUID.
+//' @param mzArray: A matrix with the m/z values for all pixels. Each pixel corresponds to a row. If there is only one row data will be saved in continuous mode
+//' @param intArray: A matrix with the intensity values for all pixels. Each pixel corresponds to a row so the number of pixels is extracted from here.
+// [[Rcpp::export(name=".debug_imzMLBinWriterSequential")]]
+void testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString,
+                                    const char* uuid, Rcpp::NumericMatrix mzArray, Rcpp::NumericMatrix intArray)
+{
+  try
+  {
+    
+    if(mzArray.ncol() != intArray.ncol())
+    {
+      throw std::runtime_error("FATAL ERROR: mass channels must have the same length as intensity data");
+    }
+    
+    double *ptr_data = new double[mzArray.ncol()];
+    
+    ImzMLBinWrite myWriter(ibdFname, intArray.nrow(), mz_dataTypeString, int_dataTypeString, mzArray.nrow()==1, ImzMLBinWrite::Mode::SequentialWriteFile);
+    
+    myWriter.writeUUID(uuid);
+    
+    for(int i = 0; i < intArray.nrow(); i++)
+    {
+      Rcpp::Rcout << "Storing... "<< i << " of " << intArray.ncol() << "\n";
+      
+      //Store m/z data only for the first iteration if continuous
+      if(!myWriter.get_continuous() || i == 0)
+      {
+        for(int j = 0; j < mzArray.ncol(); j++)
+        {
+          ptr_data[j] = mzArray(i, j);
+        }
+        myWriter.writeMzData(mzArray.ncol(), ptr_data);
+      }  
+      
+      //Store intensity data
+      for(int j = 0; j < intArray.ncol(); j++)
+      {
+        ptr_data[j] = intArray(i, j);
+      }
+      myWriter.writeIntData(intArray.ncol(), ptr_data);
+    }
+    
+    
+    
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::Rcout << "Catch Error: "<< e.what() << "\n";
+  }
+  
+}
+
+//TODO i'm here, writeing two testing methods, one for sequential mode and another for modify mode. Then I'll have to create an interface in the rMSIXBin class for both modes.
+
+//TODO data check in continuous vs. processed modes when sequential and modify writing, revise this!!!

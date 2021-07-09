@@ -16,29 +16,39 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  **************************************************************************/
 
-#ifndef MT_AVERAGE_H
-  #define MT_AVERAGE_H
+#ifndef MT_ALIGN_H
+  #define MT_ALIGN_H
 #include <Rcpp.h>
+#include <mutex>
+#include "labelfreealign.h"
 #include "threadingmsiproc.h"
 
-class MTAverage : public ThreadingMsiProc 
+
+class MTPreProcessing : public ThreadingMsiProc 
 {
   public:
-
+    
     //Constructor arguments:
     // rMSIObj_list: A list of rMSI objects to process
     // numberOfThreads: Total number of threads to use during processing
     // memoryPerThreadMB: Maximum memory allocated by each thread in MB. The total allocated memory will be: 2*numberOfThreads*memoryPerThreadMB
-    MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB);
-    ~MTAverage();
-    
-    //Execute a full imatge processing using threaded methods
-    Rcpp::NumericVector Run();
-    
+    // preProcessingParams: An R reference class with the pre-processing parameters.
+    // mass: a numeric vector with the common mass axis
+    // reference: a reference spectrum for the alignment
+    MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
+                    Rcpp::Reference preProcessingParams, Rcpp::NumericVector mass, Rcpp::NumericVector reference);
+    ~MTPreProcessing();
+ 
+    //Exectue a full imatge processing using threaded methods and returns the used shifts in the first iteration
+    Rcpp::List Run(); 
+
   private:
-    double **sm;  //A matrix containing the partial average spectrum of the datacubes
-    
+    LabelFreeAlign **alngObj;
+    LabelFreeAlign::TLags *mLags; //A place to store alignment lags
+
     //Thread Processing function definition
     void ProcessingFunction(int threadSlot);
+    
+    std::mutex fftSharedMutex;
 };
 #endif

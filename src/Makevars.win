@@ -1,0 +1,8 @@
+#Makevars to provide gcc compiler flags for extra libraries under windows
+ifeq "$(WIN)" "64"
+PKG_CPPFLAGS = -Ifftw3_win 
+PKG_LIBS = -Lfftw3_win/lib64  -lfftw3-3 -lm
+else
+PKG_CPPFLAGS = -Ifftw3_win
+PKG_LIBS = -Lfftw3_win/lib32  -lfftw3-3 -lm
+endif

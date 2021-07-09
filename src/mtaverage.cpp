@@ -24,11 +24,6 @@ using namespace Rcpp;
 MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB) : 
   ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB)
 {
-  numPixels = 0;
-  for (int i = 0; i < ioObj->getNumberOfCubes(); i++)
-  {
-    numPixels += ioObj->getNumberOfPixelsInCube(i);
-  }
   sm = new double*[ioObj->getNumberOfCubes()];
   for(int i = 0; i < ioObj->getNumberOfCubes() ; i++)
   {
@@ -56,6 +51,8 @@ MTAverage::~MTAverage()
 
 NumericVector MTAverage::Run()
 {
+  Rcpp::Rcout<<"Calculating overall average spectrum...\n";
+  
   NumericVector avg(ioObj->getMassAxisLength());
   for (int j = 0; j < ioObj->getMassAxisLength(); j++)
   {
@@ -89,7 +86,7 @@ void MTAverage::ProcessingFunction(int threadSlot)
   {
     for (int k= 0; k < cubes[threadSlot]->ncols; k++)
     {
-       sm[cubes[threadSlot]->cubeID][k] += cubes[threadSlot]->data[j][k];
+       sm[cubes[threadSlot]->cubeID][k] += cubes[threadSlot]->dataInterpolated[j][k];
     }
   }
 }

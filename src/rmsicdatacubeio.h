@@ -38,7 +38,8 @@ class CrMSIDataCubeIO
       int cubeID;
       int ncols;
       int nrows;
-      double **data;  
+      imzMLSpectrum *dataOriginal; //Pointer to multiple imzMLSpectrum structs 
+      double **dataInterpolated;   
     } DataCube;
     
     //Set de data output path. New imzML files will be created with the processed data. If not called, no data is saved aside of the returning values of the processing function.

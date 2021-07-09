@@ -159,9 +159,36 @@ SmoothingParams <- setRefClass("SmoothingParams",
 AlignmentParams <- setRefClass("AlignmentParams", 
                                fields = list(
                                  enable = "logical",
-                                 maxShift = "numeric" #TODO complete me!
-                               )
+                                 bilinear = "logical",
+                                 iterations = "integer",
+                                 maxShiftppm = "numeric",
+                                 refLow = "numeric",
+                                 refMid = "numeric",
+                                 refHigh = "numeric",
+                                 overSampling = "integer",
+                                 winSizeRelative = "numeric"
+                               ),
+                               
+                               #Constructor
+                               method = list(
+                                 initialize = function(...,
+                                                       enable = T,
+                                                       bilinear = F,
+                                                       iterations = as.integer(1),
+                                                       maxShiftppm = 200,
+                                                       refLow = 0.1,
+                                                       refMid = 0.5,
+                                                       refHigh = 0.9,
+                                                       overSampling = as.integer(2),
+                                                       winSizeRelative = 0.6
+                                                       )
+                                 {
+                                   callSuper(..., enable = enable, bilinear = bilinear, iterations = iterations, maxShiftppm = maxShiftppm, 
+                                             refLow = refLow, refMid = refMid, refHigh = refHigh, overSampling = overSampling, winSizeRelative = winSizeRelative)
+                                 })
 )
+
+
 
 PreProcParams <- setRefClass("PreProcParams", 
                              fields = list(
@@ -207,7 +234,7 @@ ProcParams$methods(
                     
                     setMergedProcessing = function(bMerge)
                     {
-                      preprocessing$merge <- bMerge
+                      preprocessing$merge <<- bMerge
                     }
                     
                    )

@@ -1,0 +1,2 @@
+#Makevars to provide gcc compiler flags for extra libraries
+PKG_LIBS = -lfftw3 -lm

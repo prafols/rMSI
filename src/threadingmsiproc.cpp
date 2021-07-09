@@ -37,6 +37,12 @@ ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads,
   bDataReady = new bool[numOfThreadsDouble];
   bRunningThread = new bool[numOfThreadsDouble];
   tworkers = new std::thread[numOfThreadsDouble]; //There will be double of thread objects than the actually running threads
+  
+  numPixels = 0;
+  for (int i = 0; i < ioObj->getNumberOfCubes(); i++)
+  {
+    numPixels += ioObj->getNumberOfPixelsInCube(i);
+  }
 }
 
 ThreadingMsiProc::~ThreadingMsiProc()

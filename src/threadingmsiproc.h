@@ -47,6 +47,7 @@ class ThreadingMsiProc
     CrMSIDataCubeIO::DataCube **cubes; //Array of data cubes pointer, the length of this array will be the number of processing threads.
     CrMSIDataCubeIO *ioObj; //Data access object must be a pointer since I don't know the params befor the constructor
     int numOfThreadsDouble; //The double of used number of threads
+    int numPixels; //Total number of pixels in the dataset
     
   private:  
     //The function to be executed for each thread. 

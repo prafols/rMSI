@@ -27,12 +27,28 @@ CparseBrukerXML <- function(xml_path) {
     .Call('_rMSI_testingimzMLBinRead', PACKAGE = 'rMSI', ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous)
 }
 
+#' Testing the imzMLwriter in sequential mode
+#' This function creates a new ibd file with the provided data descibed in the following params
+#' @param ibdFname: full path to the ibd file.
+#' @param mz_dataTypeString: String to specify the data format used to encode m/z values.
+#' @param int_dataTypeString: String to specify the data format used to encode intensity values.
+#' @param uuid: 16 bytes long UUID.
+#' @param mzArray: A matrix with the m/z values for all pixels. Each pixel corresponds to a row. If there is only one row data will be saved in continuous mode
+#' @param intArray: A matrix with the intensity values for all pixels. Each pixel corresponds to a row so the number of pixels is extracted from here.
+.debug_imzMLBinWriterSequential <- function(ibdFname, mz_dataTypeString, int_dataTypeString, uuid, mzArray, intArray) {
+    invisible(.Call('_rMSI_testingimzMLBinWriteSequential', PACKAGE = 'rMSI', ibdFname, mz_dataTypeString, int_dataTypeString, uuid, mzArray, intArray))
+}
+
 CimzMLParse <- function(xml_path) {
     .Call('_rMSI_CimzMLParse', PACKAGE = 'rMSI', xml_path)
 }
 
 CimzMLStore <- function(fname, imgInfo) {
     .Call('_rMSI_CimzMLStore', PACKAGE = 'rMSI', fname, imgInfo)
+}
+
+AlignSpectrumToReference <- function(mass, ref, spectrumInterpolated, massProcessedMode, bilinear = FALSE, lagRefLow = 0.1, lagRefMid = 0.5, lagRefHigh = 0.9, iterations = 1L, lagLimitppm = 200, fftOverSampling = 10L, winSizeRelative = 0.6) {
+    .Call('_rMSI_AlignSpectrumToReference', PACKAGE = 'rMSI', mass, ref, spectrumInterpolated, massProcessedMode, bilinear, lagRefLow, lagRefMid, lagRefHigh, iterations, lagLimitppm, fftOverSampling, winSizeRelative)
 }
 
 #' CalcMassAxisBinSize.
@@ -86,6 +102,10 @@ MergeMassAxisAutoBinSize <- function(mz1, mz2) {
 
 COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB) {
     .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB)
+}
+
+FullImageAlign <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, mass, reference) {
+    .Call('_rMSI_FullImageAlign', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, mass, reference)
 }
 
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
