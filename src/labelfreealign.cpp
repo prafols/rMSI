@@ -19,11 +19,12 @@
 #include <Rcpp.h>
 #include <cmath>
 #include "labelfreealign.h"
+#include "mlinterp.hpp" //Used for linear interpolation
 
 using namespace Rcpp;
 
 LabelFreeAlign::LabelFreeAlign(double *mass, double *ref_spectrum, int numOfPoints,
-                               bool bilinear, std::mutex *sharedMutex, int iterations, 
+                               bool bilinear, int iterations, 
                                double lagRefLow, double lagRefMid, double lagRefHigh,
                                double lagLimitppm, int fftOverSampling, double winSizeRelative ):
 dataLength(numOfPoints),
@@ -31,12 +32,11 @@ commonMassAxis(mass),
 bBilinear(bilinear),
 AlignIterations(iterations),
 lagMaxppm(lagLimitppm),
-FFTScaleShiftOverSampling(fftOverSampling)
+FFTInterpolationOverSampling(fftOverSampling)
 
 {
   WinLength = (int)round(winSizeRelative * (double)dataLength);
-  FFT_Size_SH = (int)pow(2.0, std::ceil(log2(dataLength)));
-
+  
   //Pre-compute the Hanning Windows
   HannWindow = new double[WinLength];
   HannWindowCenter = new double[WinLength];
@@ -47,17 +47,14 @@ FFTScaleShiftOverSampling(fftOverSampling)
   }
   
   FFT_Size_direct = (int)pow(2.0, std::ceil(log2(WinLength)));
-  FFT_Size_inverse = (int)pow(2.0, std::ceil(log2(WinLength*FFTScaleShiftOverSampling)));
+  FFT_Size_inverse = (int)pow(2.0, std::ceil(log2(WinLength*FFTInterpolationOverSampling)));
   fft_direct_in = fftw_alloc_real(FFT_Size_direct);
   fft_direct_out = fftw_alloc_real(FFT_Size_direct);
   fft_inverse_in = fftw_alloc_real(FFT_Size_inverse);
   fft_inverse_out = fftw_alloc_real(FFT_Size_inverse);
-  fft_direct_shiftScale_in = fftw_alloc_complex(FFT_Size_SH);
-  fft_direct_shiftScale_out = fftw_alloc_complex(FFT_Size_SH);
   
   fft_pdirect = fftw_plan_r2r_1d(FFT_Size_direct, fft_direct_in, fft_direct_out, FFTW_R2HC, FFTW_ESTIMATE);
   fft_pinvers = fftw_plan_r2r_1d(FFT_Size_inverse, fft_inverse_in, fft_inverse_out, FFTW_HC2R, FFTW_ESTIMATE);
-  fft_pdshiftScale = fftw_plan_dft_1d(FFT_Size_SH, fft_direct_shiftScale_in, fft_direct_shiftScale_out, FFTW_FORWARD, FFTW_ESTIMATE);
   
   fft_ref_low = new  double[FFT_Size_inverse];
   fft_ref_center = new  double[FFT_Size_inverse];
@@ -72,11 +69,13 @@ FFTScaleShiftOverSampling(fftOverSampling)
   ComputeRef(ref_spectrum, CENTER_SPECTRUM);
   ComputeRef(ref_spectrum, TOP_SPECTRUM);
 
+#ifdef EXTRA_DEBUG_INFO 
   Rcpp::Rcout<<"\n===============================================\n";
   Rcpp::Rcout<<"DBG: refMassLowIndex = "<<refMassLowIndex<<"\n";
   Rcpp::Rcout<<"DBG: refMassMidIndex = "<<refMassMidIndex<<"\n";
   Rcpp::Rcout<<"DBG: refMassHighIndex = "<<refMassHighIndex<<"\n";
   Rcpp::Rcout<<"===============================================\n";
+#endif
   
   refMassLowIndex = refMassLowIndex < 0 ? 0 : refMassLowIndex;
   refMassLowIndex = refMassLowIndex > (dataLength - 1) ? (dataLength - 1) : refMassLowIndex;
@@ -87,27 +86,24 @@ FFTScaleShiftOverSampling(fftOverSampling)
   refMassHighIndex = refMassHighIndex < 0 ? 0 : refMassHighIndex;
   refMassHighIndex = refMassHighIndex > (dataLength - 1) ? (dataLength - 1) : refMassHighIndex;
   
+#ifdef EXTRA_DEBUG_INFO 
   Rcpp::Rcout<<"\n===============================================\n";
   Rcpp::Rcout<<"DBG: refMassLowIndex = "<<refMassLowIndex<<"\n";
   Rcpp::Rcout<<"DBG: refMassMidIndex = "<<refMassMidIndex<<"\n";
   Rcpp::Rcout<<"DBG: refMassHighIndex = "<<refMassHighIndex<<"\n";
   Rcpp::Rcout<<"===============================================\n";
+#endif
   
-  //The mutext shared for all threads
-  fftwMtx = sharedMutex;
 }
 
 LabelFreeAlign::~LabelFreeAlign()
 {
   fftw_destroy_plan(fft_pdirect);
   fftw_destroy_plan(fft_pinvers);
-  fftw_destroy_plan(fft_pdshiftScale);
   fftw_free(fft_direct_in); 
   fftw_free(fft_direct_out);
   fftw_free(fft_inverse_in); 
   fftw_free(fft_inverse_out);
-  fftw_free(fft_direct_shiftScale_in);
-  fftw_free(fft_direct_shiftScale_out);
   delete[] fft_ref_low;
   delete[] fft_ref_center;
   delete[] fft_ref_high;
@@ -133,19 +129,7 @@ void LabelFreeAlign::ComputeRef(double *data_ref, int spectrumPart)
       break;
   }
   
-  
-  //TODO simple test to check is the issue is realted with interpolation...
-  /*for(int i = 0; i < FFT_Size_inverse; i++) data_ptr[i]=0.0;
-  memcpy(data_ptr, data_ref, sizeof(double)*dataLength);
-  return;*/
-  
   CopyData2Window(data_ref, fft_direct_in, spectrumPart);
-
-  //TODO simple test to check is the issue is realted with interpolation...
-  /*for(int i = 0; i < FFT_Size_inverse; i++) data_ptr[i]=0.0;
-  memcpy(data_ptr, fft_direct_in, sizeof(double)*FFT_Size_direct);
-  return;*/
-  
   TimeWindow(fft_direct_in,  spectrumPart);
   ZeroPadding(fft_direct_in, spectrumPart == TOP_SPECTRUM, FFT_Size_direct, WinLength);
   
@@ -170,11 +154,6 @@ void LabelFreeAlign::ComputeRef(double *data_ref, int spectrumPart)
 #endif  
   
   fftw_execute(fft_pdirect);
-  
-  //TODO simple test to check is the issue is realted with interpolation...
-  /* for(int i = 0; i < FFT_Size_inverse; i++) data_ptr[i]=0.0;
-   memcpy(data_ptr, fft_direct_out, sizeof(double)*FFT_Size_direct);
-   return; */
   
   //FFT domain Interpolation
   if(FFT_Size_direct < FFT_Size_inverse)
@@ -276,7 +255,7 @@ void LabelFreeAlign::TimeWindow(double *data,  int spectrumPart)
   }
 }
 
-LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *interpolatedIntensitySpectrum, double *imzMLmass, int imzMLmassLength)
+LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *intensityDataInterpolated, double *massData, double *intensityData, int N)
 {
   //Hanning Windowing
   double *topWin_data = new double[FFT_Size_direct];
@@ -284,11 +263,32 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *interpolatedIntensit
   double *botWin_data = new double[FFT_Size_direct];
   TLags firstLag;
   
-  for(int i = 0; i < AlignIterations; i++) //TODO with multiple iterations the processed mode will not work!
+  //Prepare data pointer for continuous mode:
+  double *ptrMass, *ptrIntensity; 
+  bool bDataInContinuousMode;
+  if(N == 0)
   {
-    CopyData2Window(interpolatedIntensitySpectrum, topWin_data, TOP_SPECTRUM); //TODO warning! with multiple iterations the windowed spectrum could be trimmed multiple times!
-    CopyData2Window(interpolatedIntensitySpectrum, midWin_data, CENTER_SPECTRUM);
-    CopyData2Window(interpolatedIntensitySpectrum, botWin_data, BOTTOM_SPECTRUM);
+    //imzML in continuous mode
+    ptrMass = new double[dataLength];   
+    ptrIntensity = new double[dataLength]; 
+    memcpy(ptrMass, commonMassAxis, sizeof(double)*dataLength); //Copy the common mass axis to the realigned mass axis
+    memcpy(ptrIntensity, intensityDataInterpolated, sizeof(double)*dataLength); //Copy the intensity to the realigned intensity
+    N = dataLength;
+    bDataInContinuousMode = true;
+  }
+  else
+  {
+    //imzML in processed mode 
+    ptrMass = massData;
+    ptrIntensity = intensityData;
+    bDataInContinuousMode = false;
+  }
+  
+  for(int i = 0; i < AlignIterations; i++) 
+  {
+    CopyData2Window(intensityDataInterpolated, topWin_data, TOP_SPECTRUM);
+    CopyData2Window(intensityDataInterpolated, midWin_data, CENTER_SPECTRUM);
+    CopyData2Window(intensityDataInterpolated, botWin_data, BOTTOM_SPECTRUM);
     
     TimeWindow(topWin_data, TOP_SPECTRUM);
     TimeWindow(midWin_data, CENTER_SPECTRUM);
@@ -310,18 +310,19 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *interpolatedIntensit
     memcpy(DBG_signalHigh_fftInBuffer.begin(), topWin_data, sizeof(double)*FFT_Size_direct);
 #endif  
     
-    
     //Get lags
     TLags lags;
     lags.lagLow = FourierBestCor(botWin_data, fft_ref_low);
     lags.lagMid = FourierBestCor(midWin_data, fft_ref_center);
     lags.lagHigh = FourierBestCor(topWin_data, fft_ref_high);
-    
+
+#ifdef EXTRA_DEBUG_INFO    
     Rcpp::Rcout<<"\n===============================================\n";
     Rcpp::Rcout<<"DBG: lags.lagLow = "<<lags.lagLow<<"\n";
     Rcpp::Rcout<<"DBG: lags.lagMid = "<<lags.lagMid<<"\n";
     Rcpp::Rcout<<"DBG: lags.lagHigh = "<<lags.lagHigh<<"\n";
     Rcpp::Rcout<<"===============================================\n";
+#endif
     
     //Limit lag Low
     int targetMassLowIndex = refMassLowIndex + lags.lagLow;
@@ -343,7 +344,8 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *interpolatedIntensit
     targetMassHighIndex = targetMassHighIndex < 0 ? 0 : targetMassHighIndex;
     double lagHighppm = 1e6*fabs(commonMassAxis[refMassHighIndex] - commonMassAxis[targetMassHighIndex])/commonMassAxis[refMassHighIndex];
     lags.lagHigh = lagHighppm > lagMaxppm ? 0.0 : lags.lagHigh;
-    
+
+#ifdef EXTRA_DEBUG_INFO    
     Rcpp::Rcout<<"\n===============================================\n";
     Rcpp::Rcout<<"DBG: lagLowppm = "<<lagLowppm<<"\n";
     Rcpp::Rcout<<"DBG: lagMidppm = "<<lagMidppm<<"\n";
@@ -355,6 +357,7 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *interpolatedIntensit
     Rcpp::Rcout<<"DBG: lags.lagMid = "<<lags.lagMid<<"\n";
     Rcpp::Rcout<<"DBG: lags.lagHigh = "<<lags.lagHigh<<"\n";
     Rcpp::Rcout<<"===============================================\n";
+#endif
     
     if(i == 0)
     {
@@ -363,78 +366,46 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *interpolatedIntensit
   
     //Spectra warping constants
     double K1, K2, Sh1, Sh2;
-    double Rl = (double) refMassLowIndex;
-    double Rm = (double) refMassMidIndex;
-    double Rh = (double) refMassHighIndex;
-    
+
     if(bBilinear)
     {
-      if(imzMLmassLength > 0)
+      //Shifting mass indexes in the common mass axis
+      int indexLowMassShifted =(int)round(refMassLowIndex + lags.lagLow);
+      int indexMidMassShifted =(int)round(refMassMidIndex + lags.lagMid);
+      int indexHighMassShifted =(int)round(refMassHighIndex + lags.lagHigh);
+      
+      //Saturate to a valid range
+      indexLowMassShifted = indexLowMassShifted >= dataLength ? (dataLength - 1) : indexLowMassShifted;
+      indexLowMassShifted = indexLowMassShifted < 0 ? 0 : indexLowMassShifted;
+      
+      indexMidMassShifted = indexMidMassShifted >= dataLength ? (dataLength - 1) : indexMidMassShifted;
+      indexMidMassShifted = indexMidMassShifted < 0 ? 0 : indexMidMassShifted;
+      
+      indexHighMassShifted = indexHighMassShifted >= dataLength ? (dataLength - 1) : indexHighMassShifted;
+      indexHighMassShifted = indexHighMassShifted < 0 ? 0 : indexHighMassShifted;
+      
+      //Calculate mass shift and scaling constants
+      K1 = (commonMassAxis[indexMidMassShifted] - commonMassAxis[indexLowMassShifted])/(commonMassAxis[refMassMidIndex] - commonMassAxis[refMassLowIndex]); 
+      Sh1 = commonMassAxis[indexLowMassShifted] - commonMassAxis[refMassLowIndex]*K1; // y = mx + n --> n = y - mx
+      
+      K2 = (commonMassAxis[indexHighMassShifted] - commonMassAxis[indexMidMassShifted])/(commonMassAxis[refMassHighIndex] - commonMassAxis[refMassMidIndex]); 
+      Sh2 = commonMassAxis[indexMidMassShifted] - commonMassAxis[refMassMidIndex]*K2; // y = mx + n --> n = y - mx
+      
+      //Apply the alignment to the imzML mass axis
+      for(int i = 0; i < N; i++) 
       {
-        //Align data in processed mode
-        //Shifting mass indexes in the common mass axis
-        int indexLowMassShifted =(int)round(refMassLowIndex + lags.lagLow);
-        int indexMidMassShifted =(int)round(refMassMidIndex + lags.lagMid);
-        int indexHighMassShifted =(int)round(refMassHighIndex + lags.lagHigh);
-        
-        //Saturate to a valid range
-        indexLowMassShifted = indexLowMassShifted >= dataLength ? (dataLength - 1) : indexLowMassShifted;
-        indexLowMassShifted = indexLowMassShifted < 0 ? 0 : indexLowMassShifted;
-        
-        indexMidMassShifted = indexMidMassShifted >= dataLength ? (dataLength - 1) : indexMidMassShifted;
-        indexMidMassShifted = indexMidMassShifted < 0 ? 0 : indexMidMassShifted;
-        
-        indexHighMassShifted = indexHighMassShifted >= dataLength ? (dataLength - 1) : indexHighMassShifted;
-        indexHighMassShifted = indexHighMassShifted < 0 ? 0 : indexHighMassShifted;
-        
-        //Calculate mass shift and scaling constants
-        K1 = (commonMassAxis[indexMidMassShifted] - commonMassAxis[indexLowMassShifted])/(commonMassAxis[refMassMidIndex] - commonMassAxis[refMassLowIndex]); 
-        Sh1 = commonMassAxis[indexLowMassShifted] - commonMassAxis[refMassLowIndex]*K1; // y = mx + n --> n = y - mx
-        
-        K2 = (commonMassAxis[indexHighMassShifted] - commonMassAxis[indexMidMassShifted])/(commonMassAxis[refMassHighIndex] - commonMassAxis[refMassMidIndex]); 
-        Sh2 = commonMassAxis[indexMidMassShifted] - commonMassAxis[refMassMidIndex]*K2; // y = mx + n --> n = y - mx
-        
-        //Apply the alignment to the imzML mass axis
-        for(int i = 0; i < imzMLmassLength; i++)
+        if(ptrMass[i] < commonMassAxis[refMassMidIndex])
         {
-          if(imzMLmass[i] < commonMassAxis[refMassMidIndex])
-          {
-            imzMLmass[i] = imzMLmass[i]*K1 + Sh1;
-          }
-          else
-          {
-            imzMLmass[i] = imzMLmass[i]*K2 + Sh2;
-          }
+          ptrMass[i] = ptrMass[i]*K1 + Sh1;
         }
-      }
-      else
-      {
-        //Align data in continuous mode
-        K1 = (Rm + lags.lagMid - Rl - lags.lagLow)/(Rm - Rl); //New implementation supporting Other refs diferents than 0 and N. Extremes are Rl and Rh
-        Sh1 = (Rm* lags.lagLow - Rl*lags.lagMid)/(Rm - Rl); //If scaling is performed before shift. New implementation supporting Other refs diferents than 0 and N. Extremes are Rl and Rh
-        
-        K2 = (Rh + lags.lagHigh - Rm - lags.lagMid)/(Rh - Rm); //New implementation supporting Other refs diferents than 0 and N. Extremes are Rl and Rh
-        Sh2 = (Rh* lags.lagMid - Rm*lags.lagHigh)/(Rh - Rm); //If scaling is performed before shift. New implementation supporting Other refs diferents than 0 and N. Extremes are Rl and Rh
-        
-        //Apply the scaling and shift to original data, after that the pointer to data contains the aligned sptectrum, so copy data before
-        double *data2 = new double[dataLength];
-        memcpy(data2, interpolatedIntensitySpectrum, sizeof(double)*dataLength);
-        
-        FourierLinerScaleShift(interpolatedIntensitySpectrum, K1, Sh1); //Now data will contain the aligned left part of spectrum
-        FourierLinerScaleShift(data2, K2, Sh2);
-        
-        //Merge the two vectors in a single one using the Rm as a center...
-        const int iVectorCenterOffset =  (int)round(Rm); //0.5 is the central reference
-        memcpy(interpolatedIntensitySpectrum+iVectorCenterOffset, data2+iVectorCenterOffset, sizeof(double)*(dataLength - iVectorCenterOffset));
-        delete[] data2;
+        else
+        {
+          ptrMass[i] = ptrMass[i]*K2 + Sh2;
+        }
       }
     }
     else
     {
-      if(imzMLmassLength > 0)
-      {
-        //Align data in processed mode
-        
         //Shifting mass indexes in the common mass axis
         int indexLowMassShifted = refMassLowIndex + lags.lagLow;
         int indexHighMassShifted = refMassHighIndex + lags.lagHigh;
@@ -451,152 +422,30 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *interpolatedIntensit
         Sh1 = commonMassAxis[indexLowMassShifted] - commonMassAxis[refMassLowIndex]*K1; // y = mx + n --> n = y - mx
         
         //Apply the alignment to the imzML mass axis
-        for(int i = 0; i < imzMLmassLength; i++)
+        for(int i = 0; i < N; i++)
         {
-          imzMLmass[i] = imzMLmass[i]*K1 + Sh1;
+          ptrMass[i] = ptrMass[i]*K1 + Sh1;
         }
-      }
-      else
-      {
-        //Align data in continuous mode
-        K1 = (Rh + lags.lagHigh - Rl - lags.lagLow)/(Rh - Rl); //New implementation supporting Other refs diferents than 0 and N. Extremes are Rl and Rh
-        Sh1 = (Rh* lags.lagLow - Rl*lags.lagHigh)/(Rh - Rl); //If scaling is performed before shift. New implementation supporting Other refs diferents than 0 and N. Extremes are Rl and Rh
-        
-#ifdef EXTRA_DEBUG_INFO
-        Rcpp::Rcout << "===============================================\n";
-        Rcpp::Rcout << "FFT Shift & Scaling constants:\n";
-        Rcpp::Rcout << "K1 = " << K1 << "\n";
-        Rcpp::Rcout << "Sh1 = " << Sh1 << "\n";
-        Rcpp::Rcout << "===============================================\n\n";
-#endif
-        
-        //Apply the scaling and shift to original data, after that the pointer to data contains the aligned sptectrum
-        FourierLinerScaleShift(interpolatedIntensitySpectrum, K1, Sh1);
-      }
     }
+    
+    //Interpolate to the common mass axis
+    mlinterp::interp(
+      &N, (int)dataLength, // Number of points (imzML original, interpolated )
+      ptrIntensity, intensityDataInterpolated, // Y axis  (imzML original, interpolated )
+      ptrMass, commonMassAxis // X axis  (imzML original, interpolated )
+    );
   }
   
   delete[] topWin_data;
   delete[] botWin_data;
   delete[] midWin_data;
+  if(bDataInContinuousMode)
+  {
+    delete[] ptrMass;
+    delete[] ptrIntensity;
+  }
     
   return firstLag;
-}
-
-void LabelFreeAlign::FourierLinerScaleShift(double *data, double scaling, double shift)
-{
-  const int NewFFT_Size = FFT_Size_SH + (int)round( (scaling - 1.0) * (double)FFT_Size_SH);
-  const int NewFFT_SizeOversampled = NewFFT_Size * FFTScaleShiftOverSampling;
-  fftwMtx->lock();
-  fftw_complex *fft_odd_in = fftw_alloc_complex(NewFFT_SizeOversampled);
-  fftw_complex *fft_odd_out = fftw_alloc_complex(NewFFT_SizeOversampled);
-  fftw_plan fft_pOddInvers = fftw_plan_dft_1d(NewFFT_SizeOversampled, fft_odd_in, fft_odd_out, FFTW_BACKWARD, FFTW_ESTIMATE);
-  fftwMtx->unlock();
-  
-  //Copy data as complex number and add padding zeros and calculate spectrum Max
-  double maxInit = 0.0;
-  for(int i = 0; i < FFT_Size_SH; i++)
-  {
-    if(i < dataLength)
-    {
-      fft_direct_shiftScale_in[i][0] = data[i];
-    }
-    else
-    {
-      fft_direct_shiftScale_in[i][0] = 0.0;
-    }
-    fft_direct_shiftScale_in[i][1] = 0.0; //The imaginary part is always zero because input es real
-    
-    maxInit = fft_direct_shiftScale_in[i][0] > maxInit ? fft_direct_shiftScale_in[i][0] : maxInit;
-  }
-  fftw_execute(fft_pdshiftScale);
-  
-  //Copy data to fft_odd_in and apply scaling and shift
-  double arg, Re, Im, auxRe, auxIm;
-  for( int i = 0; i < NewFFT_SizeOversampled; i++ )
-  {
-    //Scaling in FFT domain
-    if( i < FFT_Size_SH/2 && i < NewFFT_SizeOversampled/2)
-    {
-      fft_odd_in[i][0] = fft_direct_shiftScale_out[i][0]; //Copy real part
-      fft_odd_in[i][1] = fft_direct_shiftScale_out[i][1]; //Copy imaginary part
-    }
-    else if( i >= (NewFFT_SizeOversampled - FFT_Size_SH/2))
-    {
-      fft_odd_in[i][0] = fft_direct_shiftScale_out[i - NewFFT_SizeOversampled + FFT_Size_SH][0]; //Copy real part
-      fft_odd_in[i][1] = fft_direct_shiftScale_out[i - NewFFT_SizeOversampled + FFT_Size_SH][1]; //Copy imaginary part
-    }
-    else
-    {
-      //Zero padding
-      fft_odd_in[i][0] = 0.0;
-      fft_odd_in[i][1] = 0.0;
-    }
-    
-    //Shift in FFT domain
-    arg = -2.0*M_PI*(1.0/((double)NewFFT_SizeOversampled))*((double)i + 1.0)*round( ((double)FFTScaleShiftOverSampling) * shift);
-    Re = cos(arg);
-    Im = sin(arg);
-    auxRe = fft_odd_in[i][0] * Re - fft_odd_in[i][1]*Im;
-    auxIm = fft_odd_in[i][0] * Im + fft_odd_in[i][1]*Re;
-    fft_odd_in[i][0] = auxRe;
-    fft_odd_in[i][1] = auxIm;
-  }
-  fftw_execute(fft_pOddInvers);
-
-  //Copy data to output vector downsampling it by averaging values
-  double maxEnd = 0.0;
-  int lastiUp = -FFTScaleShiftOverSampling/2;
-  int iup = 0;
-  double *arg_curr = new double[dataLength];
-  double arg_aux;
-  for( int i = 0; i < dataLength; i++)
-  {
-    data[i] = 0.0;
-    arg_curr[i] = 0.0;
-    while( iup <  ( lastiUp + FFTScaleShiftOverSampling ))
-    {
-      arg_aux = fabs(atan2(fft_odd_out[iup][1],fft_odd_out[iup][0])); //Abs of phase
-      arg_curr[i] = arg_aux >  arg_curr[i] ? arg_aux : arg_curr[i]; //Keep the more intense
-      data[i] += sqrt(fft_odd_out[iup][0]*fft_odd_out[iup][0] + fft_odd_out[iup][1]*fft_odd_out[iup][1]); //Modul
-      iup++;
-    }
-
-    //Prepare lastiUp for next samples
-    lastiUp = iup;
-    
-    //It is not necessary to divide data[i] by FFTScaleShiftOverSampling since I'll compensate for the max.
-    maxEnd = data[i] > maxEnd ? data[i] : maxEnd;
-  }
-  
-  //Compensate gain
-  double argAverage3 = 0.0;
-  int iWinC;
-  if( maxEnd > 0.0 && maxInit > 0.0 )
-  {
-    for(int i = 0; i < dataLength; i++)
-    {
-      iWinC = i == 0 ? 1 : i;
-      iWinC = i == (dataLength - 1)  ? (dataLength - 2) : i;
-      argAverage3 =  arg_curr[iWinC - 1] +  arg_curr[iWinC] +  arg_curr[iWinC + 1];
-      argAverage3 /= 3.0; 
-      if(argAverage3 < M_PI/3.0 )
-      {
-        data[i] /= maxEnd/maxInit;
-      }
-      else
-      {
-        data[i] = 0.0;
-      }
-    }
-  }
-  
-  fftwMtx->lock();
-  fftw_destroy_plan(fft_pOddInvers);
-  fftw_free(fft_odd_in);
-  fftw_free(fft_odd_out);
-  fftwMtx->unlock();
-  delete[] arg_curr;
 }
 
 double LabelFreeAlign::FourierBestCor(double *data, double *ref)
@@ -646,12 +495,14 @@ double LabelFreeAlign::FourierBestCor(double *data, double *ref)
       lag = i;
     }
   }
-  
+
+#ifdef EXTRA_DEBUG_INFO   
   Rcpp::Rcout<<"\n===============================================\n";
   Rcpp::Rcout<<"DBG: lag RAW = "<<lag<<"\n";
   Rcpp::Rcout<<"DBG: FFT_Size_direct = "<<FFT_Size_direct<<"\n";
   Rcpp::Rcout<<"DBG: FFT_Size_inverse = "<<FFT_Size_inverse<<"\n";
   Rcpp::Rcout<<"===============================================\n";
+#endif
   
   if( lag >= FFT_Size_inverse/2)
   {
@@ -830,26 +681,24 @@ double TestFourierBestCor(NumericVector ref, NumericVector x, bool bRefLow)
 //To run for debug purposes
 // [[Rcpp::export]]
 Rcpp::List AlignSpectrumToReference( NumericVector mass, NumericVector ref, NumericVector spectrumInterpolated,
-                                        NumericVector massProcessedMode, bool bilinear = false, 
+                                        NumericVector massProcessedMode, NumericVector intensityProcessedMode, bool bilinear = false, 
                                         double lagRefLow = 0.1, double lagRefMid = 0.5, double lagRefHigh = 0.9,
                                         int iterations = 1, double lagLimitppm = 200, int fftOverSampling = 10, double winSizeRelative = 0.6 )
 {
-  std::mutex mtx;
   NumericVector y(spectrumInterpolated.length());
   memcpy(y.begin(), spectrumInterpolated.begin(), sizeof(double)*spectrumInterpolated.length());
   
   LabelFreeAlign alngObj(mass.begin(), ref.begin(), ref.length(), 
-                         bilinear, &mtx, iterations, 
+                         bilinear, iterations, 
                          lagRefLow, lagRefMid, lagRefHigh, lagLimitppm, fftOverSampling, winSizeRelative);
   
   Rcpp::NumericVector refLow = alngObj.getRefLowFFT();
   Rcpp::NumericVector refMid = alngObj.getRefCenterFFT();
   Rcpp::NumericVector refHigh = alngObj.getRefHighFFT();
   
-  LabelFreeAlign::TLags lags = alngObj.AlignSpectrum(y.begin(), massProcessedMode.begin(), massProcessedMode.length());
-
+  LabelFreeAlign::TLags lags = alngObj.AlignSpectrum(y.begin(), massProcessedMode.begin(), intensityProcessedMode.begin(), massProcessedMode.length());
   Rcout<<"Lag low = "<<lags.lagLow<<" Lag center = "<<lags.lagMid<<" Lag high = "<<lags.lagHigh<<"\n";
-
+  
 #ifdef EXTRA_DEBUG_INFO
   return List::create( Named("InterpolatedSpectrum") = y, 
                        Named("ProcessedModeMass") = massProcessedMode, 
@@ -863,13 +712,13 @@ Rcpp::List AlignSpectrumToReference( NumericVector mass, NumericVector ref, Nume
                        Named("SignalMidFFTinbuffer") =alngObj.DBG_getSignalMid_fftinbuffer(),
                        Named("SignalHighFFTinbuffer") =alngObj.DBG_getSignalHigh_fftinbuffer()
                        );
-#elif
+#else
   return List::create( Named("InterpolatedSpectrum") = y, 
                        Named("ProcessedModeMass") = massProcessedMode, 
                        Named("RefLowFFT") = refLow,
                        Named("RefMidFFT") = refMid,
                        Named("RefHighFFT") = refHigh
-  );
+                       );
 #endif
 }
 

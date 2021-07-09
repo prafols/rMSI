@@ -72,8 +72,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // AlignSpectrumToReference
-Rcpp::List AlignSpectrumToReference(NumericVector mass, NumericVector ref, NumericVector spectrumInterpolated, NumericVector massProcessedMode, bool bilinear, double lagRefLow, double lagRefMid, double lagRefHigh, int iterations, double lagLimitppm, int fftOverSampling, double winSizeRelative);
-RcppExport SEXP _rMSI_AlignSpectrumToReference(SEXP massSEXP, SEXP refSEXP, SEXP spectrumInterpolatedSEXP, SEXP massProcessedModeSEXP, SEXP bilinearSEXP, SEXP lagRefLowSEXP, SEXP lagRefMidSEXP, SEXP lagRefHighSEXP, SEXP iterationsSEXP, SEXP lagLimitppmSEXP, SEXP fftOverSamplingSEXP, SEXP winSizeRelativeSEXP) {
+Rcpp::List AlignSpectrumToReference(NumericVector mass, NumericVector ref, NumericVector spectrumInterpolated, NumericVector massProcessedMode, NumericVector intensityProcessedMode, bool bilinear, double lagRefLow, double lagRefMid, double lagRefHigh, int iterations, double lagLimitppm, int fftOverSampling, double winSizeRelative);
+RcppExport SEXP _rMSI_AlignSpectrumToReference(SEXP massSEXP, SEXP refSEXP, SEXP spectrumInterpolatedSEXP, SEXP massProcessedModeSEXP, SEXP intensityProcessedModeSEXP, SEXP bilinearSEXP, SEXP lagRefLowSEXP, SEXP lagRefMidSEXP, SEXP lagRefHighSEXP, SEXP iterationsSEXP, SEXP lagLimitppmSEXP, SEXP fftOverSamplingSEXP, SEXP winSizeRelativeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -81,6 +81,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type ref(refSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type spectrumInterpolated(spectrumInterpolatedSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type massProcessedMode(massProcessedModeSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type intensityProcessedMode(intensityProcessedModeSEXP);
     Rcpp::traits::input_parameter< bool >::type bilinear(bilinearSEXP);
     Rcpp::traits::input_parameter< double >::type lagRefLow(lagRefLowSEXP);
     Rcpp::traits::input_parameter< double >::type lagRefMid(lagRefMidSEXP);
@@ -89,7 +90,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type lagLimitppm(lagLimitppmSEXP);
     Rcpp::traits::input_parameter< int >::type fftOverSampling(fftOverSamplingSEXP);
     Rcpp::traits::input_parameter< double >::type winSizeRelative(winSizeRelativeSEXP);
-    rcpp_result_gen = Rcpp::wrap(AlignSpectrumToReference(mass, ref, spectrumInterpolated, massProcessedMode, bilinear, lagRefLow, lagRefMid, lagRefHigh, iterations, lagLimitppm, fftOverSampling, winSizeRelative));
+    rcpp_result_gen = Rcpp::wrap(AlignSpectrumToReference(mass, ref, spectrumInterpolated, massProcessedMode, intensityProcessedMode, bilinear, lagRefLow, lagRefMid, lagRefHigh, iterations, lagLimitppm, fftOverSampling, winSizeRelative));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -233,7 +234,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_testingimzMLBinWriteSequential", (DL_FUNC) &_rMSI_testingimzMLBinWriteSequential, 6},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
-    {"_rMSI_AlignSpectrumToReference", (DL_FUNC) &_rMSI_AlignSpectrumToReference, 12},
+    {"_rMSI_AlignSpectrumToReference", (DL_FUNC) &_rMSI_AlignSpectrumToReference, 13},
     {"_rMSI_CalcMassAxisBinSize", (DL_FUNC) &_rMSI_CalcMassAxisBinSize, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_MergeMassAxisAutoBinSize", (DL_FUNC) &_rMSI_MergeMassAxisAutoBinSize, 2},

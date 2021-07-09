@@ -44,8 +44,7 @@ MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, d
   for(int i = 0; i < numOfThreadsDouble; i++)
   {
     alngObj[i] = new LabelFreeAlign(mass.begin(), reference.begin(), mass.length(), bilinear, 
-                                    &fftSharedMutex, alignIterations, 
-                                    lagRefLow, lagRefMid, lagRefHigh,
+                                    alignIterations, lagRefLow, lagRefMid, lagRefHigh,
                                     maxShiftppm,  fftOverSampling, winSizeRelative);
   }
 
@@ -84,9 +83,13 @@ void MTPreProcessing::ProcessingFunction(int threadSlot)
   //Perform alignment of each spectrum in the current loaded cube
   for( int j = 0; j < cubes[threadSlot]->nrows; j++)
   {
+    
+    //TODO addapt to the new algorithm
+    /*
     mLags[cubes[threadSlot]->dataOriginal[j].pixelID] = alngObj[threadSlot]->AlignSpectrum( cubes[threadSlot]->dataInterpolated[j], 
                                                                                             cubes[threadSlot]->dataOriginal[j].imzMLmass.data(),
                                                                                             cubes[threadSlot]->dataOriginal[j].imzMLmass.size());
+     */
   }
 }
 

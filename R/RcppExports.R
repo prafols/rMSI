@@ -47,8 +47,8 @@ CimzMLStore <- function(fname, imgInfo) {
     .Call('_rMSI_CimzMLStore', PACKAGE = 'rMSI', fname, imgInfo)
 }
 
-AlignSpectrumToReference <- function(mass, ref, spectrumInterpolated, massProcessedMode, bilinear = FALSE, lagRefLow = 0.1, lagRefMid = 0.5, lagRefHigh = 0.9, iterations = 1L, lagLimitppm = 200, fftOverSampling = 10L, winSizeRelative = 0.6) {
-    .Call('_rMSI_AlignSpectrumToReference', PACKAGE = 'rMSI', mass, ref, spectrumInterpolated, massProcessedMode, bilinear, lagRefLow, lagRefMid, lagRefHigh, iterations, lagLimitppm, fftOverSampling, winSizeRelative)
+AlignSpectrumToReference <- function(mass, ref, spectrumInterpolated, massProcessedMode, intensityProcessedMode, bilinear = FALSE, lagRefLow = 0.1, lagRefMid = 0.5, lagRefHigh = 0.9, iterations = 1L, lagLimitppm = 200, fftOverSampling = 10L, winSizeRelative = 0.6) {
+    .Call('_rMSI_AlignSpectrumToReference', PACKAGE = 'rMSI', mass, ref, spectrumInterpolated, massProcessedMode, intensityProcessedMode, bilinear, lagRefLow, lagRefMid, lagRefHigh, iterations, lagLimitppm, fftOverSampling, winSizeRelative)
 }
 
 #' CalcMassAxisBinSize.

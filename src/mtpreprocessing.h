@@ -19,7 +19,6 @@
 #ifndef MT_ALIGN_H
   #define MT_ALIGN_H
 #include <Rcpp.h>
-#include <mutex>
 #include "labelfreealign.h"
 #include "threadingmsiproc.h"
 
@@ -49,6 +48,5 @@ class MTPreProcessing : public ThreadingMsiProc
     //Thread Processing function definition
     void ProcessingFunction(int threadSlot);
     
-    std::mutex fftSharedMutex;
 };
 #endif

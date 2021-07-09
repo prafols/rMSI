@@ -21,12 +21,11 @@
 
 #include <Rcpp.h>
 #include <fftw3.h>
-#include <mutex>
 
 #define BOTTOM_SPECTRUM 0
 #define CENTER_SPECTRUM 1
 #define TOP_SPECTRUM 2
-#define EXTRA_DEBUG_INFO //Used for debuggin, comment out!
+//#define EXTRA_DEBUG_INFO //Used for debuggin, comment out!
 
 
 class LabelFreeAlign
@@ -34,7 +33,7 @@ class LabelFreeAlign
   public:
     //spectraSplit the low/high part of spectra to keep (the resting points to unit will be removed).
     LabelFreeAlign(double *mass, double *ref_spectrum, int numOfPoints,
-                   bool bilinear, std::mutex *sharedMutex, int iterations = 3, 
+                   bool bilinear, int iterations = 3, 
                    double lagRefLow = 0.1, double lagRefMid = 0.5, double lagRefHigh = 0.9,
                    double lagLimitppm = 200, int fftOverSampling = 10, double winSizeRelative = 0.6);
     ~LabelFreeAlign();
@@ -64,10 +63,11 @@ class LabelFreeAlign
     //Algin a given spectrum to the reference specified in the constructor. 
     //The used High and Low lags are returned as a TLags structure.
     // Arguments:
-    // - interpolatedIntensitySpectrum: a pointer to the interpolated spectrum used only for imzML data in continuous mode
-    // -imzMLmass: a pointer to the original mass axis in the imzML data used only in processed mode
-    // - imzMLmassLength: number of mass channels in the mass axis (processed mode, set to zero for continuous mode)
-    TLags AlignSpectrum(double *interpolatedIntensitySpectrum, double *imzMLmass, int imzMLmassLength);
+    // - intensityDataInterpolated: a pointer to the intensity spectrum. If data is in processed mode this argument corresponds to the interpolated spectrum so its length is not N.
+    // -massData: a pointer to the mass axis independently if data is in processed or continuous mode (as is in the imzML file)
+    // -intensityData: a pointer to the mass axis independently if data is in processed or continuous mode (as is in the imzML file)
+    // - N: number of mass channels in the spectrum massData. Set to zero for continous data mode.
+    TLags AlignSpectrum(double *intensityDataInterpolated, double *massData, double *intensityData, int N);
 
   private:
     void ComputeRef(double *data_ref, int spectrumPart);
@@ -75,24 +75,21 @@ class LabelFreeAlign
     void CopyData2Window(double *data_int, double *data_out,  int spectrumPart);
     void TimeWindow(double *data, int spectrumPart);
     double FourierBestCor(double *data, double *ref);
-    void FourierLinerScaleShift(double *data, double scaling, double shift);
-  
+    
     int dataLength; //Number of points used in each spectrum
     double *commonMassAxis; //The common mass axis for the whole dataset
     int WinLength; //Number of points of spectrum retained in hanning window
     int FFT_Size_direct; //Number of points used for fft direct
     int FFT_Size_inverse; //Number of points used for fft inverse (which is diferent than direct to allow interpolation for lag values)
-    int FFT_Size_SH; //Number of points used for the first fft of time scale/shift
+    
     fftw_plan fft_pdirect;
     fftw_plan fft_pinvers;
-    fftw_plan fft_pdshiftScale;
+    
     double *fft_direct_in;
     double *fft_direct_out;
     double *fft_inverse_in;
     double *fft_inverse_out;
-    fftw_complex *fft_direct_shiftScale_in;
-    fftw_complex *fft_direct_shiftScale_out;
-
+    
     //Mem space to store pre-computed reference FFT space values
     double *fft_ref_low;
     double *fft_ref_center;
@@ -105,7 +102,7 @@ class LabelFreeAlign
     double lagMaxppm;
     bool bBilinear;
     int AlignIterations;
-    int FFTScaleShiftOverSampling;
+    int FFTInterpolationOverSampling;
     
 #ifdef EXTRA_DEBUG_INFO
    Rcpp::NumericVector DBG_refLow_fftInBuffer;
@@ -116,7 +113,6 @@ class LabelFreeAlign
    Rcpp::NumericVector DBG_signalHigh_fftInBuffer;
 #endif
     
-    std::mutex *fftwMtx; //Lock mechanism for signalling the FourierLinerScaleShift fftw non-thread-safe calls
 };
 
 #endif
