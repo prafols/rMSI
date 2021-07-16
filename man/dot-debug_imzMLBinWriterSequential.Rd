@@ -9,7 +9,7 @@ This function creates a new ibd file with the provided data descibed in the foll
   ibdFname,
   mz_dataTypeString,
   int_dataTypeString,
-  uuid,
+  str_uuid,
   mzArray,
   intArray
 )

@@ -42,15 +42,18 @@ class ImzMLBin
       float64  //64 bits float  (double)
     } ;
     
-    ImzMLBin(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous);
+    enum Mode { Read, SequentialWriteFile, ModifyFile }; //The mode must be spcified in the constructor
+    
+    ImzMLBin(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, Mode mode);
     ~ImzMLBin();
     
     const char* getIbdFilePath();
     bool get_continuous();
     unsigned int get_mzLength(unsigned int index);
-    unsigned long get_mzOffset(unsigned int index);
+    unsigned long long get_mzOffset(unsigned int index);
     unsigned int get_intLength(unsigned int index);
-    unsigned long get_intOffset(unsigned int index);
+    unsigned long long get_intOffset(unsigned int index);
+    Rcpp::DataFrame get_OffsetsLengths(); //Get all offsets and legnth in a R data frame
     
     void set_mzLength(Rcpp::NumericVector* mzLength_vector);
     void set_mzOffset(Rcpp::NumericVector* mzOffset_vector);
@@ -65,6 +68,7 @@ class ImzMLBin
     void close();
     
   protected:
+    Mode fileMode; //Define the mode used to acces the binary file
     Rcpp::String ibdFname;
     std::fstream ibdFile; 
     unsigned int Npixels; //Total number of pixels in the image;
@@ -73,9 +77,9 @@ class ImzMLBin
     imzMLDataType mzDataType, intDataType;
     bool bContinuous;
     unsigned int* imzLength;
-    unsigned long* lmzOffset;
+    unsigned long long* lmzOffset;
     unsigned int* iintLength;
-    unsigned long* lintOffset;
+    unsigned long long* lintOffset;
     
     //Get the imzMLDataType from a string
     imzMLDataType string2imzMLDatatype(Rcpp::String data_type);
@@ -134,9 +138,7 @@ class ImzMLBinRead : public ImzMLBin
 class ImzMLBinWrite : public ImzMLBin
 {
   public: 
-    enum Mode { SequentialWriteFile, ModifyFile }; //The mode must be spcified in the constructor
-    
-    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, Mode mode, bool openIbd = true);
+    ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool sequentialMode, bool openIbd = true);
     ~ImzMLBinWrite();
     
     //Open the ibd file in writing mode
@@ -162,7 +164,6 @@ class ImzMLBinWrite : public ImzMLBin
     void writeIntData( unsigned int N, double* ptr );
     
   private:
-    Mode writeMode; //Store the file write
     unsigned int sequentialWriteIndex_MzData; //When sequentially writing data, this integers provides the index of the next pixel to store
     unsigned int sequentialWriteIndex_IntData; //When sequentially writing data, this integers provides the index of the next pixel to store
     

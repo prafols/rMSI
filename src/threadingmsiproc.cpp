@@ -19,10 +19,11 @@
 #include "threadingmsiproc.h" 
 #include "progressbar.h"
 
-ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB)
+ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB):
+  bProcDataExport(false)
 {
   //Obtain the mass axis from the first image.
-  Rcpp::NumericVector massAxis = Rcpp::as<Rcpp::NumericVector>((Rcpp::as<Rcpp::List>(rMSIObj_list[1]))["mass"]); //TODO
+  massAxis = Rcpp::as<Rcpp::NumericVector>((Rcpp::as<Rcpp::List>(rMSIObj_list[0]))["mass"]);
   numOfThreadsDouble = 2*numberOfThreads;
   ioObj = new CrMSIDataCubeIO( massAxis, memoryPerThreadMB);
   
@@ -61,12 +62,13 @@ void ThreadingMsiProc::runMSIProcessingCpp()
   life_end = false;
   for( int i = 0; i < numOfThreadsDouble; i++)
   {
-    iCube[i] = -1; //-1 is not cube assigned to worker thread
+    iCube[i] = -1; //-1 means that there is no any cube assigned to worker thread
     bDataReady[i] = false;
     bRunningThread[i] = false;
   }
   
-  int nextCube = 0; //Point to the next datacube to load
+  int nextCubeLoad = 0; //Point to the next datacube to load
+  int nextCubeStore = 0; //Point to the next datacube to store
   int runningThreads = 0; //Total number of running threads
   bool end_of_program = false;
   while( !end_of_program ) 
@@ -74,11 +76,11 @@ void ThreadingMsiProc::runMSIProcessingCpp()
     //Load data for future threads and start working threads
     for(int iThread = 0; iThread < numOfThreadsDouble; iThread++)
     {
-      if(iCube[iThread] == -1 && nextCube < ioObj->getNumberOfCubes()) //No cube assigned then no thread running in this slot
+      if(iCube[iThread] == -1 && nextCubeLoad < ioObj->getNumberOfCubes()) //No cube assigned then no thread running in this slot
       {
-        progressBar(nextCube, ioObj->getNumberOfCubes(), "=", " ");
-        iCube[iThread] = nextCube;
-        nextCube++;
+        progressBar(nextCubeLoad, ioObj->getNumberOfCubes(), "=", " ");
+        iCube[iThread] = nextCubeLoad;
+        nextCubeLoad++;
         cubes[iThread] = ioObj->loadDataCube(iCube[iThread]);
         if(2*runningThreads < numOfThreadsDouble)
         {
@@ -115,20 +117,19 @@ void ThreadingMsiProc::runMSIProcessingCpp()
       }      
     }
     
-    //Save data to RSession and free thread slots
+    //Save data and free thread slots
     for(int iThread = 0; iThread < numOfThreadsDouble; iThread++)
     {
-      if( bDataReady[iThread] )
+      if(bDataReady[iThread] && ((nextCubeStore == iCube[iThread]) || (!bProcDataExport)) ) 
       {
-        
-        //TODO the following commented lines is where the data writing was. Think in the new model and how to adress it 
-        /**
-        if(bDataOverWrite)
+        //If destination imzML is set then store the data
+        if(bProcDataExport)
         {
-          ioObj->storeDataCube(iCube[iThread], cubes[iThread]); //Overwrite datacube on HDD
+          ioObj->storeDataCube(iCube[iThread], cubes[iThread]);
+          nextCubeStore++;
         }
-         **/
-        ioObj->freeDataCube(cubes[iThread]); //Free datacube memory
+        
+        ioObj->freeDataCube(cubes[iThread]);
         iCube[iThread] = -1; //Mark thread as stopped
         bDataReady[iThread] = false; //Reset data ready state;
         tworkers[iThread].join();
@@ -136,7 +137,7 @@ void ThreadingMsiProc::runMSIProcessingCpp()
     }
     
     //Check end condition
-    if( nextCube >= ioObj->getNumberOfCubes() )
+    if( nextCubeLoad >= ioObj->getNumberOfCubes() )
     {
       end_of_program = true;
       for(int iThread = 0; iThread < numOfThreadsDouble; iThread++)
@@ -146,7 +147,7 @@ void ThreadingMsiProc::runMSIProcessingCpp()
     }
     mtx.unlock();
   }
-  Rcpp::Rcout<<"Multi thread processing complete\n";
+  Rcpp::Rcout<<"\n";
 }
 
 void ThreadingMsiProc::ProcessingThread( int threadSlot )

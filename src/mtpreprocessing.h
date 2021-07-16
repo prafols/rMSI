@@ -19,9 +19,10 @@
 #ifndef MT_ALIGN_H
   #define MT_ALIGN_H
 #include <Rcpp.h>
+
+#include "smoothing.h"
 #include "labelfreealign.h"
 #include "threadingmsiproc.h"
-
 
 class MTPreProcessing : public ThreadingMsiProc 
 {
@@ -35,13 +36,17 @@ class MTPreProcessing : public ThreadingMsiProc
     // mass: a numeric vector with the common mass axis
     // reference: a reference spectrum for the alignment
     MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
-                    Rcpp::Reference preProcessingParams, Rcpp::NumericVector mass, Rcpp::NumericVector reference);
+                    Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference);
     ~MTPreProcessing();
  
     //Exectue a full imatge processing using threaded methods and returns the used shifts in the first iteration
     Rcpp::List Run(); 
 
   private:
+    bool bEnableSmoothing; //Set to true if smoothing must be performed
+    bool bEnableAlignment; //Set to true if alignment must be performed
+
+    Smoothing **smoothObj;
     LabelFreeAlign **alngObj;
     LabelFreeAlign::TLags *mLags; //A place to store alignment lags
 

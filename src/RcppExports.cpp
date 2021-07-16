@@ -34,18 +34,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // testingimzMLBinWriteSequential
-void testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, const char* uuid, Rcpp::NumericMatrix mzArray, Rcpp::NumericMatrix intArray);
-RcppExport SEXP _rMSI_testingimzMLBinWriteSequential(SEXP ibdFnameSEXP, SEXP mz_dataTypeStringSEXP, SEXP int_dataTypeStringSEXP, SEXP uuidSEXP, SEXP mzArraySEXP, SEXP intArraySEXP) {
+Rcpp::DataFrame testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, Rcpp::String str_uuid, Rcpp::NumericMatrix mzArray, Rcpp::NumericMatrix intArray);
+RcppExport SEXP _rMSI_testingimzMLBinWriteSequential(SEXP ibdFnameSEXP, SEXP mz_dataTypeStringSEXP, SEXP int_dataTypeStringSEXP, SEXP str_uuidSEXP, SEXP mzArraySEXP, SEXP intArraySEXP) {
 BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
     Rcpp::traits::input_parameter< Rcpp::String >::type mz_dataTypeString(mz_dataTypeStringSEXP);
     Rcpp::traits::input_parameter< Rcpp::String >::type int_dataTypeString(int_dataTypeStringSEXP);
-    Rcpp::traits::input_parameter< const char* >::type uuid(uuidSEXP);
+    Rcpp::traits::input_parameter< Rcpp::String >::type str_uuid(str_uuidSEXP);
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type mzArray(mzArraySEXP);
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type intArray(intArraySEXP);
-    testingimzMLBinWriteSequential(ibdFname, mz_dataTypeString, int_dataTypeString, uuid, mzArray, intArray);
-    return R_NilValue;
+    rcpp_result_gen = Rcpp::wrap(testingimzMLBinWriteSequential(ibdFname, mz_dataTypeString, int_dataTypeString, str_uuid, mzArray, intArray));
+    return rcpp_result_gen;
 END_RCPP
 }
 // CimzMLParse
@@ -145,9 +146,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// FullImageAlign
-List FullImageAlign(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::Reference preProcessingParams, Rcpp::NumericVector mass, Rcpp::NumericVector reference);
-RcppExport SEXP _rMSI_FullImageAlign(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP preProcessingParamsSEXP, SEXP massSEXP, SEXP referenceSEXP) {
+// RunPreProcessing
+List RunPreProcessing(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference);
+RcppExport SEXP _rMSI_RunPreProcessing(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP preProcessingParamsSEXP, SEXP referenceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -155,9 +156,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
     Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
     Rcpp::traits::input_parameter< Rcpp::Reference >::type preProcessingParams(preProcessingParamsSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mass(massSEXP);
     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type reference(referenceSEXP);
-    rcpp_result_gen = Rcpp::wrap(FullImageAlign(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, mass, reference));
+    rcpp_result_gen = Rcpp::wrap(RunPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -227,6 +227,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Smoothing_SavitzkyGolay
+NumericVector Smoothing_SavitzkyGolay(NumericVector x, int sgSize);
+RcppExport SEXP _rMSI_Smoothing_SavitzkyGolay(SEXP xSEXP, SEXP sgSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type sgSize(sgSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(Smoothing_SavitzkyGolay(x, sgSize));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
@@ -239,12 +251,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_MergeMassAxisAutoBinSize", (DL_FUNC) &_rMSI_MergeMassAxisAutoBinSize, 2},
     {"_rMSI_COverallAverageSpectrum", (DL_FUNC) &_rMSI_COverallAverageSpectrum, 3},
-    {"_rMSI_FullImageAlign", (DL_FUNC) &_rMSI_FullImageAlign, 6},
+    {"_rMSI_RunPreProcessing", (DL_FUNC) &_rMSI_RunPreProcessing, 5},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {"_rMSI_Ccreate_rMSIXBinData", (DL_FUNC) &_rMSI_Ccreate_rMSIXBinData, 2},
     {"_rMSI_Cload_rMSIXBinData", (DL_FUNC) &_rMSI_Cload_rMSIXBinData, 2},
     {"_rMSI_Cload_rMSIXBinIonImage", (DL_FUNC) &_rMSI_Cload_rMSIXBinIonImage, 5},
     {"_rMSI_Cload_imzMLSpectra", (DL_FUNC) &_rMSI_Cload_imzMLSpectra, 2},
+    {"_rMSI_Smoothing_SavitzkyGolay", (DL_FUNC) &_rMSI_Smoothing_SavitzkyGolay, 2},
     {NULL, NULL, 0}
 };
 

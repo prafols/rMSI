@@ -48,6 +48,7 @@ class ThreadingMsiProc
     CrMSIDataCubeIO *ioObj; //Data access object must be a pointer since I don't know the params befor the constructor
     int numOfThreadsDouble; //The double of used number of threads
     int numPixels; //Total number of pixels in the dataset
+    Rcpp::NumericVector massAxis; //Local copy of the common mass axis.
     
   private:  
     //The function to be executed for each thread. 
@@ -60,6 +61,7 @@ class ThreadingMsiProc
     std::mutex mtx; //Lock mechanism for signalling bDataReady vector
     bool *bDataReady; //This vector will contain true when a worker thread completes a datacube processing
     bool *bRunningThread; //Keep track if a thread is runnning for a data slot
+    bool bProcDataExport; //True if the destination imzML file path is set and so the processed spectra can be stored
     
     //Condition variable to notify thread ends
     std::condition_variable  life_end_cond;

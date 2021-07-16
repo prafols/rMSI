@@ -153,7 +153,17 @@ SmoothingParams <- setRefClass("SmoothingParams",
                                fields = list(
                                  enable = "logical",
                                  kernelSize = "integer"
-                               )
+                               ),
+                               
+                               #Constructor
+                               method = list(
+                                 initialize = function(...,
+                                                       enable = T,
+                                                       kernelSize = as.integer(7)
+                                 )
+                                 {
+                                   callSuper(..., enable = enable, kernelSize = kernelSize)
+                                 })
 )
 
 AlignmentParams <- setRefClass("AlignmentParams", 

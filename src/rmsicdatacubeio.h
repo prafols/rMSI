@@ -17,6 +17,8 @@
  **************************************************************************/
 #ifndef RMSI_DATA_CUBE_IO_H
   #define RMSI_DATA_CUBE_IO_H
+
+#include <string>
 #include <Rcpp.h>
 #include "imzMLBin.h"
 
@@ -29,7 +31,12 @@
 class CrMSIDataCubeIO
 {
   public:
-    CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB);
+    
+    // Constructor Arguments:
+    // - massAxis: The common mass axis for all the data.
+    // - cubeMemoryLimitMB: Memory limit for the interpolated spectra in a cube, thus the acutal used memory can be higher due to stored data as-is in the imzML.
+    // - outputImzMLsuffix: suffix for the output imzML filenmaes. Set to "" (empty string) to avoid storing datacubes.
+    CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, std::string outputImzMLsuffix = "");
     ~CrMSIDataCubeIO();
     
     //Struct to define a whole data cube in memory
@@ -41,9 +48,6 @@ class CrMSIDataCubeIO
       imzMLSpectrum *dataOriginal; //Pointer to multiple imzMLSpectrum structs 
       double **dataInterpolated;   
     } DataCube;
-    
-    //Set de data output path. New imzML files will be created with the processed data. If not called, no data is saved aside of the returning values of the processing function.
-    void setDataOutputPath(const char* out_path);
     
     //Appends an image to be processed.
     // The input argument is the rMSI object describing a complete MSI image.
@@ -69,6 +73,7 @@ class CrMSIDataCubeIO
     int getNumberOfPixelsInCube(int iCube);
 
   private:
+    std::string storeDataSuffix;
     bool storeData; //A bool indcatinc whether processed data must be stored or not. By default it is false and the function setDataOutputPath() must be called to set it to true.
     unsigned int cubeMaxNumRows; //The maximum rows in a datacube calculated from the maximum memory allowed by each cube and the mass axis length.
     Rcpp::NumericVector mass; //A common mass axis for all images to process

@@ -35,8 +35,8 @@ CparseBrukerXML <- function(xml_path) {
 #' @param uuid: 16 bytes long UUID.
 #' @param mzArray: A matrix with the m/z values for all pixels. Each pixel corresponds to a row. If there is only one row data will be saved in continuous mode
 #' @param intArray: A matrix with the intensity values for all pixels. Each pixel corresponds to a row so the number of pixels is extracted from here.
-.debug_imzMLBinWriterSequential <- function(ibdFname, mz_dataTypeString, int_dataTypeString, uuid, mzArray, intArray) {
-    invisible(.Call('_rMSI_testingimzMLBinWriteSequential', PACKAGE = 'rMSI', ibdFname, mz_dataTypeString, int_dataTypeString, uuid, mzArray, intArray))
+.debug_imzMLBinWriterSequential <- function(ibdFname, mz_dataTypeString, int_dataTypeString, str_uuid, mzArray, intArray) {
+    .Call('_rMSI_testingimzMLBinWriteSequential', PACKAGE = 'rMSI', ibdFname, mz_dataTypeString, int_dataTypeString, str_uuid, mzArray, intArray)
 }
 
 CimzMLParse <- function(xml_path) {
@@ -104,8 +104,8 @@ COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadM
     .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB)
 }
 
-FullImageAlign <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, mass, reference) {
-    .Call('_rMSI_FullImageAlign', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, mass, reference)
+RunPreProcessing <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference) {
+    .Call('_rMSI_RunPreProcessing', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference)
 }
 
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {
@@ -178,5 +178,15 @@ Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount, normalization_co
 #' @param pixelIDs: pixel ID's of the spectra to load in C-style indexing (starting at 0).
 Cload_imzMLSpectra <- function(rMSIobj, pixelIDs) {
     .Call('_rMSI_Cload_imzMLSpectra', PACKAGE = 'rMSI', rMSIobj, pixelIDs)
+}
+
+#' Smoothing_SavitzkyGolay.
+#' 
+#' Computes the Savitzky-Golay smoothing of a vector x using a filter size of sgSize.
+#' @param x the data vector to smooth.
+#' @param sgSize valid values are: 5, 7, 9, 11, 13, 15.
+#' @return the smoothed data vector.
+Smoothing_SavitzkyGolay <- function(x, sgSize = 5L) {
+    .Call('_rMSI_Smoothing_SavitzkyGolay', PACKAGE = 'rMSI', x, sgSize)
 }
 

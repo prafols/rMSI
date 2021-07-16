@@ -26,10 +26,14 @@
 using namespace Rcpp;
 
 
-CrMSIDataCubeIO::CrMSIDataCubeIO(NumericVector massAxis, double cubeMemoryLimitMB)
-:mass(massAxis)
+// Constructor Arguments:
+// - massAxis: The common mass axis for all the data.
+// - cubeMemoryLimitMB: Memory limit for the interpolated spectra in a cube, thus the acutal used memory can be higher due to stored data as-is in the imzML.
+// - outputImzMLsuffix: suffix for the output imzML filenmaes. Set to "" (empty string) to avoid storing datacubes.
+CrMSIDataCubeIO::CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, std::string outputImzMLsuffix)
+:mass(massAxis), storeDataSuffix(outputImzMLsuffix)
 {
-  storeData = false;
+  storeData = !storeDataSuffix.empty();
   cubeMaxNumRows = std::ceil((1024*1024*cubeMemoryLimitMB)/(double)(8*mass.length()));
 }
 
@@ -41,14 +45,7 @@ CrMSIDataCubeIO::~CrMSIDataCubeIO()
   }
 }
 
-void CrMSIDataCubeIO::setDataOutputPath(const char* out_path)
-{
-  storeData = true;
-  //TODO create the imzML writers... well maybe I don't have the info yet since data is not appended... then just store the path? think about it
-  throw std::runtime_error("Error: TODO setDataOutputPath() not implemented yet!\n");
-}
-
-void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj)
+void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj) //TODO append also the corresponding imzML writer in case data must be stored
 {
   //Set the imzML reader
   List data = rMSIobj["data"];
@@ -76,6 +73,13 @@ void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj)
   imzMLReaders.back()->set_mzOffset(&imzML_mzOffsets);
   imzMLReaders.back()->set_intLength(&imzML_intLength);
   imzMLReaders.back()->set_intOffset(&imzML_intOffsets);
+  
+  
+  //TODO here or somewhere in this method create the imzML writer corresponding to this imzMLreader
+  //if(storeData)
+  //{
+  //   use the suffix!: storeDataSuffix
+  //}
   
   //Initialize the cube description if this is the first call to appedImageData()
   if(dataCubesDesc.size() == 0)
@@ -160,12 +164,14 @@ void CrMSIDataCubeIO::freeDataCube(DataCube *data_ptr)
   delete data_ptr;
 }
 
-void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr)
+void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr) 
 {
   if(iCube >= dataCubesDesc.size())
   {
     throw std::runtime_error("Error: DataCube index out of range\n");
   }
+  
+  //TODO maybe with the new implementation I don't nened the iCube here!
   
   //TODO implement me!
   throw std::runtime_error("Error: storeDataCube() is not implemented yet!\n");

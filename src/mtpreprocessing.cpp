@@ -22,15 +22,21 @@
 using namespace Rcpp;
 
 MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
-                                 Rcpp::Reference preProcessingParams, Rcpp::NumericVector mass, Rcpp::NumericVector reference) : 
+                                 Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference) : 
   ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB)
 {
   bool bContinuousMode = false; //TODO this is very imporant! get it from the data and set it properly here!!!! also check all data is in the same format, otherwise abort!
   
-  //TODO add smoothing and baseline params here!
+  //TODO add baseline params here!
+  
+  //Get the smoothing parameters
+  Rcpp::Reference smoothingParams = preProcessingParams.field("smoothing");
+  bEnableSmoothing = smoothingParams.field("enable");
+  int smoothinKernelSize = smoothingParams.field("kernelSize");
   
   //Get the alignment params
   Rcpp::Reference alignmentParams = preProcessingParams.field("alignment");
+  bEnableAlignment = alignmentParams.field("enable");
   bool bilinear = alignmentParams.field("bilinear");
   int alignIterations = alignmentParams.field("iterations");
   double maxShiftppm = alignmentParams.field("maxShiftppm");
@@ -40,10 +46,13 @@ MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, d
   int fftOverSampling = alignmentParams.field("overSampling");
   double winSizeRelative = alignmentParams.field("winSizeRelative");
   
+  smoothObj = new Smoothing*[numOfThreadsDouble];
   alngObj = new LabelFreeAlign*[numOfThreadsDouble];
   for(int i = 0; i < numOfThreadsDouble; i++)
   {
-    alngObj[i] = new LabelFreeAlign(mass.begin(), reference.begin(), mass.length(), bilinear, 
+    smoothObj[i] = new Smoothing(smoothinKernelSize);
+    
+    alngObj[i] = new LabelFreeAlign(massAxis.begin(), reference.begin(), massAxis.length(), bilinear, 
                                     alignIterations, lagRefLow, lagRefMid, lagRefHigh,
                                     maxShiftppm,  fftOverSampling, winSizeRelative);
   }
@@ -55,14 +64,18 @@ MTPreProcessing::~MTPreProcessing()
 {
   for(int i = 0; i < numOfThreadsDouble; i++)
   {
+    delete smoothObj[i];
     delete alngObj[i];
   }
+  delete[] smoothObj;
   delete[] alngObj;
   delete[] mLags;
 }
 
 List MTPreProcessing::Run()
 {
+  Rcpp::Rcout<<"Spectral pre-processing...\n";
+  
   //Run preprocessing in mutli-threading
   runMSIProcessingCpp();
 
@@ -83,28 +96,36 @@ void MTPreProcessing::ProcessingFunction(int threadSlot)
   //Perform alignment of each spectrum in the current loaded cube
   for( int j = 0; j < cubes[threadSlot]->nrows; j++)
   {
+   
+    if(bEnableSmoothing)
+    {
+      smoothObj[threadSlot]->smoothSavitzkyGolay( massAxis.begin(),
+                                                  cubes[threadSlot]->dataInterpolated[j],
+                                                  massAxis.length(), 
+                                                  cubes[threadSlot]->dataOriginal[j].imzMLmass.data(),
+                                                  cubes[threadSlot]->dataOriginal[j].imzMLintensity.data(),
+                                                  cubes[threadSlot]->dataOriginal[j].imzMLmass.size()
+                                                  ); 
+      
+    }
     
-    //TODO addapt to the new algorithm
-    /*
-    mLags[cubes[threadSlot]->dataOriginal[j].pixelID] = alngObj[threadSlot]->AlignSpectrum( cubes[threadSlot]->dataInterpolated[j], 
-                                                                                            cubes[threadSlot]->dataOriginal[j].imzMLmass.data(),
-                                                                                            cubes[threadSlot]->dataOriginal[j].imzMLmass.size());
-     */
+    if(bEnableAlignment)
+    {
+      mLags[cubes[threadSlot]->dataOriginal[j].pixelID] = alngObj[threadSlot]->AlignSpectrum( cubes[threadSlot]->dataInterpolated[j], 
+                                                                                              cubes[threadSlot]->dataOriginal[j].imzMLmass.data(),
+                                                                                              cubes[threadSlot]->dataOriginal[j].imzMLintensity.data(),
+                                                                                              cubes[threadSlot]->dataOriginal[j].imzMLmass.size()
+                                                                                              );
+    }
   }
 }
 
 // [[Rcpp::export]]
-List FullImageAlign( Rcpp::List rMSIObj_list,int numOfThreads, double memoryPerThreadMB, 
-                     Rcpp::Reference preProcessingParams, Rcpp::NumericVector mass, Rcpp::NumericVector reference)
+List RunPreProcessing( Rcpp::List rMSIObj_list,int numOfThreads, double memoryPerThreadMB, 
+                     Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference)
 {
   MTPreProcessing myPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB,
-                                  preProcessingParams, mass, reference);
+                                  preProcessingParams, reference);
 
   return myPreProcessing.Run();
 }
-
-
-
-
-
-

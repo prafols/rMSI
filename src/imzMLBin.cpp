@@ -24,8 +24,8 @@
 //#define __DEBUG__
 #define MAX_MEMORY_MB 250 //Maxim usable memory
 
-ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous):
-  ibdFname(ibd_fname), Npixels(num_of_pixels), bContinuous(continuous)
+ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, Mode mode):
+  ibdFname(ibd_fname), Npixels(num_of_pixels), bContinuous(continuous), fileMode(mode)
 {
   
   mzDataType = string2imzMLDatatype(Str_mzType);
@@ -70,9 +70,9 @@ ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::Stri
   }
   
   imzLength = new unsigned int[Npixels];
-  lmzOffset  = new unsigned long[Npixels];  
+  lmzOffset  = new unsigned long long[Npixels];  
   iintLength = new unsigned int[Npixels];  
-  lintOffset = new unsigned long[Npixels];  
+  lintOffset = new unsigned long long[Npixels];  
     
 #ifdef __DEBUG__
 Rcpp::Rcout << "ImzMLBin() constructor end successfuly\n";
@@ -123,7 +123,7 @@ unsigned int ImzMLBin::get_mzLength(unsigned int index)
   return imzLength[index];
 }
 
-unsigned long ImzMLBin::get_mzOffset(unsigned int index)
+unsigned long long ImzMLBin::get_mzOffset(unsigned int index)
 {
   if(index >= Npixels)
   {
@@ -141,7 +141,7 @@ unsigned int ImzMLBin::get_intLength(unsigned int index)
   return iintLength[index];
 }
 
-unsigned long ImzMLBin::get_intOffset(unsigned int index)
+unsigned long long ImzMLBin::get_intOffset(unsigned int index)
 {
   if(index >= Npixels)
   {
@@ -150,8 +150,35 @@ unsigned long ImzMLBin::get_intOffset(unsigned int index)
   return lintOffset[index];
 }
 
+Rcpp::DataFrame ImzMLBin::get_OffsetsLengths()
+{
+  Rcpp::NumericVector RmzLengths(Npixels);
+  Rcpp::NumericVector RmzOffsets(Npixels);
+  Rcpp::NumericVector RintLengths(Npixels);
+  Rcpp::NumericVector RintOffsets(Npixels);
+  
+  for(unsigned int i = 0; i< Npixels; i++)
+  {
+    RmzLengths[i] = imzLength[i];
+    RmzOffsets[i] = lmzOffset[i];
+    RintLengths[i] = iintLength[i];
+    RintOffsets[i] = lintOffset[i];
+  }
+  
+  return Rcpp::DataFrame::create( Rcpp::Named("mzLength") = RmzLengths,
+                                  Rcpp::Named("mzOffset") = RmzOffsets,
+                                  Rcpp::Named("intLength") = RintLengths,
+                                  Rcpp::Named("intOffset") = RintOffsets
+                                  );
+}
+
 void ImzMLBin::set_mzLength(Rcpp::NumericVector* mzLength_vector)
 {
+  if(fileMode == Mode::SequentialWriteFile)
+  {
+    throw std::runtime_error("ERROR: mzLength_vector cannot be set in sequential write mode.\n");
+  }
+  
   for(unsigned int i = 0; i < Npixels; i++)
   {
     imzLength[i] = (unsigned int)(*mzLength_vector)[i];
@@ -160,6 +187,11 @@ void ImzMLBin::set_mzLength(Rcpp::NumericVector* mzLength_vector)
 
 void ImzMLBin::set_mzOffset(Rcpp::NumericVector* mzOffset_vector)
 {
+  if(fileMode == Mode::SequentialWriteFile)
+  {
+    throw std::runtime_error("ERROR: mzOffset_vector cannot be set in sequential write mode.\n");
+  }
+  
   for(unsigned int i = 0; i < Npixels; i++)
   {
     lmzOffset[i] = (unsigned long)(*mzOffset_vector)[i];
@@ -168,6 +200,11 @@ void ImzMLBin::set_mzOffset(Rcpp::NumericVector* mzOffset_vector)
 
 void ImzMLBin::set_intLength(Rcpp::NumericVector* intLength_vector)
 {
+  if(fileMode == Mode::SequentialWriteFile)
+  {
+    throw std::runtime_error("ERROR: intLength_vector cannot be set in sequential write mode.\n");
+  }
+  
   for(unsigned int i = 0; i < Npixels; i++)
   {
     iintLength[i] = (unsigned int)(*intLength_vector)[i];
@@ -176,6 +213,11 @@ void ImzMLBin::set_intLength(Rcpp::NumericVector* intLength_vector)
 
 void ImzMLBin::set_intOffset(Rcpp::NumericVector* intOffset_vector)
 {
+  if(fileMode == Mode::SequentialWriteFile)
+  {
+    throw std::runtime_error("ERROR: intOffset_vector cannot be set in sequential write mode.\n");
+  }
+  
   for(unsigned int i = 0; i < Npixels; i++)
   {
     lintOffset[i] = (unsigned long)(*intOffset_vector)[i];
@@ -266,7 +308,7 @@ void ImzMLBin::convertDouble2Bytes(double* inPtr, char* outBytes, unsigned int N
 }
 
 ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd):
-  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous)
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, Mode::Read)
 {
   if(openIbd)
   {
@@ -434,9 +476,8 @@ imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, uns
   return imzMLSpc;
 }
 
-ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, Mode mode, bool openIbd) :
-  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous),
-  writeMode(mode), 
+ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool sequentialMode, bool openIbd) :
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, sequentialMode? Mode::SequentialWriteFile : Mode::ModifyFile ),
   sequentialWriteIndex_IntData(0), 
   sequentialWriteIndex_MzData(0)
 {
@@ -453,7 +494,7 @@ ImzMLBinWrite::~ImzMLBinWrite()
 
 void ImzMLBinWrite::open()
 {
-  if(writeMode == Mode::ModifyFile)
+  if(fileMode == Mode::ModifyFile)
   {
     //Open for modifing registers in the ibd file
     ibdFile.open(ibdFname.get_cstring(), std::fstream::in | std::fstream::out | std::ios::binary); //TODO check the following comment and validate this works!
@@ -474,7 +515,7 @@ void ImzMLBinWrite::open()
 
 void ImzMLBinWrite::writeUUID(const char* uuid)
 {
-  if(writeMode == Mode::ModifyFile)
+  if(fileMode == Mode::ModifyFile)
   {
     throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing and UUID can only be set in sequential mode");
   }
@@ -493,7 +534,7 @@ void ImzMLBinWrite::writeUUID(const char* uuid)
 
 void ImzMLBinWrite::writeMzData(unsigned long offset, unsigned int N, double* ptr )
 {
-  if(writeMode == Mode::SequentialWriteFile)
+  if(fileMode == Mode::SequentialWriteFile)
   {
     throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for data modification");
   }
@@ -503,7 +544,7 @@ void ImzMLBinWrite::writeMzData(unsigned long offset, unsigned int N, double* pt
 
 void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
 {
-  if(writeMode == Mode::ModifyFile)
+  if(fileMode == Mode::ModifyFile)
   {
     throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing");
   }
@@ -523,7 +564,7 @@ void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
 
 void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* ptr )
 {
-  if(writeMode == Mode::SequentialWriteFile)
+  if(fileMode == Mode::SequentialWriteFile)
   {
     throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for data modification");
   }
@@ -533,7 +574,7 @@ void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* p
 
 void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
 {
-  if(writeMode == Mode::ModifyFile)
+  if(fileMode == Mode::ModifyFile)
   {
     throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing");
   }
@@ -546,6 +587,14 @@ void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
   lintOffset[sequentialWriteIndex_IntData] = ibdFile.tellp();
   iintLength[sequentialWriteIndex_IntData] = N;
   sequentialWriteIndex_IntData++;
+  
+  //In continuos mode the offset and length for the mass axis is the first, so just replicate it
+  if(bContinuous && sequentialWriteIndex_MzData > 0)
+  {
+    lmzOffset[sequentialWriteIndex_MzData] = lmzOffset[0];
+    imzLength[sequentialWriteIndex_MzData] = imzLength[0];
+    sequentialWriteIndex_MzData++;
+  }
   
   //Write data
   writeDataCommon(N, ptr, intDataPointBytes, intDataType);
@@ -641,8 +690,8 @@ Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int NPixe
 //' @param mzArray: A matrix with the m/z values for all pixels. Each pixel corresponds to a row. If there is only one row data will be saved in continuous mode
 //' @param intArray: A matrix with the intensity values for all pixels. Each pixel corresponds to a row so the number of pixels is extracted from here.
 // [[Rcpp::export(name=".debug_imzMLBinWriterSequential")]]
-void testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString,
-                                    const char* uuid, Rcpp::NumericMatrix mzArray, Rcpp::NumericMatrix intArray)
+Rcpp::DataFrame testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString,
+                                    Rcpp::String str_uuid, Rcpp::NumericMatrix mzArray, Rcpp::NumericMatrix intArray)
 {
   try
   {
@@ -654,13 +703,20 @@ void testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTy
     
     double *ptr_data = new double[mzArray.ncol()];
     
-    ImzMLBinWrite myWriter(ibdFname, intArray.nrow(), mz_dataTypeString, int_dataTypeString, mzArray.nrow()==1, ImzMLBinWrite::Mode::SequentialWriteFile);
+    ImzMLBinWrite myWriter(ibdFname, intArray.nrow(), mz_dataTypeString, int_dataTypeString, mzArray.nrow()==1, true);
     
+    //Convert UUID in string format to byte array
+    char uuid[16];
+    std::string suuid = str_uuid.get_cstring();
+    for( int i = 0; i < 16; i++)
+    {
+       uuid[i] = strtol(suuid.substr(i*2, 2).c_str(), NULL, 16);
+    }
     myWriter.writeUUID(uuid);
     
     for(int i = 0; i < intArray.nrow(); i++)
     {
-      Rcpp::Rcout << "Storing... "<< i << " of " << intArray.ncol() << "\n";
+      Rcpp::Rcout << "Storing... "<< i << " of " << intArray.nrow() << "\n";
       
       //Store m/z data only for the first iteration if continuous
       if(!myWriter.get_continuous() || i == 0)
@@ -680,7 +736,7 @@ void testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTy
       myWriter.writeIntData(intArray.ncol(), ptr_data);
     }
     
-    
+    return myWriter.get_OffsetsLengths();
     
   }
   catch(std::runtime_error &e)
@@ -688,6 +744,7 @@ void testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::String mz_dataTy
     Rcpp::Rcout << "Catch Error: "<< e.what() << "\n";
   }
   
+  return NULL;
 }
 
 //TODO i'm here, writeing two testing methods, one for sequential mode and another for modify mode. Then I'll have to create an interface in the rMSIXBin class for both modes.

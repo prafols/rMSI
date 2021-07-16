@@ -268,6 +268,7 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *intensityDataInterpo
   bool bDataInContinuousMode;
   if(N == 0)
   {
+    //Rcpp::Rcout<<"DBG: Aligning continuous mode\n";
     //imzML in continuous mode
     ptrMass = new double[dataLength];   
     ptrIntensity = new double[dataLength]; 
@@ -278,6 +279,7 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *intensityDataInterpo
   }
   else
   {
+    //Rcpp::Rcout<<"DBG: Aligning processed mode\n";
     //imzML in processed mode 
     ptrMass = massData;
     ptrIntensity = intensityData;
@@ -420,6 +422,8 @@ LabelFreeAlign::TLags LabelFreeAlign::AlignSpectrum(double *intensityDataInterpo
         //Calculate mass shift and scaling constants
         K1 = (commonMassAxis[indexHighMassShifted] - commonMassAxis[indexLowMassShifted])/(commonMassAxis[refMassHighIndex] - commonMassAxis[refMassLowIndex]); 
         Sh1 = commonMassAxis[indexLowMassShifted] - commonMassAxis[refMassLowIndex]*K1; // y = mx + n --> n = y - mx
+        
+        //Rcpp::Rcout<<"DBG: K1 = "<< K1 << " Sh1 = " << Sh1 << "\n";
         
         //Apply the alignment to the imzML mass axis
         for(int i = 0; i < N; i++)
@@ -685,6 +689,9 @@ Rcpp::List AlignSpectrumToReference( NumericVector mass, NumericVector ref, Nume
                                         double lagRefLow = 0.1, double lagRefMid = 0.5, double lagRefHigh = 0.9,
                                         int iterations = 1, double lagLimitppm = 200, int fftOverSampling = 10, double winSizeRelative = 0.6 )
 {
+  NumericVector massAlignProcessed(massProcessedMode.length()); //Use a copy to avoid overwriting the original vector!
+  memcpy(massAlignProcessed.begin(), massProcessedMode.begin(), sizeof(double)*massProcessedMode.length());
+  
   NumericVector y(spectrumInterpolated.length());
   memcpy(y.begin(), spectrumInterpolated.begin(), sizeof(double)*spectrumInterpolated.length());
   
@@ -696,12 +703,12 @@ Rcpp::List AlignSpectrumToReference( NumericVector mass, NumericVector ref, Nume
   Rcpp::NumericVector refMid = alngObj.getRefCenterFFT();
   Rcpp::NumericVector refHigh = alngObj.getRefHighFFT();
   
-  LabelFreeAlign::TLags lags = alngObj.AlignSpectrum(y.begin(), massProcessedMode.begin(), intensityProcessedMode.begin(), massProcessedMode.length());
+  LabelFreeAlign::TLags lags = alngObj.AlignSpectrum(y.begin(), massAlignProcessed.begin(), intensityProcessedMode.begin(), massAlignProcessed.length());
   Rcout<<"Lag low = "<<lags.lagLow<<" Lag center = "<<lags.lagMid<<" Lag high = "<<lags.lagHigh<<"\n";
   
 #ifdef EXTRA_DEBUG_INFO
   return List::create( Named("InterpolatedSpectrum") = y, 
-                       Named("ProcessedModeMass") = massProcessedMode, 
+                       Named("ProcessedModeMass") = massAlignProcessed, 
                        Named("RefLowFFT") = refLow,
                        Named("RefMidFFT") = refMid,
                        Named("RefHighFFT") = refHigh,
@@ -714,12 +721,10 @@ Rcpp::List AlignSpectrumToReference( NumericVector mass, NumericVector ref, Nume
                        );
 #else
   return List::create( Named("InterpolatedSpectrum") = y, 
-                       Named("ProcessedModeMass") = massProcessedMode, 
+                       Named("ProcessedModeMass") = massAlignProcessed, 
                        Named("RefLowFFT") = refLow,
                        Named("RefMidFFT") = refMid,
                        Named("RefHighFFT") = refHigh
                        );
 #endif
 }
-
-

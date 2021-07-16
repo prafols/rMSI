@@ -101,15 +101,28 @@ ProcessImages <- function(proc_params,
     }
     
     #Calculate the internal reference for alignment
-    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB)
+    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB) #TODO  it is crashing here!
     
   }
 
   #Calculate reference spectrum for label free alignment
-  refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum)
-  cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
-  refSpc <- refSpc$spectrum
+  if(proc_params$preprocessing$alignment$enable)
+  {
+    #TODO error here! if mergeprocessing is disables then the reference cannot be calcualted!
+    refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum)
+    cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
+    refSpc <- refSpc$spectrum
+  }
+  else
+  {
+    refSpc <- rep(0.0, length(img_lst[[1]]$mass)) #I need to supply a reference spectrum even if alignment is not enables, so just feed it with zeros
+  }
   
+  #TODO run the preprocssing!
+  procData <- RunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
+                                proc_params$preprocessing, refSpc)
+  
+  #TODO return the processed data instead of the average!
   return(AverageSpectrum)
   
   
