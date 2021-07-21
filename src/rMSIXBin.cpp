@@ -1594,14 +1594,3 @@ NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
 
   return m_spc;
 }
-
-
-//' TODO ideas varies:
-//' 
-//' - compatibilitat: puc fer que el nou rMSI i rMSIproc detecti automaticament si les dades son nou o antic format i ho carregui?
-//'
-//' - ajuntar rMSI i rMSIproc: importar tots els metodes de rMSIproc dins del rMSI, es a dir, rMSIproc deixara d existir. Aixi sera mes facil d mantenir.
-//'   tb em permetra fer us d funcions d rMSIproc en rMSI (per exemple multi-threading d boost)
-//'   oju amb el Namespace d R, crec que rMSI el fa automatic amb roxigen i rMSIproc el fa manual, que vull al final?
-
-

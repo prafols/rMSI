@@ -1115,6 +1115,8 @@ uuid_timebased <- function()
   sUUID <- paste0( sUUID, sprintf( "%02X", as.integer( format(currentTime, "%S"))))
   sUUID <-paste0(sUUID, paste0(sprintf("%02X",sample(0:255, 9)), collapse = ""))
   
+  Sys.sleep(1) #force to sleep one seconf to ensure each execition provides a unique uuid
+  
   return(sUUID)
 }
 

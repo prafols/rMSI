@@ -22,11 +22,10 @@
 using namespace Rcpp;
 
 MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
-                                 Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB)
+                                 Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference,
+                                 Rcpp::StringVector uuid,  Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames) : 
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, true, uuid, outputImzMLPath, outputImzMLfnames)
 {
-  bool bContinuousMode = false; //TODO this is very imporant! get it from the data and set it properly here!!!! also check all data is in the same format, otherwise abort!
-  
   //TODO add baseline params here!
   
   //Get the smoothing parameters
@@ -88,14 +87,32 @@ List MTPreProcessing::Run()
     LagsHigh[i] = mLags[i].lagHigh;
   }
   
-  return List::create( Named("LagLow") = LagsLow, Named("LagHigh") = LagsHigh);
+  //Get the imzMLwriters offset and average/base spectrums
+  Rcpp::List offsetLst;
+  Rcpp::List averageSpectraLst;
+  Rcpp::List baseSpectraLst;
+  for( unsigned int i = 0; i < ioObj->get_images_count(); i++)
+  {
+    offsetLst.push_back(ioObj->get_OffsetsLengths(i));
+    averageSpectraLst.push_back(ioObj->get_AverageSpectrum(i));
+    baseSpectraLst.push_back(ioObj->get_BaseSpectrum(i));
+  }
+  
+  return List::create( Named("LagLow") = LagsLow, 
+                       Named("LagHigh") = LagsHigh, 
+                       Named("Offsets") = offsetLst, 
+                       Named("AverageSpectra") = averageSpectraLst, 
+                       Named("BaseSpectra") = baseSpectraLst
+                        );
 }
 
 void MTPreProcessing::ProcessingFunction(int threadSlot)
 {
-  //Perform alignment of each spectrum in the current loaded cube
+  //Process each spectrum in the current loaded cube
   for( int j = 0; j < cubes[threadSlot]->nrows; j++)
   {
+   
+   //TODO add the baseline reduction
    
     if(bEnableSmoothing)
     {
@@ -117,15 +134,21 @@ void MTPreProcessing::ProcessingFunction(int threadSlot)
                                                                                               cubes[threadSlot]->dataOriginal[j].imzMLmass.size()
                                                                                               );
     }
+    
+   //TODO add the average accumulation! don't do it here its a mess!
+
+   
+    //TODO add the bitdepth reduction!
   }
 }
 
 // [[Rcpp::export]]
-List RunPreProcessing( Rcpp::List rMSIObj_list,int numOfThreads, double memoryPerThreadMB, 
-                     Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference)
+List CRunPreProcessing( Rcpp::List rMSIObj_list,int numOfThreads, double memoryPerThreadMB, 
+                     Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference, 
+                     Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames)
 {
-  MTPreProcessing myPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB,
-                                  preProcessingParams, reference);
-
-  return myPreProcessing.Run();
+   MTPreProcessing myPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB,
+                                  preProcessingParams, reference, 
+                                  uuid, outputDataPath, imzMLoutFnames);
+   return myPreProcessing.Run();
 }

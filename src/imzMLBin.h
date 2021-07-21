@@ -60,6 +60,8 @@ class ImzMLBin
     void set_intLength(Rcpp::NumericVector* intLength_vector);
     void set_intOffset(Rcpp::NumericVector* intOffset_vector);
     
+    unsigned int get_number_of_pixels();
+    
     //Get the number of bytes used for encoding
     unsigned int get_mzEncodingBytes();
     unsigned int get_intEncodingBytes();
@@ -142,10 +144,14 @@ class ImzMLBinWrite : public ImzMLBin
     ~ImzMLBinWrite();
     
     //Open the ibd file in writing mode
-    void open();
+    //If trucate is set to true the file will be completelly removed and started over again. thats the case when writing the uuid
+    void open(bool truncate = false);
     
     //Write the 16 bytes UUID to the imzML ibd file.
     void writeUUID(const char* uuid);
+    
+    //Write the 16 bytes UUID to the imzML ibd file. Uuid provided as a std::String
+    void writeUUID(std::string suuid);
     
     //Write N elements to the ibd file at the given offset as m/z channels
     //Data is obtained from ptr pointer

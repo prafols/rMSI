@@ -26,14 +26,9 @@
 using namespace Rcpp;
 
 
-// Constructor Arguments:
-// - massAxis: The common mass axis for all the data.
-// - cubeMemoryLimitMB: Memory limit for the interpolated spectra in a cube, thus the acutal used memory can be higher due to stored data as-is in the imzML.
-// - outputImzMLsuffix: suffix for the output imzML filenmaes. Set to "" (empty string) to avoid storing datacubes.
-CrMSIDataCubeIO::CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, std::string outputImzMLsuffix)
-:mass(massAxis), storeDataSuffix(outputImzMLsuffix)
+CrMSIDataCubeIO::CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, bool storeDataInImzML, Rcpp::String imzMLOutputPath)
+  :mass(massAxis), storeData(storeDataInImzML), dataOutputPath(imzMLOutputPath.get_cstring())
 {
-  storeData = !storeDataSuffix.empty();
   cubeMaxNumRows = std::ceil((1024*1024*cubeMemoryLimitMB)/(double)(8*mass.length()));
 }
 
@@ -43,22 +38,42 @@ CrMSIDataCubeIO::~CrMSIDataCubeIO()
   {
     delete imzMLReaders[i];
   }
+  
+  for( int i = 0; i < imzMLWriters.size(); i++)
+  {
+    delete imzMLWriters[i];
+  }
 }
 
-void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj) //TODO append also the corresponding imzML writer in case data must be stored
+void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, std::string outputImzMLuuid, std::string outputImzMLfname)
 {
+  if(outputImzMLuuid.empty() && storeData)
+  {
+    throw std::runtime_error("Error: A valid UUID must be provided for the stored imzML file.\n");
+  }
+  
+  if(outputImzMLfname.empty() && storeData)
+  {
+    throw std::runtime_error("Error: A filename suffix must be provided for the stored imzML file.\n");
+  }
+  
+  if(outputImzMLuuid.length() != 32 && storeData)
+  {
+    throw std::runtime_error("Error: The UUID must contain 16 bytes.\n");
+  }
+  
   //Set the imzML reader
   List data = rMSIobj["data"];
   List imzML = data["imzML"];
   DataFrame imzMLrun = as<DataFrame>(imzML["run"]);
   std::string sFilePath = as<std::string>(data["path"]);
   std::string sFnameImzML = as<std::string>(imzML["file"]);
-  sFnameImzML= sFilePath + "/" + sFnameImzML + ".ibd";
+  std::string sFnameImzMLInput = sFilePath + "/" + sFnameImzML + ".ibd";
   
   //Rcpp::Rcout << "CrMSIDataCubeIO::appedImageData()--> sFnameImzML = "<< sFnameImzML << std::endl; //DEBUG line
 
   //Append the imzML Reader
-  imzMLReaders.push_back(new ImzMLBinRead(sFnameImzML.c_str(), 
+  imzMLReaders.push_back(new ImzMLBinRead(sFnameImzMLInput.c_str(), 
                                      imzMLrun.nrows(), 
                                      as<String>(imzML["mz_dataType"]),
                                      as<String>(imzML["int_dataType"]) ,
@@ -75,11 +90,24 @@ void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj) //TODO append also the 
   imzMLReaders.back()->set_intOffset(&imzML_intOffsets);
   
   
-  //TODO here or somewhere in this method create the imzML writer corresponding to this imzMLreader
-  //if(storeData)
-  //{
-  //   use the suffix!: storeDataSuffix
-  //}
+  //Create the imzMLwriter corresponding to the current imzMLreader
+  if(storeData)
+  {
+    std::string sFnameImzMLOutput= dataOutputPath + "/" + outputImzMLfname + ".ibd"; 
+    imzMLWriters.push_back(new ImzMLBinWrite(sFnameImzMLOutput.c_str(),
+                                            imzMLrun.nrows(), 
+                                            as<String>(imzML["mz_dataType"]),
+                                            as<String>(imzML["int_dataType"]) ,
+                                            as<bool>(imzML["continuous_mode"]),
+                                            true, //Data cubes will be sotred using the sequential mode
+                                            false)); //Dont call the file open() on constructor to allow directely writing the uuid, then I'll close it!
+    imzMLWriters.back()->open(true); //Open and truncate the file
+    imzMLWriters.back()->writeUUID(outputImzMLuuid);
+    imzMLWriters.back()->close(); 
+    
+    acumulatedSpectrum.push_back(Rcpp::NumericVector(mass.length()));
+    baseSpectrum.push_back(Rcpp::NumericVector(mass.length()));
+  }
   
   //Initialize the cube description if this is the first call to appedImageData()
   if(dataCubesDesc.size() == 0)
@@ -171,10 +199,47 @@ void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr)
     throw std::runtime_error("Error: DataCube index out of range\n");
   }
   
-  //TODO maybe with the new implementation I don't nened the iCube here!
-  
-  //TODO implement me!
-  throw std::runtime_error("Error: storeDataCube() is not implemented yet!\n");
+  int current_imzML_id;
+  int previous_imzML_id = -1; //Start previous as -1 to indicate an unallocated imzML
+  for(unsigned int i = 0; i < data_ptr->nrows; i++) //For each spectrum belonging to the selected datacube
+  {
+    current_imzML_id = dataCubesDesc[iCube][i].imzML_ID;
+    
+    //Rcpp::Rcout << "CrMSIDataCubeIO::storeDataCube()--> current_imzML_id=" << current_imzML_id << std::endl; //DEBUG line!
+    //Rcpp::Rcout << "CrMSIDataCubeIO::storeDataCube()--> mzLength(0)=" << imzMLReaders[current_imzML_id]->get_mzLength(0)  << std::endl; //DEBUG line
+    //Rcpp::Rcout << "CrMSIDataCubeIO::storeDataCube()--> ibd file=" << imzMLReaders[current_imzML_id]->getIbdFilePath()  << std::endl; //DEBUG line
+    
+    if(current_imzML_id != previous_imzML_id)
+    {
+      if(previous_imzML_id != -1)
+      {
+        imzMLWriters[previous_imzML_id]->close();
+      }
+      imzMLWriters[current_imzML_id]->open();
+    }
+    
+    //Calc average and base spectrum
+    for(unsigned int j = 0; j < mass.length(); j++)
+    {
+      acumulatedSpectrum[current_imzML_id][j] += data_ptr->dataInterpolated[i][j];  
+      baseSpectrum[current_imzML_id][j] = data_ptr->dataInterpolated[i][j] > baseSpectrum[current_imzML_id][j] ? data_ptr->dataInterpolated[i][j] : baseSpectrum[current_imzML_id][j];
+    }
+    
+    if(imzMLWriters[current_imzML_id]->get_continuous())
+    {
+      //Continuous mode write
+      imzMLWriters[current_imzML_id]->writeIntData(mass.length(), data_ptr->dataInterpolated[i]);
+    }
+    else
+    {
+      //Processed mode write
+      imzMLWriters[current_imzML_id]->writeMzData(data_ptr->dataOriginal[i].imzMLmass.size(), data_ptr->dataOriginal[i].imzMLmass.data());
+      imzMLWriters[current_imzML_id]->writeIntData(data_ptr->dataOriginal[i].imzMLintensity.size(), data_ptr->dataOriginal[i].imzMLintensity.data());
+    }
+    
+    previous_imzML_id = current_imzML_id;
+  }
+  imzMLReaders[current_imzML_id]->close(); //Force to close the last opened imzML
 }
 
 int CrMSIDataCubeIO::getNumberOfCubes()
@@ -195,4 +260,44 @@ int CrMSIDataCubeIO::getNumberOfPixelsInCube(int iCube)
   }
   
   return dataCubesDesc[iCube].size();
+}
+
+Rcpp::DataFrame CrMSIDataCubeIO::get_OffsetsLengths(unsigned int index)
+{
+  if(index >= imzMLWriters.size())
+  {
+    throw std::runtime_error("Error: imzMLWriter index out of range\n");
+  }
+  return imzMLWriters[index]->get_OffsetsLengths();
+}
+
+unsigned int CrMSIDataCubeIO::get_images_count()
+{
+ return imzMLReaders.size();
+}
+
+Rcpp::NumericVector CrMSIDataCubeIO::get_AverageSpectrum(unsigned int index)
+{
+  if(index >= acumulatedSpectrum.size())
+  {
+    throw std::runtime_error("Error: acumulatedSpectrum index out of range\n");
+  }
+  
+  Rcpp::NumericVector AverageSpectrum(mass.length());
+  for( unsigned int i = 0; i < mass.length(); i++)
+  {
+    AverageSpectrum[i] = acumulatedSpectrum[index][i] / ((double) (imzMLWriters[index]->get_number_of_pixels()));
+  }
+  
+  return AverageSpectrum;
+}
+
+Rcpp::NumericVector CrMSIDataCubeIO::get_BaseSpectrum(unsigned int index)
+{
+  if(index >= baseSpectrum.size())
+  {
+    throw std::runtime_error("Error: baseSpectrum index out of range\n");
+  }
+  
+  return baseSpectrum[index];
 }

@@ -220,7 +220,8 @@ ProcParams <- setRefClass("ProcParams",
                           fields = list(
                            version = "character",
                            preprocessing = "PreProcParams",
-                           annotations = "AnnotationParams"
+                           annotations = "AnnotationParams",
+                           outputpath = "character"
                            ),
                           
                           #Constructor
@@ -245,6 +246,11 @@ ProcParams$methods(
                     setMergedProcessing = function(bMerge)
                     {
                       preprocessing$merge <<- bMerge
+                    },
+                    
+                    setOutputPath = function(datapath)
+                    {
+                      outputpath <<- path.expand(datapath)
                     }
                     
                    )

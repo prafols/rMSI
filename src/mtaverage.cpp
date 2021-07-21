@@ -24,14 +24,13 @@ using namespace Rcpp;
 MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB) : 
   ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB)
 {
-  Rcpp::Rcout<<"DBG trap1\n";
   sm = new double*[ioObj->getNumberOfCubes()];
-  Rcpp::Rcout<<"DBG trap2\n";
+  
   for(int i = 0; i < ioObj->getNumberOfCubes() ; i++)
   {
     sm[i] = new double[ioObj->getMassAxisLength()];
   }
-  Rcpp::Rcout<<"DBG trap3\n";
+  
   for (int i = 0; i < ioObj->getNumberOfCubes() ; i++)
   {
     for (int j = 0; j < ioObj->getMassAxisLength() ; j++)
@@ -39,7 +38,7 @@ MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memory
     sm[i][j] = 0;
     }
   }
-  Rcpp::Rcout<<"DBG trap4\n";
+  
 }
 
 MTAverage::~MTAverage()
@@ -100,12 +99,9 @@ NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list,
                                int numOfThreads, 
                                double memoryPerThreadMB)
 {
-  
-  Rcpp::Rcout<<"DBG trap10\n";
   MTAverage myAverage(rMSIObj_list, 
                       numOfThreads, 
                       memoryPerThreadMB);
-  Rcpp::Rcout<<"DBG trap11\n";
-  
+ 
   return myAverage.Run();
 }

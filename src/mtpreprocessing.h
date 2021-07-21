@@ -35,8 +35,12 @@ class MTPreProcessing : public ThreadingMsiProc
     // preProcessingParams: An R reference class with the pre-processing parameters.
     // mass: a numeric vector with the common mass axis
     // reference: a reference spectrum for the alignment
+    // uuid: a string vector with new UUID for the output imzML files
+    // outputImzMLPath: an existing target path to store imzML files with the processed data
+    // imzMLsuffix: a string vector with the file name suffixes for the output imzML files
     MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
-                    Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference);
+                    Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference,
+                    Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames);
     ~MTPreProcessing();
  
     //Exectue a full imatge processing using threaded methods and returns the used shifts in the first iteration
@@ -49,7 +53,7 @@ class MTPreProcessing : public ThreadingMsiProc
     Smoothing **smoothObj;
     LabelFreeAlign **alngObj;
     LabelFreeAlign::TLags *mLags; //A place to store alignment lags
-
+    
     //Thread Processing function definition
     void ProcessingFunction(int threadSlot);
     

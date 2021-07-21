@@ -35,8 +35,8 @@ class CrMSIDataCubeIO
     // Constructor Arguments:
     // - massAxis: The common mass axis for all the data.
     // - cubeMemoryLimitMB: Memory limit for the interpolated spectra in a cube, thus the acutal used memory can be higher due to stored data as-is in the imzML.
-    // - outputImzMLsuffix: suffix for the output imzML filenmaes. Set to "" (empty string) to avoid storing datacubes.
-    CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, std::string outputImzMLsuffix = "");
+    // - storeDataInImzML: set this to true if processed data must be stored in new imzML files.
+    CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, bool storeDataInImzML, Rcpp::String imzMLOutputPath = "");
     ~CrMSIDataCubeIO();
     
     //Struct to define a whole data cube in memory
@@ -51,7 +51,9 @@ class CrMSIDataCubeIO
     
     //Appends an image to be processed.
     // The input argument is the rMSI object describing a complete MSI image.
-    void appedImageData(Rcpp::List rMSIOoj);
+    // - outputImzMLuuid: UUID for the output imzML file. Only used if storeData is set in the constructor.
+    // - outputImzMLsuffix: suffix for the output imzML filenmaes. Only used if storeData is set in the constructor.
+    void appedImageData(Rcpp::List rMSIOoj,  std::string outputImzMLuuid = "", std::string outputImzMLfname = "");
     
     //Loads a data cube specified by iCube into data_ptr
     //WARNING: This is not a thread-safe method, it must be only used on the main thread who'll take care of loading data from HDD and copy it to other thread mem space.
@@ -71,13 +73,28 @@ class CrMSIDataCubeIO
     
     //Return the total number of pixels in each cube
     int getNumberOfPixelsInCube(int iCube);
+    
+    //Return a Data Frame with the imzML offsets of a specified imzMLWriter
+    Rcpp::DataFrame get_OffsetsLengths(unsigned int index);
+    
+    //Return the number of images attached to the data cube object
+    unsigned int get_images_count();
+    
+    //Return the average spectrum for a specified imzMLWriter
+    Rcpp::NumericVector get_AverageSpectrum(unsigned int index);
+    
+    //Return the base spectrum for a specified imzMLWriter
+    Rcpp::NumericVector get_BaseSpectrum(unsigned int index);
 
   private:
-    std::string storeDataSuffix;
     bool storeData; //A bool indcatinc whether processed data must be stored or not. By default it is false and the function setDataOutputPath() must be called to set it to true.
+    std::string dataOutputPath; //A path to save output imzML data
     unsigned int cubeMaxNumRows; //The maximum rows in a datacube calculated from the maximum memory allowed by each cube and the mass axis length.
     Rcpp::NumericVector mass; //A common mass axis for all images to process
-    std::vector<ImzMLBinRead*> imzMLReaders; //Pointers to multiple imzMLReadrs initialized with openIbd = false to avoid exiding the maximum open files.
+    std::vector<ImzMLBinRead*> imzMLReaders;  //Pointers to multiple imzMLReadrs initialized with openIbd = false to avoid exiding the maximum open files.
+    std::vector<ImzMLBinWrite*> imzMLWriters; //Pointers to multiple imzMLWriters initialized with openIbd = false to avoid exiding the maximum open files.
+    std::vector<Rcpp::NumericVector> acumulatedSpectrum; //A vector to contain all the average spectra (there is one for each imzMLWriter)
+    std::vector<Rcpp::NumericVector> baseSpectrum; //A vector to contain all the base spectra (there is one for each imzMLWriter)  
     
     //Struct to internally handle data cube accessors
     typedef struct

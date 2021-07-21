@@ -39,6 +39,13 @@ ProcessImages <- function(proc_params,
 {
   pt <- Sys.time()
   
+  #Check if data output path is set and create it
+  if(length(proc_params$outputpath) == 0)
+  {
+    stop("ERROR: Output data path is empty. Use the setOutputPath() method to set it for the processing parameters object.\n")
+  }
+  dir.create(proc_params$outputpath, showWarnings = F, recursive = T)
+  
   # Load the data (only imzML parsing)
   img_lst <- list()
   for( i in 1:data_description$getNumberOfImages())
@@ -101,7 +108,7 @@ ProcessImages <- function(proc_params,
     }
     
     #Calculate the internal reference for alignment
-    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB) #TODO  it is crashing here!
+    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB)
     
   }
 
@@ -118,14 +125,71 @@ ProcessImages <- function(proc_params,
     refSpc <- rep(0.0, length(img_lst[[1]]$mass)) #I need to supply a reference spectrum even if alignment is not enables, so just feed it with zeros
   }
   
-  #TODO run the preprocssing!
-  procData <- RunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
+  #Run the preprocessing
+  procData <- RunPreProcessing( img_lst, proc_params$outputpath, numOfThreads, memoryPerThreadMB, 
                                 proc_params$preprocessing, refSpc)
   
-  #TODO return the processed data instead of the average!
-  return(AverageSpectrum)
   
-  
-  #return(img_lst)
+  return(procData) #TODO think about returning alignment lags here. Currently, im returning it but this may be confusing for the end user
 }
 
+#Internal method for preprocessing
+RunPreProcessing <- function(img_lst, output_data_path, numOfThreads, memoryPerThreadMB, preproc_params, reference_spectrum)
+{
+  #Calc new UUID's'
+  uuids_new <- c()
+  out_imzML_fnames <- c()
+  for( i in 1:length(img_lst))
+  {
+    uuids_new <- c(uuids_new, uuid_timebased())
+    out_imzML_fnames <- c(out_imzML_fnames, paste0(img_lst[[i]]$name, "-proc"))
+  }
+  
+  result <-  CRunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
+                                preproc_params, reference_spectrum, 
+                                uuids_new, output_data_path, out_imzML_fnames)
+  
+  #Set the preprocessed data using resulting offsets and original data info
+  img_lst_proc <- list()
+  for( i in 1:length(img_lst))
+  {
+    img_lst_proc[[i]] <- img_lst[[i]] #copy the original data
+    img_lst_proc[[i]]$name <- paste0(img_lst_proc[[i]]$name, "-proc")
+    img_lst_proc[[i]]$mean <-  result$AverageSpectra[[i]]
+    img_lst_proc[[i]]$base <-  result$BaseSpectra[[i]]
+    img_lst_proc[[i]]$data$path <- output_data_path
+    img_lst_proc[[i]]$data$rMSIXBin$uuid <- uuid_timebased()
+    img_lst_proc[[i]]$data$rMSIXBin$file <- img_lst_proc[[i]]$name 
+    img_lst_proc[[i]]$data$imzML$uuid <- uuids_new[i]
+    img_lst_proc[[i]]$data$imzML$file <- out_imzML_fnames[i]
+    img_lst_proc[[i]]$data$imzML$SHA <- NULL #Remove posible SHA checksum since it must be recalculated
+    img_lst_proc[[i]]$data$imzML$MD5 <- NULL #Remove posible MD5 checksum since it must be recalculated
+    img_lst_proc[[i]]$data$imzML$run[, -c(1,2)] <- result$Offsets[[i]] 
+    
+    cat(paste0("Calculating MD5 checksum for image ", img_lst_proc[[i]]$name, "...\n"))
+    img_lst_proc[[i]]$data$imzML$MD5 <- toupper(digest::digest( file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".ibd")),
+                                                                algo = "md5",
+                                                                file = T))
+
+    #Store the xml part
+    cat(paste0("Writing the .imzML file for image ", img_lst_proc[[i]]$name, "...\n"))
+    if(!CimzMLStore( path.expand(file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".imzML"))), 
+                     list( UUID = img_lst_proc[[i]]$data$imzML$uuid,
+                           continuous_mode = img_lst_proc[[i]]$data$imzML$continuous_mode,
+                           compression_mz = F,
+                           compression_int = F,
+                           MD5 = img_lst_proc[[i]]$data$imzML$MD5,
+                           SHA = "",
+                           mz_dataType = img_lst_proc[[i]]$data$imzML$mz_dataType,
+                           int_dataType = img_lst_proc[[i]]$data$imzML$int_dataType,
+                           pixel_size_um = img_lst_proc[[i]]$pixel_size_um,
+                           run_data = img_lst_proc[[i]]$data$imzML$run
+                           )))
+    {
+      stop(paste0("ERROR: imzML exported for image ", img_lst_proc[[i]]$name, " failed. Aborting...\n" ))
+    }
+  }
+  
+  cat("\nPre-processing completed\n")
+  return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh ))
+}

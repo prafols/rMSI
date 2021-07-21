@@ -18,19 +18,48 @@
 
 #include "threadingmsiproc.h" 
 #include "progressbar.h"
+#include <stdexcept>
 
-ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB):
-  bProcDataExport(false)
+ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, 
+                                   bool storeDataInimzml, Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames):
+  bProcDataExport(storeDataInimzml)
 {
+  if(bProcDataExport)
+  {
+    if(uuid.size() != rMSIObj_list.length())
+    {
+      throw std::runtime_error("Error: uuid vector must have the same length as rMSIObj_list\n");
+    }
+    
+    if(outputImzMLPath == "")
+    {
+      throw std::runtime_error("Error: outputImzMLPath is empty\n");
+    }
+      
+    if(outputImzMLfnames.size() != rMSIObj_list.length())
+    {
+      throw std::runtime_error("Error: outputImzMLfname vector must have the same length as rMSIObj_list\n");
+    }
+  }
+  
   //Obtain the mass axis from the first image.
   massAxis = Rcpp::as<Rcpp::NumericVector>((Rcpp::as<Rcpp::List>(rMSIObj_list[0]))["mass"]);
   numOfThreadsDouble = 2*numberOfThreads;
-  ioObj = new CrMSIDataCubeIO( massAxis, memoryPerThreadMB);
+  ioObj = new CrMSIDataCubeIO( massAxis, memoryPerThreadMB, bProcDataExport, outputImzMLPath);
   
   //Call the append method for each image in the list
   for(int i = 0; i < rMSIObj_list.length(); i++)
   {
-    ioObj->appedImageData(rMSIObj_list[i]);
+    if(bProcDataExport)
+    {
+      Rcpp::String RcppStr_uuid = uuid[i];
+      Rcpp::String RcppStr_outImzmls = outputImzMLfnames[i];
+      ioObj->appedImageData(rMSIObj_list[i], RcppStr_uuid.get_cstring(), RcppStr_outImzmls.get_cstring());
+    }
+    else
+    {
+      ioObj->appedImageData(rMSIObj_list[i]); 
+    }
   }
   
   cubes = new CrMSIDataCubeIO::DataCube*[numOfThreadsDouble];

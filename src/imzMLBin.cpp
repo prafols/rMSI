@@ -234,6 +234,11 @@ unsigned int ImzMLBin::get_intEncodingBytes()
   return intDataPointBytes;
 }
 
+unsigned int ImzMLBin::get_number_of_pixels()
+{
+  return Npixels;  
+}
+
 void ImzMLBin::close()
 {
 #ifdef __DEBUG__
@@ -492,7 +497,7 @@ ImzMLBinWrite::~ImzMLBinWrite()
   //Empty desctructor
 }
 
-void ImzMLBinWrite::open()
+void ImzMLBinWrite::open(bool truncate)
 {
   if(fileMode == Mode::ModifyFile)
   {
@@ -503,8 +508,16 @@ void ImzMLBinWrite::open()
   }
   else
   {
-    //Open for serial writing, any content of the ibd file will be removed
-    ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary | std::fstream::trunc);
+    if(truncate)
+    {
+      //Open for serial writing, any content of the ibd file will be removed
+      ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary | std::fstream::trunc);
+    }
+    else
+    {
+      //Open for serial writing, append data to the end
+      ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary | std::fstream::app);
+    }
   }
   
   if(!ibdFile.is_open())
@@ -530,6 +543,17 @@ void ImzMLBinWrite::writeUUID(const char* uuid)
   {
     throw std::runtime_error("FATAL ERROR: ImzMLBinWrite got fail or bad bit condition writing the imzML ibd file.\n"); 
   }
+}
+
+void ImzMLBinWrite::writeUUID(std::string suuid)
+{
+  //Convert UUID in string format to byte array
+  char uuid[16];
+  for( int i = 0; i < 16; i++)
+  {
+    uuid[i] = strtol(suuid.substr(i*2, 2).c_str(), NULL, 16);
+  }
+  writeUUID(uuid);
 }
 
 void ImzMLBinWrite::writeMzData(unsigned long offset, unsigned int N, double* ptr )
@@ -704,15 +728,7 @@ Rcpp::DataFrame testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::Strin
     double *ptr_data = new double[mzArray.ncol()];
     
     ImzMLBinWrite myWriter(ibdFname, intArray.nrow(), mz_dataTypeString, int_dataTypeString, mzArray.nrow()==1, true);
-    
-    //Convert UUID in string format to byte array
-    char uuid[16];
-    std::string suuid = str_uuid.get_cstring();
-    for( int i = 0; i < 16; i++)
-    {
-       uuid[i] = strtol(suuid.substr(i*2, 2).c_str(), NULL, 16);
-    }
-    myWriter.writeUUID(uuid);
+    myWriter.writeUUID(str_uuid.get_cstring());
     
     for(int i = 0; i < intArray.nrow(); i++)
     {
