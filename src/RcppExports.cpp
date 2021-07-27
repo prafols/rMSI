@@ -16,6 +16,43 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// C_fuzzyCmeansROIs
+Rcpp::List C_fuzzyCmeansROIs(NumericMatrix peakMatrix, NumericVector ROIs, int numPeaks, int numPixels, int numClusters, int m, int maxIterations, double epsilon, bool verbose);
+RcppExport SEXP _rMSI_C_fuzzyCmeansROIs(SEXP peakMatrixSEXP, SEXP ROIsSEXP, SEXP numPeaksSEXP, SEXP numPixelsSEXP, SEXP numClustersSEXP, SEXP mSEXP, SEXP maxIterationsSEXP, SEXP epsilonSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type peakMatrix(peakMatrixSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type ROIs(ROIsSEXP);
+    Rcpp::traits::input_parameter< int >::type numPeaks(numPeaksSEXP);
+    Rcpp::traits::input_parameter< int >::type numPixels(numPixelsSEXP);
+    Rcpp::traits::input_parameter< int >::type numClusters(numClustersSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< int >::type maxIterations(maxIterationsSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(C_fuzzyCmeansROIs(peakMatrix, ROIs, numPeaks, numPixels, numClusters, m, maxIterations, epsilon, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
+// C_fuzzyCmeansRandom
+Rcpp::List C_fuzzyCmeansRandom(NumericMatrix peakMatrix, int numPeaks, int numPixels, int numClusters, int m, int maxIterations, double epsilon, bool verbose);
+RcppExport SEXP _rMSI_C_fuzzyCmeansRandom(SEXP peakMatrixSEXP, SEXP numPeaksSEXP, SEXP numPixelsSEXP, SEXP numClustersSEXP, SEXP mSEXP, SEXP maxIterationsSEXP, SEXP epsilonSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type peakMatrix(peakMatrixSEXP);
+    Rcpp::traits::input_parameter< int >::type numPeaks(numPeaksSEXP);
+    Rcpp::traits::input_parameter< int >::type numPixels(numPixelsSEXP);
+    Rcpp::traits::input_parameter< int >::type numClusters(numClustersSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< int >::type maxIterations(maxIterationsSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(C_fuzzyCmeansRandom(peakMatrix, numPeaks, numPixels, numClusters, m, maxIterations, epsilon, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 // CimzMLParse
 List CimzMLParse(String xml_path);
 RcppExport SEXP _rMSI_CimzMLParse(SEXP xml_pathSEXP) {
@@ -83,6 +120,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CparseBrukerXML", (DL_FUNC) &_rMSI_CparseBrukerXML, 1},
+    {"_rMSI_C_fuzzyCmeansROIs", (DL_FUNC) &_rMSI_C_fuzzyCmeansROIs, 9},
+    {"_rMSI_C_fuzzyCmeansRandom", (DL_FUNC) &_rMSI_C_fuzzyCmeansRandom, 8},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
     {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
     {"_rMSI_CalcMassAxisBinSize", (DL_FUNC) &_rMSI_CalcMassAxisBinSize, 2},

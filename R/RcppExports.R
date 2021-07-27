@@ -15,6 +15,14 @@ CparseBrukerXML <- function(xml_path) {
     .Call('_rMSI_CparseBrukerXML', PACKAGE = 'rMSI', xml_path)
 }
 
+C_fuzzyCmeansROIs <- function(peakMatrix, ROIs, numPeaks, numPixels, numClusters, m, maxIterations, epsilon, verbose) {
+    .Call('_rMSI_C_fuzzyCmeansROIs', PACKAGE = 'rMSI', peakMatrix, ROIs, numPeaks, numPixels, numClusters, m, maxIterations, epsilon, verbose)
+}
+
+C_fuzzyCmeansRandom <- function(peakMatrix, numPeaks, numPixels, numClusters, m, maxIterations, epsilon, verbose) {
+    .Call('_rMSI_C_fuzzyCmeansRandom', PACKAGE = 'rMSI', peakMatrix, numPeaks, numPixels, numClusters, m, maxIterations, epsilon, verbose)
+}
+
 CimzMLParse <- function(xml_path) {
     .Call('_rMSI_CimzMLParse', PACKAGE = 'rMSI', xml_path)
 }
