@@ -228,6 +228,7 @@ void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr)
     if(imzMLWriters[current_imzML_id]->get_continuous())
     {
       //Continuous mode write
+      imzMLWriters[current_imzML_id]->writeMzData(mass.length(), mass.begin()); //The mass axis will be writtem only once
       imzMLWriters[current_imzML_id]->writeIntData(mass.length(), data_ptr->dataInterpolated[i]);
     }
     else
@@ -274,6 +275,32 @@ Rcpp::DataFrame CrMSIDataCubeIO::get_OffsetsLengths(unsigned int index)
 unsigned int CrMSIDataCubeIO::get_images_count()
 {
  return imzMLReaders.size();
+}
+
+int CrMSIDataCubeIO::getImageIndex(int iCube, int cubeRow)
+{
+  if(iCube >= dataCubesDesc.size())
+  {
+    throw std::runtime_error("Error: DataCube index out of range\n");
+  }
+  if( cubeRow >= dataCubesDesc[iCube].size())
+  {
+    throw std::runtime_error("Error: DataCube row out of range\n");
+  }
+  return dataCubesDesc[iCube][cubeRow].imzML_ID;
+}
+
+int CrMSIDataCubeIO::getPixelId(int iCube, int cubeRow)
+{
+  if(iCube >= dataCubesDesc.size())
+  {
+    throw std::runtime_error("Error: DataCube index out of range\n");
+  }
+  if( cubeRow >= dataCubesDesc[iCube].size())
+  {
+    throw std::runtime_error("Error: DataCube row out of range\n");
+  }
+  return dataCubesDesc[iCube][cubeRow].pixel_ID;
 }
 
 Rcpp::NumericVector CrMSIDataCubeIO::get_AverageSpectrum(unsigned int index)

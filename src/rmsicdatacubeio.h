@@ -74,6 +74,12 @@ class CrMSIDataCubeIO
     //Return the total number of pixels in each cube
     int getNumberOfPixelsInCube(int iCube);
     
+    //Return the image index (imzMLreader/writer for a given pixels specified as cube id and pixel row)
+    int getImageIndex(int iCube, int cubeRow);
+    
+    //Return the pixel id in an image (imzMLreader/writer for a given pixels specified as cube id and pixel row)
+    int getPixelId(int iCube, int cubeRow);
+    
     //Return a Data Frame with the imzML offsets of a specified imzMLWriter
     Rcpp::DataFrame get_OffsetsLengths(unsigned int index);
     

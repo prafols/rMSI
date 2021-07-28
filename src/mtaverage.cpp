@@ -21,14 +21,18 @@
 #include "mtaverage.h"
 using namespace Rcpp;
 
-MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB)
+MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, double minTIC, double maxTIC) : 
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB),
+  TICmin(minTIC), 
+  TICmax(maxTIC)
 {
   sm = new double*[ioObj->getNumberOfCubes()];
+  validPixelCount = new unsigned int[ioObj->getNumberOfCubes()];  
   
   for(int i = 0; i < ioObj->getNumberOfCubes() ; i++)
   {
     sm[i] = new double[ioObj->getMassAxisLength()];
+    validPixelCount[i] = 0;
   }
   
   for (int i = 0; i < ioObj->getNumberOfCubes() ; i++)
@@ -37,6 +41,12 @@ MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memory
     {
     sm[i][j] = 0;
     }
+  }
+  
+  //Get normalizations
+  for(int i = 0; i < rMSIObj_list.size(); i++)
+  {
+    lNormalizations.push_back(Rcpp::as<Rcpp::DataFrame>((Rcpp::as<Rcpp::List>(rMSIObj_list[i]))["normalizations"]));
   }
   
 }
@@ -49,6 +59,7 @@ MTAverage::~MTAverage()
   }
   
   delete[] sm;
+  delete[] validPixelCount;
 }
 
 NumericVector MTAverage::Run()
@@ -64,17 +75,25 @@ NumericVector MTAverage::Run()
   runMSIProcessingCpp();
   
   //Merging all the cube's partial average spectrum and getting the total average spectrum
+  unsigned int CubeCount = 0;
   for (int i = 0; i < ioObj->getNumberOfCubes(); i++)
   {
-    for (int j = 0; j < ioObj->getMassAxisLength(); j++)
+    if(validPixelCount[i] > 0)
     {
-      avg[j] += sm[i][j];
+      for (int j = 0; j < ioObj->getMassAxisLength(); j++)
+      {
+        avg[j] += sm[i][j];
+      }
+      CubeCount++;
     }
   }
   
-  for (int j = 0; j < ioObj->getMassAxisLength(); j++)
+  if(CubeCount > 0)
   {
-    avg[j] /= numPixels;    //Dividir per el nombre total de pixels.
+    for (int j = 0; j < ioObj->getMassAxisLength(); j++)
+    {
+      avg[j] /= (double)CubeCount;
+    }
   }
   
   return avg;
@@ -86,9 +105,26 @@ void MTAverage::ProcessingFunction(int threadSlot)
   //Perform the average value of each mass channel in the current loaded cube
   for (int j = 0; j < cubes[threadSlot]->nrows; j++)
   {
+    int imageIndex = ioObj->getImageIndex(cubes[threadSlot]->cubeID, j);
+    int pixelIndex = ioObj->getPixelId(cubes[threadSlot]->cubeID, j);
+    double TICval = (Rcpp::as<Rcpp::NumericVector>((Rcpp::as<Rcpp::DataFrame>(lNormalizations[imageIndex])["TIC"])))[pixelIndex];
+    
+    if(TICval >= TICmin && TICval <= TICmax)
+    {
+      for (int k= 0; k < cubes[threadSlot]->ncols; k++)
+      {
+        sm[cubes[threadSlot]->cubeID][k] += (cubes[threadSlot]->dataInterpolated[j][k])/TICval; //Average with TIC Normalization
+        validPixelCount[cubes[threadSlot]->cubeID]++;
+      }
+    }
+  }
+  
+  //Partial average
+  if(validPixelCount[cubes[threadSlot]->cubeID] > 0)
+  {
     for (int k= 0; k < cubes[threadSlot]->ncols; k++)
     {
-       sm[cubes[threadSlot]->cubeID][k] += cubes[threadSlot]->dataInterpolated[j][k];
+      sm[cubes[threadSlot]->cubeID][k] /= (double)(validPixelCount[cubes[threadSlot]->cubeID]);
     }
   }
 }
@@ -97,11 +133,14 @@ void MTAverage::ProcessingFunction(int threadSlot)
 // [[Rcpp::export]]
 NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list, 
                                int numOfThreads, 
-                               double memoryPerThreadMB)
+                               double memoryPerThreadMB,
+                               double minTIC, double maxTic)
 {
   MTAverage myAverage(rMSIObj_list, 
                       numOfThreads, 
-                      memoryPerThreadMB);
+                      memoryPerThreadMB, 
+                      minTIC,
+                      maxTic);
  
   return myAverage.Run();
 }

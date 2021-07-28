@@ -177,7 +177,6 @@ import_imzML <- function(imzML_File, ibd_File =  paste(sub("\\.[^.]*$", "", imzM
       {
         pb<-txtProgressBar(min = 0, max = 100, style = 3 )
         fun_progress <- setPbarValue
-        cat("\n")
       }
       else
       {

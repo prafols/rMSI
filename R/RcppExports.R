@@ -100,12 +100,68 @@ MergeMassAxisAutoBinSize <- function(mz1, mz2) {
     .Call('_rMSI_MergeMassAxisAutoBinSize', PACKAGE = 'rMSI', mz1, mz2)
 }
 
-COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB) {
-    .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB)
+COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, minTIC, maxTic) {
+    .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, minTIC, maxTic)
+}
+
+CNormalizations <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB) {
+    .Call('_rMSI_CNormalizations', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB)
 }
 
 CRunPreProcessing <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames) {
     .Call('_rMSI_CRunPreProcessing', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames)
+}
+
+#' NoiseEstimationFFTCosWin.
+#' 
+#' Estimate the noise of a spectrum using a FFT filter and a cosinus window in frequency domain.
+#' 
+#' @param x an Rcpp::NumericVector containing the spectrum intensities.
+#' @param filWinSize an integer specified the cosinus win size in samples.
+#' 
+#' @return an Rcpp::NumericVector containing the estimated noise.
+#' @export
+NoiseEstimationFFTCosWin <- function(x, filWinSize = 40L) {
+    .Call('_rMSI_NoiseEstimationFFTCosWin', PACKAGE = 'rMSI', x, filWinSize)
+}
+
+#' NoiseEstimationFFTExpWin.
+#' 
+#' Estimate the noise of a spectrum using a FFT filter and a decay exponential window in frequency domain.
+#' 
+#' @param x an Rcpp::NumericVector containing the spectrum intensities.
+#' @param filWinSize an integer specified the cosinus win size in samples.
+#' 
+#' @return an Rcpp::NumericVector containing the estimated noise.
+#' @export
+NoiseEstimationFFTExpWin <- function(x, filWinSize = 40L) {
+    .Call('_rMSI_NoiseEstimationFFTExpWin', PACKAGE = 'rMSI', x, filWinSize)
+}
+
+#' NoiseEstimationFFTCosWinMat.
+#' 
+#' Estimate the noise of some spectra using a FFT filter and a cosinus window in frequency domain.
+#' 
+#' @param x an Rcpp::NumericMatrix containing the spectra intensities. Each spectrum in a row.
+#' @param filWinSize an integer specified the cosinus win size in samples.
+#' 
+#' @return an Rcpp::NumericMatrix containing the estimated noise in a matrix where each spectrum is a row.
+#' @export
+NoiseEstimationFFTCosWinMat <- function(x, filWinSize = 40L) {
+    .Call('_rMSI_NoiseEstimationFFTCosWinMat', PACKAGE = 'rMSI', x, filWinSize)
+}
+
+#' NoiseEstimationFFTExpWinMat.
+#' 
+#' Estimate the noise of some spectra using a FFT filter and a decay exponential window in frequency domain.
+#' 
+#' @param x an Rcpp::NumericMatrix containing the spectra intensities. Each spectrum in a row.
+#' @param filWinSize an integer specified the cosinus win size in samples.
+#' 
+#' @return an Rcpp::NumericMatrix containing the estimated noise in a matrix where each spectrum is a row.
+#' @export
+NoiseEstimationFFTExpWinMat <- function(x, filWinSize = 40L) {
+    .Call('_rMSI_NoiseEstimationFFTExpWinMat', PACKAGE = 'rMSI', x, filWinSize)
 }
 
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {

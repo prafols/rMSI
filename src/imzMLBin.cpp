@@ -578,12 +578,38 @@ void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
   {
     throw std::runtime_error("ERROR: trying to write more spectral data than the maximum number of pixels set in the constructor");
   }
-  lmzOffset[sequentialWriteIndex_MzData] = ibdFile.tellp();
-  imzLength[sequentialWriteIndex_MzData] = N;
-  sequentialWriteIndex_MzData++;
   
-  //Write data
-  writeDataCommon(N, ptr, mzDataPointBytes, mzDataType);
+  //In continuos mode the offset and length for the mass axis is the first, so just replicate it
+  if(bContinuous)
+  {
+    if(sequentialWriteIndex_MzData == 0)
+    {
+      //First mass axis write in continuous mode, so write it to hdd
+      //In processed mode, just write and update indices
+      lmzOffset[sequentialWriteIndex_MzData] = ibdFile.tellp();
+      imzLength[sequentialWriteIndex_MzData] = N;
+      
+      //Write data
+      writeDataCommon(N, ptr, mzDataPointBytes, mzDataType);
+    }
+    else
+    {
+      //Just update indices
+      lmzOffset[sequentialWriteIndex_MzData] = lmzOffset[0];
+      imzLength[sequentialWriteIndex_MzData] = imzLength[0];
+    }
+  }
+  else
+  {
+    //In processed mode, just write and update indices
+    lmzOffset[sequentialWriteIndex_MzData] = ibdFile.tellp();
+    imzLength[sequentialWriteIndex_MzData] = N;
+  
+    //Write data
+    writeDataCommon(N, ptr, mzDataPointBytes, mzDataType);
+  }
+  
+  sequentialWriteIndex_MzData++;
 }
 
 void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* ptr )
@@ -611,14 +637,6 @@ void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
   lintOffset[sequentialWriteIndex_IntData] = ibdFile.tellp();
   iintLength[sequentialWriteIndex_IntData] = N;
   sequentialWriteIndex_IntData++;
-  
-  //In continuos mode the offset and length for the mass axis is the first, so just replicate it
-  if(bContinuous && sequentialWriteIndex_MzData > 0)
-  {
-    lmzOffset[sequentialWriteIndex_MzData] = lmzOffset[0];
-    imzLength[sequentialWriteIndex_MzData] = imzLength[0];
-    sequentialWriteIndex_MzData++;
-  }
   
   //Write data
   writeDataCommon(N, ptr, intDataPointBytes, intDataType);

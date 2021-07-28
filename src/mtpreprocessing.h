@@ -23,6 +23,7 @@
 #include "smoothing.h"
 #include "labelfreealign.h"
 #include "threadingmsiproc.h"
+#include "noiseestimation.h"
 
 class MTPreProcessing : public ThreadingMsiProc 
 {
@@ -37,14 +38,19 @@ class MTPreProcessing : public ThreadingMsiProc
     // reference: a reference spectrum for the alignment
     // uuid: a string vector with new UUID for the output imzML files
     // outputImzMLPath: an existing target path to store imzML files with the processed data
-    // imzMLsuffix: a string vector with the file name suffixes for the output imzML files
+    // outputImzMLfnames: a string vector with the file names for the output imzML files
+    // bitDepthReductionNoiseWindows: The noise estimation windows used by the bitdepth reduction
     MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
                     Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference,
-                    Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames);
+                    Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames, 
+                    int bitDepthReductionNoiseWindows = 16);
     ~MTPreProcessing();
  
     //Exectue a full imatge processing using threaded methods and returns the used shifts in the first iteration
     Rcpp::List Run(); 
+    
+    //Single spectrum bit depth reduction
+    void BitDepthReduction(double *data, int dataLength, int noiseModelThreadSlot);
 
   private:
     bool bEnableSmoothing; //Set to true if smoothing must be performed
@@ -53,6 +59,11 @@ class MTPreProcessing : public ThreadingMsiProc
     Smoothing **smoothObj;
     LabelFreeAlign **alngObj;
     LabelFreeAlign::TLags *mLags; //A place to store alignment lags
+    
+    //Bit depth reduction data
+    NoiseEstimation **noiseModel;
+    int NoiseWinSize;
+    unsigned long long maskLUT_double[52];
     
     //Thread Processing function definition
     void ProcessingFunction(int threadSlot);

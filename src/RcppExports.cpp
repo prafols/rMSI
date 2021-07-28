@@ -5,6 +5,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // CparseBrukerXML
 List CparseBrukerXML(String xml_path);
 RcppExport SEXP _rMSI_CparseBrukerXML(SEXP xml_pathSEXP) {
@@ -134,15 +139,30 @@ BEGIN_RCPP
 END_RCPP
 }
 // COverallAverageSpectrum
-NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB);
-RcppExport SEXP _rMSI_COverallAverageSpectrum(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP) {
+NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, double minTIC, double maxTic);
+RcppExport SEXP _rMSI_COverallAverageSpectrum(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP minTICSEXP, SEXP maxTicSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type rMSIObj_list(rMSIObj_listSEXP);
     Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
     Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
-    rcpp_result_gen = Rcpp::wrap(COverallAverageSpectrum(rMSIObj_list, numOfThreads, memoryPerThreadMB));
+    Rcpp::traits::input_parameter< double >::type minTIC(minTICSEXP);
+    Rcpp::traits::input_parameter< double >::type maxTic(maxTicSEXP);
+    rcpp_result_gen = Rcpp::wrap(COverallAverageSpectrum(rMSIObj_list, numOfThreads, memoryPerThreadMB, minTIC, maxTic));
+    return rcpp_result_gen;
+END_RCPP
+}
+// CNormalizations
+List CNormalizations(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB);
+RcppExport SEXP _rMSI_CNormalizations(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIObj_list(rMSIObj_listSEXP);
+    Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
+    Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
+    rcpp_result_gen = Rcpp::wrap(CNormalizations(rMSIObj_list, numOfThreads, memoryPerThreadMB));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -161,6 +181,54 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::String >::type outputDataPath(outputDataPathSEXP);
     Rcpp::traits::input_parameter< Rcpp::StringVector >::type imzMLoutFnames(imzMLoutFnamesSEXP);
     rcpp_result_gen = Rcpp::wrap(CRunPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames));
+    return rcpp_result_gen;
+END_RCPP
+}
+// NoiseEstimationFFTCosWin
+NumericVector NoiseEstimationFFTCosWin(NumericVector x, int filWinSize);
+RcppExport SEXP _rMSI_NoiseEstimationFFTCosWin(SEXP xSEXP, SEXP filWinSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type filWinSize(filWinSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(NoiseEstimationFFTCosWin(x, filWinSize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// NoiseEstimationFFTExpWin
+NumericVector NoiseEstimationFFTExpWin(NumericVector x, int filWinSize);
+RcppExport SEXP _rMSI_NoiseEstimationFFTExpWin(SEXP xSEXP, SEXP filWinSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type filWinSize(filWinSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(NoiseEstimationFFTExpWin(x, filWinSize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// NoiseEstimationFFTCosWinMat
+NumericMatrix NoiseEstimationFFTCosWinMat(NumericMatrix x, int filWinSize);
+RcppExport SEXP _rMSI_NoiseEstimationFFTCosWinMat(SEXP xSEXP, SEXP filWinSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type filWinSize(filWinSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(NoiseEstimationFFTCosWinMat(x, filWinSize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// NoiseEstimationFFTExpWinMat
+NumericMatrix NoiseEstimationFFTExpWinMat(NumericMatrix x, int filWinSize);
+RcppExport SEXP _rMSI_NoiseEstimationFFTExpWinMat(SEXP xSEXP, SEXP filWinSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type filWinSize(filWinSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(NoiseEstimationFFTExpWinMat(x, filWinSize));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -253,8 +321,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CalcMassAxisBinSize", (DL_FUNC) &_rMSI_CalcMassAxisBinSize, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_MergeMassAxisAutoBinSize", (DL_FUNC) &_rMSI_MergeMassAxisAutoBinSize, 2},
-    {"_rMSI_COverallAverageSpectrum", (DL_FUNC) &_rMSI_COverallAverageSpectrum, 3},
+    {"_rMSI_COverallAverageSpectrum", (DL_FUNC) &_rMSI_COverallAverageSpectrum, 5},
+    {"_rMSI_CNormalizations", (DL_FUNC) &_rMSI_CNormalizations, 3},
     {"_rMSI_CRunPreProcessing", (DL_FUNC) &_rMSI_CRunPreProcessing, 8},
+    {"_rMSI_NoiseEstimationFFTCosWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTCosWin, 2},
+    {"_rMSI_NoiseEstimationFFTExpWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWin, 2},
+    {"_rMSI_NoiseEstimationFFTCosWinMat", (DL_FUNC) &_rMSI_NoiseEstimationFFTCosWinMat, 2},
+    {"_rMSI_NoiseEstimationFFTExpWinMat", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWinMat, 2},
     {"_rMSI_ReduceDataPointsC", (DL_FUNC) &_rMSI_ReduceDataPointsC, 5},
     {"_rMSI_Ccreate_rMSIXBinData", (DL_FUNC) &_rMSI_Ccreate_rMSIXBinData, 2},
     {"_rMSI_Cload_rMSIXBinData", (DL_FUNC) &_rMSI_Cload_rMSIXBinData, 2},

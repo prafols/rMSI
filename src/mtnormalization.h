@@ -16,12 +16,12 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  **************************************************************************/
 
-#ifndef MT_AVERAGE_H
-  #define MT_AVERAGE_H
+#ifndef MT_NORMALIZATION_H
+  #define MT_NORMALIZATION_H
 #include <Rcpp.h>
 #include "threadingmsiproc.h"
 
-class MTAverage : public ThreadingMsiProc 
+class MTNormalization : public ThreadingMsiProc 
 {
   public:
 
@@ -29,19 +29,14 @@ class MTAverage : public ThreadingMsiProc
     // rMSIObj_list: A list of rMSI objects to process
     // numberOfThreads: Total number of threads to use during processing
     // memoryPerThreadMB: Maximum memory allocated by each thread in MB. The total allocated memory will be: 2*numberOfThreads*memoryPerThreadMB
-    // minTIC and maxTIC: spectra with a TIC value outside this range will not be used for average calculation
-    MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, double minTIC, double maxTIC);
-    ~MTAverage();
+    MTNormalization(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB);
+    ~MTNormalization();
     
     //Execute a full imatge processing using threaded methods
-    Rcpp::NumericVector Run();
+    Rcpp::List Run();
     
   private:
-    double **sm;  //A matrix containing the partial average spectrum of the datacubes
-    unsigned int *validPixelCount; //Count the number of pixels thats meat the TIC condition in each datacube
-    double TICmin, TICmax;
-    Rcpp::List lNormalizations;
-    
+    Rcpp::List lstNorms; //List with multiple normalization data frames
     
     //Thread Processing function definition
     void ProcessingFunction(int threadSlot);

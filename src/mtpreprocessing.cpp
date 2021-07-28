@@ -23,8 +23,10 @@ using namespace Rcpp;
 
 MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
                                  Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference,
-                                 Rcpp::StringVector uuid,  Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, true, uuid, outputImzMLPath, outputImzMLfnames)
+                                 Rcpp::StringVector uuid,  Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames, 
+                                 int bitDepthReductionNoiseWindows) : 
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, true, uuid, outputImzMLPath, outputImzMLfnames), 
+  NoiseWinSize(bitDepthReductionNoiseWindows)
 {
   //TODO add baseline params here!
   
@@ -47,6 +49,7 @@ MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, d
   
   smoothObj = new Smoothing*[numOfThreadsDouble];
   alngObj = new LabelFreeAlign*[numOfThreadsDouble];
+  noiseModel = new NoiseEstimation*[numOfThreadsDouble];
   for(int i = 0; i < numOfThreadsDouble; i++)
   {
     smoothObj[i] = new Smoothing(smoothinKernelSize);
@@ -54,9 +57,18 @@ MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, d
     alngObj[i] = new LabelFreeAlign(massAxis.begin(), reference.begin(), massAxis.length(), bilinear, 
                                     alignIterations, lagRefLow, lagRefMid, lagRefHigh,
                                     maxShiftppm,  fftOverSampling, winSizeRelative);
+    
+    noiseModel[i] = new NoiseEstimation(massAxis.length()); //Used by the bitdepth reduction
   }
 
   mLags  =  new LabelFreeAlign::TLags[numPixels]; 
+  
+  //Fill the bit depth reduction LUT with all possible resolutions from 1 to 52 bits
+  maskLUT_double[0] = 0xFFF8000000000000;
+  for( int i = 1; i < 52; i++)
+  {
+    maskLUT_double[i] = (maskLUT_double[i-1] >> 1) | 0x8000000000000000; 
+  }
 }
 
 MTPreProcessing::~MTPreProcessing()
@@ -65,9 +77,11 @@ MTPreProcessing::~MTPreProcessing()
   {
     delete smoothObj[i];
     delete alngObj[i];
+    delete noiseModel[i];
   }
   delete[] smoothObj;
   delete[] alngObj;
+  delete[] noiseModel;
   delete[] mLags;
 }
 
@@ -135,11 +149,58 @@ void MTPreProcessing::ProcessingFunction(int threadSlot)
                                                                                               );
     }
     
-   //TODO add the average accumulation! don't do it here its a mess!
-
    
-    //TODO add the bitdepth reduction!
+    if(bEnableSmoothing || bEnableAlignment)
+    {
+      if(cubes[threadSlot]->dataOriginal[j].imzMLmass.size() == 0)
+      {
+        //Continuous mode
+        BitDepthReduction(cubes[threadSlot]->dataInterpolated[j], cubes[threadSlot]->ncols, threadSlot);
+      }
+      else
+      {
+        //Processed mode
+        if(cubes[threadSlot]->dataOriginal[j].imzMLintensity.size() <= cubes[threadSlot]->ncols)
+        {
+          BitDepthReduction(cubes[threadSlot]->dataOriginal[j].imzMLintensity.data(), cubes[threadSlot]->dataOriginal[j].imzMLintensity.size(), threadSlot);
+        }
+      }
+    }
+   
   }
+}
+
+#define MIN_MANTISSA_BITS 4
+#define NOISE_THRESHOLD_LOWER 0.5
+#define NOISE_THRESHOLD_UPPER 10.0
+
+void MTPreProcessing::BitDepthReduction(double *data, int dataLength, int noiseModelThreadSlot)
+{
+  int resolution_bits;
+  double *noise_floor = new double[dataLength];
+  memcpy(noise_floor, data, sizeof(double)*dataLength);
+  noiseModel[noiseModelThreadSlot]->NoiseEstimationFFTExpWin(noise_floor, dataLength, NoiseWinSize);
+  
+  double m, n;
+  unsigned long long *ptr;
+  for( int i = 0; i < dataLength; i++)
+  {
+    //Calculate required bit-depth according to the distance to the noise floor
+    m = (52 - MIN_MANTISSA_BITS)/( noise_floor[i] * ( NOISE_THRESHOLD_UPPER - NOISE_THRESHOLD_LOWER ) );
+    n = MIN_MANTISSA_BITS - m*NOISE_THRESHOLD_LOWER*noise_floor[i];
+    resolution_bits = (int)round( m*data[i] + n );
+    
+    //Limit resolution bits to a double mantissa valid range
+    resolution_bits = resolution_bits > 52 ? 52 : resolution_bits;
+    resolution_bits = resolution_bits <  1 ?  1 : resolution_bits;
+    
+    //Apply the mask to double's mantissa
+    ptr = (unsigned long long*) (data + i);
+    *ptr &= maskLUT_double[resolution_bits-1];  
+    
+  }
+  
+  delete[] noise_floor;
 }
 
 // [[Rcpp::export]]

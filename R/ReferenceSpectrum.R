@@ -32,15 +32,12 @@ InternalReferenceSpectrum <- function(img, reference)
   maxScore <- 0
   maxId <- 0
   selID <- NA
-  TICref <- sum(reference)
   for( id in 1:nrow(img$pos))
   {
     spc <- rMSI::loadImgChunkFromIds(img, id)[1,]
     if(var(spc) > 0)
     {
-      pxCor <- cor(reference, spc )
-      ticScr <- sum(spc)/TICref
-      score <- pxCor*ticScr
+      score <- cor(reference, spc )
       if( score > maxScore )
       {
         maxScore <- score

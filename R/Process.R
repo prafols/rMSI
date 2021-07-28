@@ -74,6 +74,71 @@ ProcessImages <- function(proc_params,
   
   if(proc_params$getMergedProcessing())
   {
+    #Merge processing, process all images at once
+    result <- RunPreProcessing(proc_params,
+                        img_lst,
+                        numOfThreads,
+                        memoryPerThreadMB)
+  }
+  else
+  {
+    #Image by image processing, non-merging
+    result <- list()
+    for(i in 1:length(img_lst))
+    {
+      cat(paste0("\nProcessing image ", i, " of ", length(img_lst), " \n"))
+      result[[i]] <- RunPreProcessing(proc_params,
+                          list(img_lst[[i]]),
+                          numOfThreads,
+                          memoryPerThreadMB)
+    }
+  }
+  
+  
+  
+  #TODO Intensity Normalizations are only calculated automatically when the alginemnt is enbales (to calculate the reference spectrum). 
+  #TODO So, at the end reuse them according to the desired output: if rMSIXBin must be exported reuse or calculate, if not just forget about normalizations.
+  
+  #TODO print total processing time! pt
+  
+  #TODO think about returning alignment lags here. Currently, im returning it but this may be confusing for the end user
+  
+  elap_1st_stage <- Sys.time() - pt
+  #TODO spectral recalibration GUI here to not include user time in processing time
+  
+  #Reset elapset time counter
+  pt <- Sys.time()
+  
+  #TODO peak-picking and binning
+  
+  elap_2nd_stage <- Sys.time() - pt
+  cat("Total used processing time:\n")
+  print(elap_1st_stage + elap_2nd_stage)
+  
+  return(result)
+}
+
+#' RunPreProcessing
+#' 
+#' Process a single image or multiple images with the complete processing workflow.
+#' 
+#'
+#' @param proc_params a ProcParams object containing the processing parameters
+#' @param img_lst a rMSI objects lis to process.
+#' @param numOfThreads the number number of threads used to process the data.
+#' @param memoryPerThreadMB maximum allowed memory by each thread. The total number of trehad will be two times numOfThreads, so the total memory usage will be: 2*numOfThreads*memoryPerThreadMB.
+#'
+#' @return 
+RunPreProcessing <- function(proc_params,
+                                img_lst,
+                                verifyImzMLChecksums = F,
+                                numOfThreads = min(parallel::detectCores()/2, 6),
+                                memoryPerThreadMB = 200 )
+{
+  #TODO this is only needed when alignment is enabled but I think it is needed for smoothing too since the preproc class needs it! Revise this!
+  #TODO also, with the new idea of displaing the whole images in the calibration form it make sense to calculate the common mass axis for mass recalibration too!
+  if(proc_params$preprocessing$alignment$enable)
+  {
     # Check if the mass axis is the same
     common_mass <- img_lst[[1]]$mass
     identicalMassAxis <- TRUE
@@ -86,7 +151,6 @@ ProcessImages <- function(proc_params,
     }
     
     # Calculate the new common mass axis 
-    #TODO this is only needed when alignment is enabled
     common_mass <- img_lst[[1]]$mass
     if(!identicalMassAxis)
     {
@@ -106,90 +170,106 @@ ProcessImages <- function(proc_params,
         img_lst[[i]]$mass <- common_mass
       }
     }
+
+    #Calculate normalizations, TIC normalization is needd for internal reference calculation so, when alginemtn is used normalizations will be precalculated
+    Normalizations <- CNormalizations(img_lst, numOfThreads, memoryPerThreadMB)
+    #Replace each image normalizations
+    for( i in 1:length(img_lst))
+    {
+      img_lst[[i]]$normalizations <- Normalizations[[i]]
+    }
+    
+    #Get the 25% and 75% quantiles of TIC norms
+    allTICs <- unlist(lapply(Normalizations, function(x){ x$TIC }))
+    TICquantiles <- quantile(allTICs)
+    ticMin <- TICquantiles[2] # 25%
+    ticMax <- TICquantiles[4] # 75%
+    rm(TICquantiles)
+    rm(allTICs)
+    rm(Normalizations)
     
     #Calculate the internal reference for alignment
-    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB)
-    
-  }
-
-  #Calculate reference spectrum for label free alignment
-  if(proc_params$preprocessing$alignment$enable)
-  {
-    #TODO error here! if mergeprocessing is disables then the reference cannot be calcualted!
+    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, ticMin, ticMax)
     refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum)
     cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
     refSpc <- refSpc$spectrum
+    
+    #TODO refSpc must be baseline corrected the same as the rest of the data
+    
+    if(proc_params$preprocessing$smoothing$enable) #Apply smoothing to the reference spectrum if needed
+    {
+      refSpc <- Smoothing_SavitzkyGolay(refSpc, proc_params$preprocessing$smoothing$kernelSize)  
+    }
   }
   else
   {
-    refSpc <- rep(0.0, length(img_lst[[1]]$mass)) #I need to supply a reference spectrum even if alignment is not enables, so just feed it with zeros
+    #I need to supply a reference spectrum even if alignment is not enabled, so just feed it with zeros
+    refSpc <- rep(0.0, length(img_lst[[1]]$mass)) 
   }
-  
+
   #Run the preprocessing
-  procData <- RunPreProcessing( img_lst, proc_params$outputpath, numOfThreads, memoryPerThreadMB, 
-                                proc_params$preprocessing, refSpc)
-  
-  
-  return(procData) #TODO think about returning alignment lags here. Currently, im returning it but this may be confusing for the end user
-}
-
-#Internal method for preprocessing
-RunPreProcessing <- function(img_lst, output_data_path, numOfThreads, memoryPerThreadMB, preproc_params, reference_spectrum)
-{
-  #Calc new UUID's'
-  uuids_new <- c()
-  out_imzML_fnames <- c()
-  for( i in 1:length(img_lst))
+  if( proc_params$preprocessing$smoothing$enable || proc_params$preprocessing$alignment$enable ) #TODO add basline condition here
   {
-    uuids_new <- c(uuids_new, uuid_timebased())
-    out_imzML_fnames <- c(out_imzML_fnames, paste0(img_lst[[i]]$name, "-proc"))
-  }
-  
-  result <-  CRunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
-                                preproc_params, reference_spectrum, 
-                                uuids_new, output_data_path, out_imzML_fnames)
-  
-  #Set the preprocessed data using resulting offsets and original data info
-  img_lst_proc <- list()
-  for( i in 1:length(img_lst))
-  {
-    img_lst_proc[[i]] <- img_lst[[i]] #copy the original data
-    img_lst_proc[[i]]$name <- paste0(img_lst_proc[[i]]$name, "-proc")
-    img_lst_proc[[i]]$mean <-  result$AverageSpectra[[i]]
-    img_lst_proc[[i]]$base <-  result$BaseSpectra[[i]]
-    img_lst_proc[[i]]$data$path <- output_data_path
-    img_lst_proc[[i]]$data$rMSIXBin$uuid <- uuid_timebased()
-    img_lst_proc[[i]]$data$rMSIXBin$file <- img_lst_proc[[i]]$name 
-    img_lst_proc[[i]]$data$imzML$uuid <- uuids_new[i]
-    img_lst_proc[[i]]$data$imzML$file <- out_imzML_fnames[i]
-    img_lst_proc[[i]]$data$imzML$SHA <- NULL #Remove posible SHA checksum since it must be recalculated
-    img_lst_proc[[i]]$data$imzML$MD5 <- NULL #Remove posible MD5 checksum since it must be recalculated
-    img_lst_proc[[i]]$data$imzML$run[, -c(1,2)] <- result$Offsets[[i]] 
-    
-    cat(paste0("Calculating MD5 checksum for image ", img_lst_proc[[i]]$name, "...\n"))
-    img_lst_proc[[i]]$data$imzML$MD5 <- toupper(digest::digest( file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".ibd")),
-                                                                algo = "md5",
-                                                                file = T))
-
-    #Store the xml part
-    cat(paste0("Writing the .imzML file for image ", img_lst_proc[[i]]$name, "...\n"))
-    if(!CimzMLStore( path.expand(file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".imzML"))), 
-                     list( UUID = img_lst_proc[[i]]$data$imzML$uuid,
-                           continuous_mode = img_lst_proc[[i]]$data$imzML$continuous_mode,
-                           compression_mz = F,
-                           compression_int = F,
-                           MD5 = img_lst_proc[[i]]$data$imzML$MD5,
-                           SHA = "",
-                           mz_dataType = img_lst_proc[[i]]$data$imzML$mz_dataType,
-                           int_dataType = img_lst_proc[[i]]$data$imzML$int_dataType,
-                           pixel_size_um = img_lst_proc[[i]]$pixel_size_um,
-                           run_data = img_lst_proc[[i]]$data$imzML$run
-                           )))
+    #Calc new UUID's'
+    uuids_new <- c()
+    out_imzML_fnames <- c()
+    for( i in 1:length(img_lst))
     {
-      stop(paste0("ERROR: imzML exported for image ", img_lst_proc[[i]]$name, " failed. Aborting...\n" ))
+      uuids_new <- c(uuids_new, uuid_timebased())
+      out_imzML_fnames <- c(out_imzML_fnames, paste0(img_lst[[i]]$name, "-proc"))
     }
+    
+    result <-  CRunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
+                                  proc_params$preprocessing, refSpc, 
+                                  uuids_new, proc_params$outputpath, out_imzML_fnames)
+    
+    #Set the preprocessed data using resulting offsets and original data info
+    img_lst_proc <- list()
+    for( i in 1:length(img_lst))
+    {
+      img_lst_proc[[i]] <- img_lst[[i]] #copy the original data
+      img_lst_proc[[i]]$name <- paste0(img_lst_proc[[i]]$name, "-proc")
+      img_lst_proc[[i]]$mean <-  result$AverageSpectra[[i]]
+      img_lst_proc[[i]]$base <-  result$BaseSpectra[[i]]
+      img_lst_proc[[i]]$data$path <- proc_params$outputpath
+      img_lst_proc[[i]]$data$rMSIXBin$uuid <- uuid_timebased()
+      img_lst_proc[[i]]$data$rMSIXBin$file <- img_lst_proc[[i]]$name 
+      img_lst_proc[[i]]$data$imzML$uuid <- uuids_new[i]
+      img_lst_proc[[i]]$data$imzML$file <- out_imzML_fnames[i]
+      img_lst_proc[[i]]$data$imzML$SHA <- NULL #Remove posible SHA checksum since it must be recalculated
+      img_lst_proc[[i]]$data$imzML$MD5 <- NULL #Remove posible MD5 checksum since it must be recalculated
+      img_lst_proc[[i]]$data$imzML$run[, -c(1,2)] <- result$Offsets[[i]] 
+      
+      cat(paste0("Calculating MD5 checksum for image ", img_lst_proc[[i]]$name, "...\n"))
+      img_lst_proc[[i]]$data$imzML$MD5 <- toupper(digest::digest( file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".ibd")),
+                                                                  algo = "md5",
+                                                                  file = T))
+      
+      #Store the xml part
+      cat(paste0("Writing the .imzML file for image ", img_lst_proc[[i]]$name, "...\n"))
+      if(!CimzMLStore( path.expand(file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".imzML"))), 
+                       list( UUID = img_lst_proc[[i]]$data$imzML$uuid,
+                             continuous_mode = img_lst_proc[[i]]$data$imzML$continuous_mode,
+                             compression_mz = F,
+                             compression_int = F,
+                             MD5 = img_lst_proc[[i]]$data$imzML$MD5,
+                             SHA = "",
+                             mz_dataType = img_lst_proc[[i]]$data$imzML$mz_dataType,
+                             int_dataType = img_lst_proc[[i]]$data$imzML$int_dataType,
+                             pixel_size_um = img_lst_proc[[i]]$pixel_size_um,
+                             run_data = img_lst_proc[[i]]$data$imzML$run
+                       )))
+      {
+        stop(paste0("ERROR: imzML exported for image ", img_lst_proc[[i]]$name, " failed. Aborting...\n" ))
+      }
+    }
+    
+    cat("\nPre-processing completed\n")
+    return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh ))
   }
-  
-  cat("\nPre-processing completed\n")
-  return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh ))
+  else
+  {
+    cat("\nPre-processing Bypassed\n")
+    return( list( raw_data = img_lst))
+  }
 }
