@@ -39,10 +39,12 @@ class MTPreProcessing : public ThreadingMsiProc
     // uuid: a string vector with new UUID for the output imzML files
     // outputImzMLPath: an existing target path to store imzML files with the processed data
     // outputImzMLfnames: a string vector with the file names for the output imzML files
+    // forceDataResampling: if data in continuous mode and forceDataResampling is set to true interpolation will be used.
     // bitDepthReductionNoiseWindows: The noise estimation windows used by the bitdepth reduction
     MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
                     Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference,
                     Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames, 
+                    bool forceDataResampling,
                     int bitDepthReductionNoiseWindows = 16);
     ~MTPreProcessing();
  

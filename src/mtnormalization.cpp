@@ -22,7 +22,7 @@
 using namespace Rcpp;
 
 MTNormalization::MTNormalization(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB)
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, false)
 {
   for( int i = 0; i < rMSIObj_list.length(); i++)
   {
@@ -32,7 +32,6 @@ MTNormalization::MTNormalization(Rcpp::List rMSIObj_list, int numberOfThreads, d
     DataFrame dfnorms = DataFrame::create(Named("TIC") = vTIC, Named("RMS") = vRMS);
     lstNorms.push_back(dfnorms);
   }
-  
 }
 
 MTNormalization::~MTNormalization()

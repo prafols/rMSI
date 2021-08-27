@@ -50,9 +50,9 @@ class ImzMLBin
     const char* getIbdFilePath();
     bool get_continuous();
     unsigned int get_mzLength(unsigned int index);
-    unsigned long long get_mzOffset(unsigned int index);
+    unsigned long get_mzOffset(unsigned int index);
     unsigned int get_intLength(unsigned int index);
-    unsigned long long get_intOffset(unsigned int index);
+    unsigned long get_intOffset(unsigned int index);
     Rcpp::DataFrame get_OffsetsLengths(); //Get all offsets and legnth in a R data frame
     
     void set_mzLength(Rcpp::NumericVector* mzLength_vector);
@@ -79,9 +79,9 @@ class ImzMLBin
     imzMLDataType mzDataType, intDataType;
     bool bContinuous;
     unsigned int* imzLength;
-    unsigned long long* lmzOffset;
+    unsigned long* lmzOffset;
     unsigned int* iintLength;
-    unsigned long long* lintOffset;
+    unsigned long* lintOffset;
     
     //Get the imzMLDataType from a string
     imzMLDataType string2imzMLDatatype(Rcpp::String data_type);
@@ -96,7 +96,7 @@ class ImzMLBin
 class ImzMLBinRead : public ImzMLBin
 {
   public: 
-    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true);
+    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true, bool forceResampling = false);
     ~ImzMLBinRead();
     
     //Open the ibd file in reading mode
@@ -135,6 +135,10 @@ class ImzMLBinRead : public ImzMLBin
     //dataPointBytes: number of bytes used to encode a single data point.
     //dataType: data type used for the encoding.
     void readDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
+    
+    bool bForceResampling; //Used in continuous mode to force resampling to different mass axis
+    bool bOriginalMassAxisOnMem; //A boolean to signal when the mass axis is already available in memory for continuous mode
+    std::vector<double> originalMassAxis; //A local copy of the original mass axis for continuous data interpolation
 };
 
 class ImzMLBinWrite : public ImzMLBin

@@ -204,9 +204,20 @@ PreProcParams <- setRefClass("PreProcParams",
                              fields = list(
                               merge = "logical", #TRUE to process multiple images using a common mass axis
                               smoothing = "SmoothingParams",
-                              alignment = "AlignmentParams" 
+                              alignment = "AlignmentParams",
+                              massCalibration = "logical"
+                              
                               #TODO compplete with all params, each stage its own class
-                              )
+                              ),
+                             
+                             #Constructor
+                             method = list(
+                               initialize = function(...,
+                                                     massCalibration = T
+                                                     )
+                               {
+                                 callSuper(..., massCalibration = massCalibration)
+                               })
                             )
 
 AnnotationParams <- setRefClass("AnnotationParams", 

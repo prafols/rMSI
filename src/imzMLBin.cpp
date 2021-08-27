@@ -70,9 +70,9 @@ ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::Stri
   }
   
   imzLength = new unsigned int[Npixels];
-  lmzOffset  = new unsigned long long[Npixels];  
+  lmzOffset  = new unsigned long[Npixels];  
   iintLength = new unsigned int[Npixels];  
-  lintOffset = new unsigned long long[Npixels];  
+  lintOffset = new unsigned long[Npixels];  
     
 #ifdef __DEBUG__
 Rcpp::Rcout << "ImzMLBin() constructor end successfuly\n";
@@ -123,7 +123,7 @@ unsigned int ImzMLBin::get_mzLength(unsigned int index)
   return imzLength[index];
 }
 
-unsigned long long ImzMLBin::get_mzOffset(unsigned int index)
+unsigned long ImzMLBin::get_mzOffset(unsigned int index)
 {
   if(index >= Npixels)
   {
@@ -141,7 +141,7 @@ unsigned int ImzMLBin::get_intLength(unsigned int index)
   return iintLength[index];
 }
 
-unsigned long long ImzMLBin::get_intOffset(unsigned int index)
+unsigned long ImzMLBin::get_intOffset(unsigned int index)
 {
   if(index >= Npixels)
   {
@@ -312,13 +312,14 @@ void ImzMLBin::convertDouble2Bytes(double* inPtr, char* outBytes, unsigned int N
   delete[] auxBuffer;
 }
 
-ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd):
-  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, Mode::Read)
+ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd, bool forceResampling):
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, Mode::Read), bForceResampling(forceResampling), bOriginalMassAxisOnMem(false)
 {
   if(openIbd)
   {
     open();
   }
+  
 #ifdef __DEBUG__
   Rcpp::Rcout << "ImzMLBinRead() constructor end successfuly\n";
 #endif
@@ -414,7 +415,25 @@ void ImzMLBinRead::readUUID(char* uuid)
 
 void ImzMLBinRead::readMzData(unsigned long offset, unsigned int N, double* ptr )
 {
-  readDataCommon(offset, N, ptr, mzDataPointBytes, mzDataType);
+  if(get_continuous())
+  {
+    //In continuous mode avoid re-reading the same offset
+    if(!bOriginalMassAxisOnMem)
+    {
+      //First reading of the mass axis
+      originalMassAxis.resize(N);
+      readDataCommon(offset, N, originalMassAxis.data(), mzDataPointBytes, mzDataType);  
+      bOriginalMassAxisOnMem = true;
+    }
+    
+    //Mass axis already in mem so just copy from it
+    memcpy( ptr, originalMassAxis.data(), N * sizeof(double) );
+  }
+  else
+  {
+    //In processd mode directley read to data pointer
+    readDataCommon(offset, N, ptr, mzDataPointBytes, mzDataType);  
+  }
 }
 
 void ImzMLBinRead::readIntData(unsigned long offset, unsigned int N, double* ptr )
@@ -440,7 +459,7 @@ imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, uns
   imzMLSpectrum imzMLSpc;
   imzMLSpc.pixelID = pixelID;
   
-  if(get_continuous())
+  if(get_continuous() && !bForceResampling)
   {
     //Continuous mode, just load the spectrum intensity vector
     readIntData(get_intOffset(pixelID) + ionIndex*get_intEncodingBytes(), ionCount, out);  
@@ -502,9 +521,7 @@ void ImzMLBinWrite::open(bool truncate)
   if(fileMode == Mode::ModifyFile)
   {
     //Open for modifing registers in the ibd file
-    ibdFile.open(ibdFname.get_cstring(), std::fstream::in | std::fstream::out | std::ios::binary); //TODO check the following comment and validate this works!
-        ///According some discussion in stackoverflows... 
-        ///std::ios::binary|std::ios::out|std::ios::in mus be used to replace contents in binary files... raro....
+    ibdFile.open(ibdFname.get_cstring(), std::fstream::in | std::fstream::out | std::ios::binary); 
   }
   else
   {
@@ -580,7 +597,7 @@ void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
   }
   
   //In continuos mode the offset and length for the mass axis is the first, so just replicate it
-  if(bContinuous)
+  if(get_continuous())
   {
     if(sequentialWriteIndex_MzData == 0)
     {
@@ -688,9 +705,9 @@ void ImzMLBinWrite::writeDataCommon(unsigned int N, double* ptr, unsigned int da
   delete[] buffer;
 }
 
-///DEBUG METHODS////////////////////////////////////////////////////////////////////////
+///R METHODS////////////////////////////////////////////////////////////////////////
 
-//' Testing the imzMLreader
+//' Generic method for the imzMLreader
 //' testingimzMLBinRead
 //' @param ibdFname: full path to the ibd file.
 //' @param NPixels: Total number of pixels in the image.
@@ -698,8 +715,7 @@ void ImzMLBinWrite::writeDataCommon(unsigned int N, double* ptr, unsigned int da
 //' @param offset: offset in bytes at which the reading operation is started.
 //' @param read_mz: if true m/z data is readed, otherwise intensities are readed.
 //' @param continuous: true if imzML data is in continuous mode
-// [[Rcpp::export(name=".debug_imzMLBinReader")]]
-Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz, bool continuous)
+Rcpp::NumericVector imzMLBinReadGeneric(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz, bool continuous)
 {
   Rcpp::NumericVector x(N);
   try
@@ -713,6 +729,7 @@ Rcpp::NumericVector testingimzMLBinRead(const char* ibdFname, unsigned int NPixe
     {
       myReader.readIntData(offset, N, x.begin());
     }
+    myReader.close();
     
   }
   catch(std::runtime_error &e)
@@ -770,6 +787,7 @@ Rcpp::DataFrame testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::Strin
       myWriter.writeIntData(intArray.ncol(), ptr_data);
     }
     
+    myWriter.close();
     return myWriter.get_OffsetsLengths();
     
   }
@@ -781,6 +799,58 @@ Rcpp::DataFrame testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::Strin
   return NULL;
 }
 
-//TODO i'm here, writeing two testing methods, one for sequential mode and another for modify mode. Then I'll have to create an interface in the rMSIXBin class for both modes.
 
-//TODO data check in continuous vs. processed modes when sequential and modify writing, revise this!!!
+//' A method to use the imzMLwriter in modify mode to allow direct modification of mass axes for the calibration
+//' This function modifies data of an ibd file with the following params
+//' @param ibdFname: full path to the ibd file.
+//' @param NPixels: Total number of pixels in the image.
+//' @param mz_dataTypeString: String to specify the data format used to encode m/z values.
+//' @param int_dataTypeString: String to specify the data format used to encode intensity values.
+//' @param continuous: true if imzML data is in continuous mode
+//' @param mzNew: A vector with the m/z values. Must be the same length as the original imzML mass target massa axis.
+//' @param mzOffset: offset in the ibd file of the target mass axis.
+// [[Rcpp::export]]
+void CimzMLBinWriteModifyMass(const char* ibdFname, unsigned int NPixels, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, bool continuous,
+                                           Rcpp::NumericVector mzNew, unsigned long mzOffset)
+{
+  try
+  {
+    ImzMLBinWrite myWriter(ibdFname, NPixels, mz_dataTypeString, int_dataTypeString, continuous, false);
+    myWriter.writeMzData(mzOffset, mzNew.length(), mzNew.begin() );
+    myWriter.close();
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::Rcout << "Catch Error: "<< e.what() << "\n";
+  }
+}
+
+//' CimzMLBinReadMass.
+//' 
+//' Reads a single mass axis from the imzML file.
+//' 
+//' @param ibdFname: full path to the ibd file.
+//' @param NPixels: Total number of pixels in the image.
+//' @param N: number of elemetns (or data point to read).
+//' @param offset: offset in bytes at which the reading operation is started.
+//' @param continuous: true if imzML data is in continuous mode
+// [[Rcpp::export]]
+Rcpp::NumericVector CimzMLBinReadMass(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool continuous)
+{
+  return imzMLBinReadGeneric(ibdFname, NPixels, N, offset, dataTypeString, true, continuous);
+}
+
+//' CimzMLBinReadIntensity.
+//' 
+//' Reads a single mass axis from the imzML file.
+//' 
+//' @param ibdFname: full path to the ibd file.
+//' @param NPixels: Total number of pixels in the image.
+//' @param N: number of elemetns (or data point to read).
+//' @param offset: offset in bytes at which the reading operation is started.
+//' @param continuous: true if imzML data is in continuous mode
+// [[Rcpp::export]]
+Rcpp::NumericVector CimzMLBinReadIntensity(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool continuous)
+{
+  return imzMLBinReadGeneric(ibdFname, NPixels, N, offset, dataTypeString, false, continuous);
+}

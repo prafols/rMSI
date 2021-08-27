@@ -15,7 +15,7 @@ CparseBrukerXML <- function(xml_path) {
     .Call('_rMSI_CparseBrukerXML', PACKAGE = 'rMSI', xml_path)
 }
 
-#' Testing the imzMLreader
+#' Generic method for the imzMLreader
 #' testingimzMLBinRead
 #' @param ibdFname: full path to the ibd file.
 #' @param NPixels: Total number of pixels in the image.
@@ -23,9 +23,7 @@ CparseBrukerXML <- function(xml_path) {
 #' @param offset: offset in bytes at which the reading operation is started.
 #' @param read_mz: if true m/z data is readed, otherwise intensities are readed.
 #' @param continuous: true if imzML data is in continuous mode
-.debug_imzMLBinReader <- function(ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous) {
-    .Call('_rMSI_testingimzMLBinRead', PACKAGE = 'rMSI', ibdFname, NPixels, N, offset, dataTypeString, read_mz, continuous)
-}
+NULL
 
 #' Testing the imzMLwriter in sequential mode
 #' This function creates a new ibd file with the provided data descibed in the following params
@@ -37,6 +35,45 @@ CparseBrukerXML <- function(xml_path) {
 #' @param intArray: A matrix with the intensity values for all pixels. Each pixel corresponds to a row so the number of pixels is extracted from here.
 .debug_imzMLBinWriterSequential <- function(ibdFname, mz_dataTypeString, int_dataTypeString, str_uuid, mzArray, intArray) {
     .Call('_rMSI_testingimzMLBinWriteSequential', PACKAGE = 'rMSI', ibdFname, mz_dataTypeString, int_dataTypeString, str_uuid, mzArray, intArray)
+}
+
+#' A method to use the imzMLwriter in modify mode to allow direct modification of mass axes for the calibration
+#' This function modifies data of an ibd file with the following params
+#' @param ibdFname: full path to the ibd file.
+#' @param NPixels: Total number of pixels in the image.
+#' @param mz_dataTypeString: String to specify the data format used to encode m/z values.
+#' @param int_dataTypeString: String to specify the data format used to encode intensity values.
+#' @param continuous: true if imzML data is in continuous mode
+#' @param mzNew: A vector with the m/z values. Must be the same length as the original imzML mass target massa axis.
+#' @param mzOffset: offset in the ibd file of the target mass axis.
+CimzMLBinWriteModifyMass <- function(ibdFname, NPixels, mz_dataTypeString, int_dataTypeString, continuous, mzNew, mzOffset) {
+    invisible(.Call('_rMSI_CimzMLBinWriteModifyMass', PACKAGE = 'rMSI', ibdFname, NPixels, mz_dataTypeString, int_dataTypeString, continuous, mzNew, mzOffset))
+}
+
+#' CimzMLBinReadMass.
+#' 
+#' Reads a single mass axis from the imzML file.
+#' 
+#' @param ibdFname: full path to the ibd file.
+#' @param NPixels: Total number of pixels in the image.
+#' @param N: number of elemetns (or data point to read).
+#' @param offset: offset in bytes at which the reading operation is started.
+#' @param continuous: true if imzML data is in continuous mode
+CimzMLBinReadMass <- function(ibdFname, NPixels, N, offset, dataTypeString, continuous) {
+    .Call('_rMSI_CimzMLBinReadMass', PACKAGE = 'rMSI', ibdFname, NPixels, N, offset, dataTypeString, continuous)
+}
+
+#' CimzMLBinReadIntensity.
+#' 
+#' Reads a single mass axis from the imzML file.
+#' 
+#' @param ibdFname: full path to the ibd file.
+#' @param NPixels: Total number of pixels in the image.
+#' @param N: number of elemetns (or data point to read).
+#' @param offset: offset in bytes at which the reading operation is started.
+#' @param continuous: true if imzML data is in continuous mode
+CimzMLBinReadIntensity <- function(ibdFname, NPixels, N, offset, dataTypeString, continuous) {
+    .Call('_rMSI_CimzMLBinReadIntensity', PACKAGE = 'rMSI', ibdFname, NPixels, N, offset, dataTypeString, continuous)
 }
 
 CimzMLParse <- function(xml_path) {
@@ -100,16 +137,16 @@ MergeMassAxisAutoBinSize <- function(mz1, mz2) {
     .Call('_rMSI_MergeMassAxisAutoBinSize', PACKAGE = 'rMSI', mz1, mz2)
 }
 
-COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, minTIC, maxTic) {
-    .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, minTIC, maxTic)
+COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, forceDataResampling, minTIC, maxTic) {
+    .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, forceDataResampling, minTIC, maxTic)
 }
 
 CNormalizations <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB) {
     .Call('_rMSI_CNormalizations', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB)
 }
 
-CRunPreProcessing <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames) {
-    .Call('_rMSI_CRunPreProcessing', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames)
+CRunPreProcessing <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, forceDataResampling) {
+    .Call('_rMSI_CRunPreProcessing', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, forceDataResampling)
 }
 
 #' NoiseEstimationFFTCosWin.
@@ -162,6 +199,67 @@ NoiseEstimationFFTCosWinMat <- function(x, filWinSize = 40L) {
 #' @export
 NoiseEstimationFFTExpWinMat <- function(x, filWinSize = 40L) {
     .Call('_rMSI_NoiseEstimationFFTExpWinMat', PACKAGE = 'rMSI', x, filWinSize)
+}
+
+#' DetectPeaks_C.
+#' 
+#' Detect peaks from a Rcpp::NumericVector object and returns data in a R matrix.
+#' This method is only exported to be use by R function DetectPeaks which is an actual R function.
+#' The returned peak positions follows C indexing style, this is starts with zero.
+#' 
+#' @param mass a NumericVector containing the mass axis of the spectrum.
+#' @param intensity a NumericVector where peaks must be detected.
+#' @param SNR Only peaks with an equal or higher SNR are retained.
+#' @param WinSize The windows used to detect peaks and caculate noise.
+#' @param UpSampling the oversampling used for acurate mass detection and area integration.
+#' 
+#' @return a NumerixMatrix of 5 rows corresponding to: mass, intensity of the peak, SNR, area and binSize.
+#' 
+DetectPeaks_C <- function(mass, intensity, SNR = 5, WinSize = 20L, UpSampling = 10L) {
+    .Call('_rMSI_DetectPeaks_C', PACKAGE = 'rMSI', mass, intensity, SNR, WinSize, UpSampling)
+}
+
+#' TestPeakInterpolation_C.
+#' 
+#' 
+#' @param mass a NumericVector containing the mass axis of the spectrum.
+#' @param intensity a NumericVector where peaks must be detected.
+#' @param peakIndex the location of the peak to interpolate in the spectrum.  
+#' @param WinSize The windows used to detect peaks and caculate noise.
+#' @param UpSampling the oversampling used for acurate mass detection and area integration.
+#' @param useHanning if hanning windowing must be used befor interpolation.
+#' @param Iterations number of iterations to perform. This is just for testing interpolation efficiency
+#' 
+#' @return a NumerixVector with the FFT interpolated peak shape.
+#' 
+TestPeakInterpolation_C <- function(mass, intensity, peakIndex, WinSize = 20L, UpSampling = 10L, useHanning = FALSE, Iterations = 1L) {
+    .Call('_rMSI_TestPeakInterpolation_C', PACKAGE = 'rMSI', mass, intensity, peakIndex, WinSize, UpSampling, useHanning, Iterations)
+}
+
+#' TestHanningWindow.
+#' 
+#' Method to test the implementation of Hanning window in R session.
+#' @param mass a NumericVector containing the mass axis of the spectrum.
+#' @param WinSize The windows used to detect peaks and caculate noise.
+#' @param UpSampling the oversampling used for acurate mass detection and area integration.
+#' 
+#' @return a NumericVector containing the Hanning Window.
+#' 
+TestHanningWindow <- function(mass, WinSize = 20L, UpSampling = 10L) {
+    .Call('_rMSI_TestHanningWindow', PACKAGE = 'rMSI', mass, WinSize, UpSampling)
+}
+
+#' TestAreaWindow.
+#' 
+#' Method to test the implementation of Area window in R session.
+#' @param mass a NumericVector containing the mass axis of the spectrum.
+#' @param WinSize The windows used to detect peaks and caculate noise.
+#' @param UpSampling the oversampling used for acurate mass detection and area integration.
+#' 
+#' @return a NumericVector containing the Area Window.
+#' 
+TestAreaWindow <- function(mass, WinSize = 20L, UpSampling = 10L) {
+    .Call('_rMSI_TestAreaWindow', PACKAGE = 'rMSI', mass, WinSize, UpSampling)
 }
 
 ReduceDataPointsC <- function(mass, intensity, massMin, massMax, npoints) {

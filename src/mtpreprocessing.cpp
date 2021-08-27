@@ -24,8 +24,9 @@ using namespace Rcpp;
 MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,
                                  Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference,
                                  Rcpp::StringVector uuid,  Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames, 
+                                 bool forceDataResampling,
                                  int bitDepthReductionNoiseWindows) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, true, uuid, outputImzMLPath, outputImzMLfnames), 
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, forceDataResampling, true, uuid, outputImzMLPath, outputImzMLfnames), 
   NoiseWinSize(bitDepthReductionNoiseWindows)
 {
   //TODO add baseline params here!
@@ -206,10 +207,12 @@ void MTPreProcessing::BitDepthReduction(double *data, int dataLength, int noiseM
 // [[Rcpp::export]]
 List CRunPreProcessing( Rcpp::List rMSIObj_list,int numOfThreads, double memoryPerThreadMB, 
                      Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference, 
-                     Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames)
+                     Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames,
+                     bool forceDataResampling)
 {
    MTPreProcessing myPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB,
                                   preProcessingParams, reference, 
-                                  uuid, outputDataPath, imzMLoutFnames);
+                                  uuid, outputDataPath, imzMLoutFnames, 
+                                  forceDataResampling);
    return myPreProcessing.Run();
 }

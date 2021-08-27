@@ -374,7 +374,7 @@
   }
 }
 
-.plotIntensityScale<-function(img, color = NULL, light=3, intensity_limit = NULL)
+.plotIntensityScale<-function(img, color = NULL, light=3, intensity_limit = NULL, fixGtkMargin = 0) #fixGtkMargin is used as param to set the line of mtext in gtk
 {
   max_int<-max(raster::values(img$raster))
   min_int<-min(raster::values(img$raster))
@@ -427,33 +427,33 @@
   yAxis<- seq(0, RGB_raster@extent@ymax, length.out = 11)
   yLabels <- sprintf( "%0.1e", seq(min_int, max_int, length.out = 11))
   par(xaxt = "l", yaxt = "l")
-  axis(side=2, tck = -0.015, cex.axis = 0.7, pos = 0, at = yAxis, labels = F, las = 1) #Y left axes
+  axis(side=2, tck = -0.015, cex.axis = 0.6, pos = 0, at = yAxis, labels = F, las = 1) #Y left axes
   if( max_int == 0 )
   {
-    axis(side=4, tck = -0.015, cex.axis = 0.7, pos = RGB_raster@extent@xmax, at = yAxis, labels = F) #Y right axes
+    axis(side=4, tck = -0.015, cex.axis = 0.6, pos = RGB_raster@extent@xmax, at = yAxis, labels = F) #Y right axes
   }
   else
   {
-    axis(side=4, tck = -0.015, cex.axis = 0.7, pos = RGB_raster@extent@xmax, at = yAxis, labels = yLabels, las = 1) #Y right axes
+    axis(side=4, tck = -0.015, cex.axis = 0.6, pos = RGB_raster@extent@xmax, at = yAxis, labels = yLabels, las = 1) #Y right axes
   }
 
-  axis(side = 1, tck = -0.015, cex.axis = 0.7, labels = F, pos = 0, at = c(0,ncols_scale))
-  axis(side = 3, tck = -0.015, cex.axis = 0.7, labels = F, pos = RGB_raster@extent@ymax, at = c(0,ncols_scale))
+  axis(side = 1, tck = -0.015, cex.axis = 0.6, labels = F, pos = 0, at = c(0,ncols_scale))
+  axis(side = 3, tck = -0.015, cex.axis = 0.6, labels = F, pos = RGB_raster@extent@ymax, at = c(0,ncols_scale))
 
   #Add the main title
   if(max_int == 0)
   {
-    mtext("Channel Disabled", side = 2, line = 0, cex = 0.8, adj = 0.5  )
+    mtext("Channel Disabled", side = 2, line = fixGtkMargin, cex = 0.8, adj = 0.5  )
   }
   else
   {
     if(is.character(img$mass))
     {
-      mtext(img$mass, side = 2, line = 0, cex = 0.8, adj = 0.5  )
+      mtext(img$mass, side = 2, line = fixGtkMargin, cex = 0.8, adj = 0.5  )
     }
     else
     {
-      mtext(sprintf("m/z: %0.4f+/-%0.3f Da", img$mass, img$tolerance), side = 2, line = 0, cex = 0.8, adj = 0.5  )
+      mtext(sprintf("m/z: %0.4f+/-%0.3f Da", img$mass, img$tolerance), side = 2, line = fixGtkMargin, cex = 0.8, adj = 0.5)
     }
   }
 }

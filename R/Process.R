@@ -38,6 +38,7 @@ ProcessImages <- function(proc_params,
                           memoryPerThreadMB = 200 )
 {
   pt <- Sys.time()
+  CalibrationWindowElapsedTime <- 0 #Keep track of the elapsed time during the calibration GUI
   
   #Check if data output path is set and create it
   if(length(proc_params$outputpath) == 0)
@@ -79,6 +80,9 @@ ProcessImages <- function(proc_params,
                         img_lst,
                         numOfThreads,
                         memoryPerThreadMB)
+    
+    #Get the time elapsed during calibration GUI
+    CalibrationWindowElapsedTime <- result$CalibrationElapsedTime 
   }
   else
   {
@@ -91,29 +95,22 @@ ProcessImages <- function(proc_params,
                           list(img_lst[[i]]),
                           numOfThreads,
                           memoryPerThreadMB)
+      
+      #Get the time elapsed during calibration GUI
+      CalibrationWindowElapsedTime <- CalibrationWindowElapsedTime + result[[i]]$CalibrationElapsedTime
     }
   }
   
-  
-  
-  #TODO Intensity Normalizations are only calculated automatically when the alginemnt is enbales (to calculate the reference spectrum). 
+  #TODO Intensity Normalizations are only calculated automatically when the alginemnt is enbaled (to calculate the reference spectrum). 
   #TODO So, at the end reuse them according to the desired output: if rMSIXBin must be exported reuse or calculate, if not just forget about normalizations.
-  
-  #TODO print total processing time! pt
-  
-  #TODO think about returning alignment lags here. Currently, im returning it but this may be confusing for the end user
-  
-  elap_1st_stage <- Sys.time() - pt
-  #TODO spectral recalibration GUI here to not include user time in processing time
-  
-  #Reset elapset time counter
-  pt <- Sys.time()
+  #TODO think about returning alignment lags here. Currently, im returning it but this may be confusing for the end user. Also the Calibration time... I dont need any of these!
   
   #TODO peak-picking and binning
   
-  elap_2nd_stage <- Sys.time() - pt
+  elap <- Sys.time() - pt
+  elap <- elap - CalibrationWindowElapsedTime #Substract the calbration GUI elapsed time
   cat("Total used processing time:\n")
-  print(elap_1st_stage + elap_2nd_stage)
+  print(elap)
   
   return(result)
 }
@@ -135,42 +132,45 @@ RunPreProcessing <- function(proc_params,
                                 numOfThreads = min(parallel::detectCores()/2, 6),
                                 memoryPerThreadMB = 200 )
 {
-  #TODO this is only needed when alignment is enabled but I think it is needed for smoothing too since the preproc class needs it! Revise this!
-  #TODO also, with the new idea of displaing the whole images in the calibration form it make sense to calculate the common mass axis for mass recalibration too!
-  if(proc_params$preprocessing$alignment$enable)
+  # Check if the mass axis is the same
+  common_mass <- img_lst[[1]]$mass
+  identicalMassAxis <- TRUE
+  if( length(img_lst) > 1)
   {
-    # Check if the mass axis is the same
-    common_mass <- img_lst[[1]]$mass
-    identicalMassAxis <- TRUE
-    if( length(img_lst) > 1)
+    for( i in 2:length(img_lst))
     {
-      for( i in 2:length(img_lst))
+      identicalMassAxis <- identicalMassAxis & identical(common_mass, img_lst[[i]]$mass)
+    }
+  }
+  
+  #Set the ForceResampling (just set if mass axis are diferent and it will be ignored for the processed mode)
+  ForceResampling <- (!identicalMassAxis) 
+  
+  # Calculate the new common mass axis 
+  if(!identicalMassAxis)
+  {
+    for( i in 2:length(img_lst))
+    {
+      massMergeRes <- MergeMassAxisAutoBinSize(common_mass, img_lst[[i]]$mass)
+      if(massMergeRes$error)
       {
-        identicalMassAxis <- identicalMassAxis & identical(common_mass, img_lst[[i]]$mass)
+        stop("ERROR: The mass axis of the images to merge is not compatible because they do not share a common range.\n")
       }
+      common_mass <- massMergeRes$mass
     }
     
-    # Calculate the new common mass axis 
-    common_mass <- img_lst[[1]]$mass
-    if(!identicalMassAxis)
+    #Replace each image mass axis with the common
+    for( i in 1:length(img_lst))
     {
-      for( i in 2:length(img_lst))
-      {
-        massMergeRes <- MergeMassAxisAutoBinSize(common_mass, img_lst[[i]]$mass)
-        if(massMergeRes$error)
-        {
-          stop("ERROR: The mass axis of the images to merge is not compatible because they do not share a common range.\n")
-        }
-        common_mass <- massMergeRes$mass
-      }
-      
-      #Replace each image mass axis with the common
-      for( i in 1:length(img_lst))
-      {
-        img_lst[[i]]$mass <- common_mass
-      }
+      img_lst[[i]]$mass <- common_mass
+      #TODO for data in processed mode this is enought since each spectrum will be interpolated to the common mass axis. But if I have a continuous dataset made of
+      #TODO several images (in example: various runs of TOF analysis) then the data must be resampled to the new mass axis before processing! Maybe I can use the same interpolator as in the processed mode? check this!!!!
+      #TODO check this using Synth data from Lluc's images
     }
-
+  }
+    
+  if(proc_params$preprocessing$alignment$enable)
+  {  
     #Calculate normalizations, TIC normalization is needd for internal reference calculation so, when alginemtn is used normalizations will be precalculated
     Normalizations <- CNormalizations(img_lst, numOfThreads, memoryPerThreadMB)
     #Replace each image normalizations
@@ -189,7 +189,7 @@ RunPreProcessing <- function(proc_params,
     rm(Normalizations)
     
     #Calculate the internal reference for alignment
-    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, ticMin, ticMax)
+    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, ForceResampling, ticMin, ticMax)
     refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum)
     cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
     refSpc <- refSpc$spectrum
@@ -208,7 +208,7 @@ RunPreProcessing <- function(proc_params,
   }
 
   #Run the preprocessing
-  if( proc_params$preprocessing$smoothing$enable || proc_params$preprocessing$alignment$enable ) #TODO add basline condition here
+  if( proc_params$preprocessing$smoothing$enable || proc_params$preprocessing$alignment$enable || proc_params$preprocessing$massCalibration ) #TODO add basline condition here
   {
     #Calc new UUID's'
     uuids_new <- c()
@@ -221,7 +221,20 @@ RunPreProcessing <- function(proc_params,
     
     result <-  CRunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
                                   proc_params$preprocessing, refSpc, 
-                                  uuids_new, proc_params$outputpath, out_imzML_fnames)
+                                  uuids_new, proc_params$outputpath, out_imzML_fnames, 
+                                  ForceResampling)
+    
+    #Calculate the calibration model
+    pt <- Sys.time() #do not take into account the user-time during the calibration GUI!
+    if(proc_params$preprocessing$massCalibration)
+    {
+      calModel <- CalibrationWindow(common_mass, refSpc) 
+      #TODO the ref spectrum will be set to zero if alignment is disabled! check if zero and supply an average instead
+      #TODO what about adding a menu in the calibration window to allow selecting from multiple calibration sources (the average of each image, the skyline etc..)
+      #TODO if alignment is not enabled the common_mass axis variable will not be available... but for the preprocessing I always need a common mass axis!!! revise this!
+    }
+    calibrationElapsedTime <- Sys.time() - pt
+    
     
     #Set the preprocessed data using resulting offsets and original data info
     img_lst_proc <- list()
@@ -240,6 +253,13 @@ RunPreProcessing <- function(proc_params,
       img_lst_proc[[i]]$data$imzML$MD5 <- NULL #Remove posible MD5 checksum since it must be recalculated
       img_lst_proc[[i]]$data$imzML$run[, -c(1,2)] <- result$Offsets[[i]] 
       
+      #Apply mass recalibration here to all images
+      if(proc_params$preprocessing$massCalibration)
+      {
+        img_lst_proc[[i]] <- rMSI::applyMassCalibrationImage(img_lst_proc[[i]], calModel$model)
+      }
+      
+      #The XML part is stored after the mass re-calibration since the mass axis overwrittening process will change the results of the checksums
       cat(paste0("Calculating MD5 checksum for image ", img_lst_proc[[i]]$name, "...\n"))
       img_lst_proc[[i]]$data$imzML$MD5 <- toupper(digest::digest( file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".ibd")),
                                                                   algo = "md5",
@@ -265,7 +285,7 @@ RunPreProcessing <- function(proc_params,
     }
     
     cat("\nPre-processing completed\n")
-    return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh ))
+    return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh, CalibrationElapsedTime = calibrationElapsedTime ))
   }
   else
   {

@@ -33,7 +33,8 @@ class ThreadingMsiProc
     // rMSIObj_list: A list of rMSI objects to process
     // numberOfThreads: Total number of threads to use during processing
     // memoryPerThreadMB: Maximum memory allocated by each thread in MB. The total allocated memory will be: 2*numberOfThreads*memoryPerThreadMB
-    ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, 
+    // forceDataResampling: if data in continuous mode and forceDataResampling is set to true interpolation will be used.
+    ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, bool forceDataResampling,
                      bool storeDataInimzml = false, Rcpp::StringVector uuid = Rcpp::StringVector(), Rcpp::String outputImzMLPath = "", Rcpp::StringVector outputImzMLfnames = Rcpp::StringVector());
     ~ThreadingMsiProc();
     

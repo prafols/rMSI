@@ -182,32 +182,32 @@
     gWidgets2::visible(this$scaleRed_dev)<-TRUE
     if(ch_count == 1)
     {
-      .plotIntensityScale(red_layer, light = svalue(this$Scale_light))
+      .plotIntensityScale(red_layer, light = svalue(this$Scale_light), fixGtkMargin = -1)
     }
     else
     {
-      .plotIntensityScale(red_layer, "R", light = svalue(this$Scale_light) )
+      .plotIntensityScale(red_layer, "R", light = svalue(this$Scale_light), fixGtkMargin = -1 )
     }
 
     gWidgets2::visible(this$scaleGreen_dev)<-TRUE
     if(ch_count == 1)
     {
-      .plotIntensityScale(green_layer, light = svalue(this$Scale_light))
+      .plotIntensityScale(green_layer, light = svalue(this$Scale_light), fixGtkMargin = -1)
     }
     else
     {
-      .plotIntensityScale(green_layer, "G", light = svalue(this$Scale_light))
+      .plotIntensityScale(green_layer, "G", light = svalue(this$Scale_light), fixGtkMargin = -1)
     }
 
 
     gWidgets2::visible(this$scaleBlue_dev)<-TRUE
     if(ch_count == 1)
     {
-      .plotIntensityScale(blue_layer, light = svalue(this$Scale_light))
+      .plotIntensityScale(blue_layer, light = svalue(this$Scale_light), fixGtkMargin = -1)
     }
     else
     {
-      .plotIntensityScale(blue_layer, "B", light = svalue(this$Scale_light))
+      .plotIntensityScale(blue_layer, "B", light = svalue(this$Scale_light), fixGtkMargin = -1)
     }
   }
 

@@ -29,8 +29,9 @@ class MTAverage : public ThreadingMsiProc
     // rMSIObj_list: A list of rMSI objects to process
     // numberOfThreads: Total number of threads to use during processing
     // memoryPerThreadMB: Maximum memory allocated by each thread in MB. The total allocated memory will be: 2*numberOfThreads*memoryPerThreadMB
+    // forceDataResampling: if data in continuous mode and forceDataResampling is set to true interpolation will be used.
     // minTIC and maxTIC: spectra with a TIC value outside this range will not be used for average calculation
-    MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, double minTIC, double maxTIC);
+    MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, bool forceDataResampling, double minTIC, double maxTIC);
     ~MTAverage();
     
     //Execute a full imatge processing using threaded methods

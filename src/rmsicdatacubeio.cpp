@@ -45,7 +45,7 @@ CrMSIDataCubeIO::~CrMSIDataCubeIO()
   }
 }
 
-void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, std::string outputImzMLuuid, std::string outputImzMLfname)
+void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, bool forceDataResampling, std::string outputImzMLuuid, std::string outputImzMLfname)
 {
   if(outputImzMLuuid.empty() && storeData)
   {
@@ -77,8 +77,10 @@ void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, std::string outputImzML
                                      imzMLrun.nrows(), 
                                      as<String>(imzML["mz_dataType"]),
                                      as<String>(imzML["int_dataType"]) ,
-                                     as<bool>(imzML["continuous_mode"]), 
-                                     false)); //Do not call the file open() on constructor
+                                     (as<bool>(imzML["continuous_mode"])),
+                                     false, //Do not call the file open() on constructor
+                                     forceDataResampling //If data is in continuous mode but resampling is needed, then read the imzML in processed mode to enable interpolation.
+                                     )); 
   
   NumericVector imzML_mzLength = imzMLrun["mzLength"];
   NumericVector imzML_mzOffsets = imzMLrun["mzOffset"];

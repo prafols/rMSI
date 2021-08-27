@@ -525,8 +525,8 @@ plotSpectra<-function( mass = NULL, intensity = NULL, peaks_mass = NULL, peaks_i
       top_right <- max(evt$x)
       mz_tol <-(top_right - top_left)/2
       mz_sel <- top_left + mz_tol
-      mz_tol<-round(mz_tol, digits = 2)
-      mz_sel<-round(mz_sel, digits = 2)
+      #mz_tol<-round(mz_tol, digits = 2) #TODO do not round! this fails for high res data!
+      #mz_sel<-round(mz_sel, digits = 2)
       mz_tol<-max(mz_tol, 0)
 
       #Use the tolerance spin if the spectrum was just clicked

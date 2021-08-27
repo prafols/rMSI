@@ -20,7 +20,7 @@
 #include "progressbar.h"
 #include <stdexcept>
 
-ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, 
+ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, bool forceDataResampling,
                                    bool storeDataInimzml, Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames):
   bProcDataExport(storeDataInimzml)
 {
@@ -54,11 +54,11 @@ ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads,
     {
       Rcpp::String RcppStr_uuid = uuid[i];
       Rcpp::String RcppStr_outImzmls = outputImzMLfnames[i];
-      ioObj->appedImageData(rMSIObj_list[i], RcppStr_uuid.get_cstring(), RcppStr_outImzmls.get_cstring());
+      ioObj->appedImageData(rMSIObj_list[i], forceDataResampling, RcppStr_uuid.get_cstring(), RcppStr_outImzmls.get_cstring());
     }
     else
     {
-      ioObj->appedImageData(rMSIObj_list[i]); 
+      ioObj->appedImageData(rMSIObj_list[i], forceDataResampling); 
     }
   }
   
