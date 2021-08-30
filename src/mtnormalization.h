@@ -37,6 +37,7 @@ class MTNormalization : public ThreadingMsiProc
     
   private:
     Rcpp::List lstNorms; //List with multiple normalization data frames
+    std::mutex mutex_copyData; //Mutex to avoid coping data to lsNorms (R object) from various threads simultaneously
     
     //Thread Processing function definition
     void ProcessingFunction(int threadSlot);

@@ -533,7 +533,7 @@ void ImzMLBinWrite::open(bool truncate)
     else
     {
       //Open for serial writing, append data to the end
-      ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary | std::fstream::app);
+      ibdFile.open(ibdFname.get_cstring(), std::fstream::out | std::ios::binary | std::fstream::app );
     }
   }
   
@@ -651,8 +651,16 @@ void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
   {
     throw std::runtime_error("ERROR: trying to write more spectral data than the maximum number of pixels set in the constructor");
   }
+ 
   lintOffset[sequentialWriteIndex_IntData] = ibdFile.tellp();
   iintLength[sequentialWriteIndex_IntData] = N;
+  /* DEBUG Prints must be commented out
+  Rcpp::Rcout<<"DBG TRAP in writeIntData(): sequentialWriteIndex_IntData = " <<  sequentialWriteIndex_IntData << "\n";
+  Rcpp::Rcout<<"DBG TRAP in writeIntData(): lintOffset[sequentialWriteIndex_IntData] = " << lintOffset[sequentialWriteIndex_IntData] << " \n";
+  Rcpp::Rcout<<"DBG TRAP in writeIntData(): ibdFile.tellp() = " << ibdFile.tellp() << " \n";
+  Rcpp::Rcout<<"DBG TRAP in writeIntData(): iintLength[sequentialWriteIndex_IntData] = " << iintLength[sequentialWriteIndex_IntData] << " \n";
+  Rcpp::Rcout<<"DBG TRAP in writeIntData(): N = " << N << " \n";
+  */
   sequentialWriteIndex_IntData++;
   
   //Write data

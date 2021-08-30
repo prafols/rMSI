@@ -162,7 +162,7 @@ void ThreadingMsiProc::runMSIProcessingCpp()
         iCube[iThread] = -1; //Mark thread as stopped
         bDataReady[iThread] = false; //Reset data ready state;
         tworkers[iThread].join();
-      }
+      } 
     }
     
     //Check end condition
@@ -182,7 +182,7 @@ void ThreadingMsiProc::runMSIProcessingCpp()
 void ThreadingMsiProc::ProcessingThread( int threadSlot )
 {
   //Call the processing function for this thread
-  ProcessingFunction(threadSlot); 
+  ProcessingFunction(threadSlot);
   
   //Save data to R Session and Store the new state of total processed cubes
   mtx.lock();

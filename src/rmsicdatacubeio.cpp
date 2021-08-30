@@ -203,6 +203,7 @@ void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr)
   
   int current_imzML_id;
   int previous_imzML_id = -1; //Start previous as -1 to indicate an unallocated imzML
+  
   for(unsigned int i = 0; i < data_ptr->nrows; i++) //For each spectrum belonging to the selected datacube
   {
     current_imzML_id = dataCubesDesc[iCube][i].imzML_ID;
@@ -242,7 +243,8 @@ void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr)
     
     previous_imzML_id = current_imzML_id;
   }
-  imzMLReaders[current_imzML_id]->close(); //Force to close the last opened imzML
+
+  imzMLWriters[current_imzML_id]->close(); //Force to close the last opened imzML 
 }
 
 int CrMSIDataCubeIO::getNumberOfCubes()

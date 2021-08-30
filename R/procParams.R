@@ -104,7 +104,7 @@ DataInfo$methods(
   parseROIs = function()
   {
     roi_list <<- list() #Clear previous roi list
-    for(i in nrow(raw_data_path))
+    for(i in 1:nrow(raw_data_path))
     {
       cat(paste0("Parsing ROI info of imzML ", i ,  " of ", nrow(raw_data_path)))
       

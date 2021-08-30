@@ -35,7 +35,7 @@ ProcessImages <- function(proc_params,
                           data_description,
                           verifyImzMLChecksums = F,
                           numOfThreads = min(parallel::detectCores()/2, 6),
-                          memoryPerThreadMB = 200 )
+                          memoryPerThreadMB = 100 )
 {
   pt <- Sys.time()
   CalibrationWindowElapsedTime <- 0 #Keep track of the elapsed time during the calibration GUI
@@ -163,6 +163,7 @@ RunPreProcessing <- function(proc_params,
     for( i in 1:length(img_lst))
     {
       img_lst[[i]]$mass <- common_mass
+      #TODO Crashes on noralizations when resampling is used... maybe the normalization method is using the mass.length() which is not the same now...
       #TODO for data in processed mode this is enought since each spectrum will be interpolated to the common mass axis. But if I have a continuous dataset made of
       #TODO several images (in example: various runs of TOF analysis) then the data must be resampled to the new mass axis before processing! Maybe I can use the same interpolator as in the processed mode? check this!!!!
       #TODO check this using Synth data from Lluc's images
@@ -189,7 +190,7 @@ RunPreProcessing <- function(proc_params,
     rm(Normalizations)
     
     #Calculate the internal reference for alignment
-    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, ForceResampling, ticMin, ticMax)
+    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, ForceResampling, ticMin, ticMax) #TODO this crashes with a single image! debug me
     refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum)
     cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
     refSpc <- refSpc$spectrum

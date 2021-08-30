@@ -58,6 +58,7 @@ void MTNormalization::ProcessingFunction(int threadSlot)
   {
     TIC = 0.0;
     RMS = 0.0;
+    
     for (int k= 0; k < cubes[threadSlot]->ncols; k++)
     {
       TIC += cubes[threadSlot]->dataInterpolated[j][k];
@@ -68,8 +69,10 @@ void MTNormalization::ProcessingFunction(int threadSlot)
     int imgID = ioObj->getImageIndex(cubes[threadSlot]->cubeID, j);
     int pixelID = ioObj->getPixelId(cubes[threadSlot]->cubeID, j);
     
+    mutex_copyData.lock();
     as<NumericVector>((as<DataFrame>(lstNorms[imgID]))["TIC"])[pixelID] = TIC;
     as<NumericVector>((as<DataFrame>(lstNorms[imgID]))["RMS"])[pixelID] = RMS;
+    mutex_copyData.unlock();
   }
 }
 

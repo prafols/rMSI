@@ -9,7 +9,7 @@ ProcessImages(
   data_description,
   verifyImzMLChecksums = F,
   numOfThreads = min(parallel::detectCores()/2, 6),
-  memoryPerThreadMB = 200
+  memoryPerThreadMB = 100
 )
 }
 \arguments{

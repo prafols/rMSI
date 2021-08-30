@@ -437,6 +437,7 @@ applyMassCalibrationImage<-function(img, massModel)
   if( img$data$imzML$continuous_mode )
   {
     #Data in continuous mode, so only the common mass axis must be overwritten
+    cat("Calibration applied to the output imzML file.\n")
     CimzMLBinWriteModifyMass(ibdFname = ibdFile, 
                              NPixels = nrow(img$pos), 
                              mz_dataTypeString =  img$data$imzML$mz_dataType, 
