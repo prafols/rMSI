@@ -37,8 +37,21 @@ ProcessImages <- function(proc_params,
                           numOfThreads = min(parallel::detectCores()/2, 6),
                           memoryPerThreadMB = 100 )
 {
+  if(class(proc_params) != "ProcParams")
+  {
+    stop("ERROR: proc_params argument must be an object of class \"ProcParams\". Use the rMSI::ProcessingParameters() function to create a valid proc_params\n")
+  }
+  
+  if(class(data_description) != "DataInfo")
+  {
+    stop("ERROR: data_description argument must be an object of class \"DataInfo\". Use the rMSI::ImzMLDataDescription() function to create a valid data_description.\n")
+  }
+  
   pt <- Sys.time()
   CalibrationWindowElapsedTime <- 0 #Keep track of the elapsed time during the calibration GUI
+  
+  #Start by parsing ROI information
+  data_description$parseROIs() 
   
   #Check if data output path is set and create it
   if(length(proc_params$outputpath) == 0)

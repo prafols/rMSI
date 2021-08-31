@@ -106,7 +106,7 @@ DataInfo$methods(
     roi_list <<- list() #Clear previous roi list
     for(i in 1:nrow(raw_data_path))
     {
-      cat(paste0("Parsing ROI info of imzML ", i ,  " of ", nrow(raw_data_path)))
+      cat(paste0("Parsing ROI info of imzML ", i ,  " of ", nrow(raw_data_path), "\n"))
       
       if(!is.na(raw_data_path$subimage_roi_xml[i]))
       {

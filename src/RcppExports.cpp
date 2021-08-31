@@ -38,7 +38,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // CimzMLBinWriteModifyMass
-void CimzMLBinWriteModifyMass(const char* ibdFname, unsigned int NPixels, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, bool continuous, Rcpp::NumericVector mzNew, unsigned long mzOffset);
+void CimzMLBinWriteModifyMass(const char* ibdFname, unsigned int NPixels, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, bool continuous, Rcpp::NumericVector mzNew, uint64_t mzOffset);
 RcppExport SEXP _rMSI_CimzMLBinWriteModifyMass(SEXP ibdFnameSEXP, SEXP NPixelsSEXP, SEXP mz_dataTypeStringSEXP, SEXP int_dataTypeStringSEXP, SEXP continuousSEXP, SEXP mzNewSEXP, SEXP mzOffsetSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -48,13 +48,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::String >::type int_dataTypeString(int_dataTypeStringSEXP);
     Rcpp::traits::input_parameter< bool >::type continuous(continuousSEXP);
     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mzNew(mzNewSEXP);
-    Rcpp::traits::input_parameter< unsigned long >::type mzOffset(mzOffsetSEXP);
+    Rcpp::traits::input_parameter< uint64_t >::type mzOffset(mzOffsetSEXP);
     CimzMLBinWriteModifyMass(ibdFname, NPixels, mz_dataTypeString, int_dataTypeString, continuous, mzNew, mzOffset);
     return R_NilValue;
 END_RCPP
 }
 // CimzMLBinReadMass
-Rcpp::NumericVector CimzMLBinReadMass(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool continuous);
+Rcpp::NumericVector CimzMLBinReadMass(const char* ibdFname, unsigned int NPixels, unsigned int N, uint64_t offset, Rcpp::String dataTypeString, bool continuous);
 RcppExport SEXP _rMSI_CimzMLBinReadMass(SEXP ibdFnameSEXP, SEXP NPixelsSEXP, SEXP NSEXP, SEXP offsetSEXP, SEXP dataTypeStringSEXP, SEXP continuousSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -62,7 +62,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type NPixels(NPixelsSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type N(NSEXP);
-    Rcpp::traits::input_parameter< unsigned long >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< uint64_t >::type offset(offsetSEXP);
     Rcpp::traits::input_parameter< Rcpp::String >::type dataTypeString(dataTypeStringSEXP);
     Rcpp::traits::input_parameter< bool >::type continuous(continuousSEXP);
     rcpp_result_gen = Rcpp::wrap(CimzMLBinReadMass(ibdFname, NPixels, N, offset, dataTypeString, continuous));
@@ -70,7 +70,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // CimzMLBinReadIntensity
-Rcpp::NumericVector CimzMLBinReadIntensity(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool continuous);
+Rcpp::NumericVector CimzMLBinReadIntensity(const char* ibdFname, unsigned int NPixels, unsigned int N, uint64_t offset, Rcpp::String dataTypeString, bool continuous);
 RcppExport SEXP _rMSI_CimzMLBinReadIntensity(SEXP ibdFnameSEXP, SEXP NPixelsSEXP, SEXP NSEXP, SEXP offsetSEXP, SEXP dataTypeStringSEXP, SEXP continuousSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -78,7 +78,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type NPixels(NPixelsSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type N(NSEXP);
-    Rcpp::traits::input_parameter< unsigned long >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< uint64_t >::type offset(offsetSEXP);
     Rcpp::traits::input_parameter< Rcpp::String >::type dataTypeString(dataTypeStringSEXP);
     Rcpp::traits::input_parameter< bool >::type continuous(continuousSEXP);
     rcpp_result_gen = Rcpp::wrap(CimzMLBinReadIntensity(ibdFname, NPixels, N, offset, dataTypeString, continuous));

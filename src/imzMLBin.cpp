@@ -69,35 +69,17 @@ ImzMLBin::ImzMLBin(const char* ibd_fname,  unsigned int num_of_pixels,Rcpp::Stri
       break;
   }
   
-  imzLength = new unsigned int[Npixels];
-  lmzOffset  = new unsigned long[Npixels];  
-  iintLength = new unsigned int[Npixels];  
-  lintOffset = new unsigned long[Npixels];  
+  Offsets.resize(Npixels);
     
 #ifdef __DEBUG__
 Rcpp::Rcout << "ImzMLBin() constructor end successfuly\n";
-Rcpp::Rcout << "imzLength addr: " << imzLength << "\n";
-Rcpp::Rcout << "lmzOffset addr: " << lmzOffset << "\n";
-Rcpp::Rcout << "iintLength addr: " << iintLength << "\n";
-Rcpp::Rcout << "lintOffset addr: " << lintOffset << "\n";
+Rcpp::Rcout << "Offsets size: " << Offsets.size() << "\n";
 #endif
 }
 
 ImzMLBin::~ImzMLBin()
 {
   close();
-  
-#ifdef __DEBUG__
-  Rcpp::Rcout << "imzLength addr: " << imzLength << "\n";
-  Rcpp::Rcout << "lmzOffset addr: " << lmzOffset << "\n";
-  Rcpp::Rcout << "iintLength addr: " << iintLength << "\n";
-  Rcpp::Rcout << "lintOffset addr: " << lintOffset << "\n";
-#endif
-  
-  delete[] imzLength;
-  delete[] lmzOffset;
-  delete[] iintLength;
-  delete[] lintOffset;
   
 #ifdef __DEBUG__
   Rcpp::Rcout << "ImzMLBin() destructor end successfuly\n";
@@ -120,16 +102,16 @@ unsigned int ImzMLBin::get_mzLength(unsigned int index)
   {
     throw std::runtime_error("ERROR: ImzMLBin class get_mzLength(): out of range.\n");
   }
-  return imzLength[index];
+  return Offsets[index].mzLength;
 }
 
-unsigned long ImzMLBin::get_mzOffset(unsigned int index)
+std::streampos ImzMLBin::get_mzOffset(unsigned int index)
 {
   if(index >= Npixels)
   {
     throw std::runtime_error("ERROR: ImzMLBin class get_mzOffset(): out of range.\n");
   }
-  return lmzOffset[index];
+  return Offsets[index].mzOffset;
 }
 
 unsigned int ImzMLBin::get_intLength(unsigned int index)
@@ -138,16 +120,16 @@ unsigned int ImzMLBin::get_intLength(unsigned int index)
   {
     throw std::runtime_error("ERROR: ImzMLBin class get_intLength(): out of range.\n");
   }
-  return iintLength[index];
+  return Offsets[index].intLength;
 }
 
-unsigned long ImzMLBin::get_intOffset(unsigned int index)
+std::streampos ImzMLBin::get_intOffset(unsigned int index)
 {
   if(index >= Npixels)
   {
     throw std::runtime_error("ERROR: ImzMLBin class get_intOffset(): out of range.\n");
   }
-  return lintOffset[index];
+  return Offsets[index].intOffset;
 }
 
 Rcpp::DataFrame ImzMLBin::get_OffsetsLengths()
@@ -159,10 +141,10 @@ Rcpp::DataFrame ImzMLBin::get_OffsetsLengths()
   
   for(unsigned int i = 0; i< Npixels; i++)
   {
-    RmzLengths[i] = imzLength[i];
-    RmzOffsets[i] = lmzOffset[i];
-    RintLengths[i] = iintLength[i];
-    RintOffsets[i] = lintOffset[i];
+    RmzLengths[i] = Offsets[i].mzLength;
+    RmzOffsets[i] = Offsets[i].mzOffset;
+    RintLengths[i] = Offsets[i].intLength;
+    RintOffsets[i] = Offsets[i].intOffset;
   }
   
   return Rcpp::DataFrame::create( Rcpp::Named("mzLength") = RmzLengths,
@@ -181,7 +163,7 @@ void ImzMLBin::set_mzLength(Rcpp::NumericVector* mzLength_vector)
   
   for(unsigned int i = 0; i < Npixels; i++)
   {
-    imzLength[i] = (unsigned int)(*mzLength_vector)[i];
+    Offsets[i].mzLength = (unsigned int)(*mzLength_vector)[i];
   }
 }
 
@@ -194,7 +176,7 @@ void ImzMLBin::set_mzOffset(Rcpp::NumericVector* mzOffset_vector)
   
   for(unsigned int i = 0; i < Npixels; i++)
   {
-    lmzOffset[i] = (unsigned long)(*mzOffset_vector)[i];
+    Offsets[i].mzOffset = (std::streampos)(*mzOffset_vector)[i];
   }
 }
 
@@ -207,7 +189,7 @@ void ImzMLBin::set_intLength(Rcpp::NumericVector* intLength_vector)
   
   for(unsigned int i = 0; i < Npixels; i++)
   {
-    iintLength[i] = (unsigned int)(*intLength_vector)[i];
+    Offsets[i].intLength = (unsigned int)(*intLength_vector)[i];
   }
 }
 
@@ -220,7 +202,7 @@ void ImzMLBin::set_intOffset(Rcpp::NumericVector* intOffset_vector)
   
   for(unsigned int i = 0; i < Npixels; i++)
   {
-    lintOffset[i] = (unsigned long)(*intOffset_vector)[i];
+    Offsets[i].intOffset = (std::streampos)(*intOffset_vector)[i];
   }
 }
 
@@ -342,7 +324,7 @@ void ImzMLBinRead::open()
   }
 }
 
-void ImzMLBinRead::readDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
+void ImzMLBinRead::readDataCommon(std::streampos offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
 {
   unsigned int byteCount = N*dataPointBytes;
   char* buffer = new char [byteCount];
@@ -370,7 +352,7 @@ void ImzMLBinRead::readDataCommon(unsigned long offset, unsigned int N, double* 
   switch(dataType)
   {
   case int32:
-    convertBytes2Double<int>(buffer, ptr, N);
+    convertBytes2Double<int32_t>(buffer, ptr, N);
     break;
     
   case float32:  
@@ -378,7 +360,7 @@ void ImzMLBinRead::readDataCommon(unsigned long offset, unsigned int N, double* 
     break;
     
   case int64:
-    convertBytes2Double<long>(buffer, ptr, N);
+    convertBytes2Double<int64_t>(buffer, ptr, N);
     break;
     
   case float64:
@@ -413,7 +395,7 @@ void ImzMLBinRead::readUUID(char* uuid)
   }
 }
 
-void ImzMLBinRead::readMzData(unsigned long offset, unsigned int N, double* ptr )
+void ImzMLBinRead::readMzData(std::streampos offset, unsigned int N, double* ptr )
 {
   if(get_continuous())
   {
@@ -439,7 +421,7 @@ void ImzMLBinRead::readMzData(unsigned long offset, unsigned int N, double* ptr 
   }
 }
 
-void ImzMLBinRead::readIntData(unsigned long offset, unsigned int N, double* ptr )
+void ImzMLBinRead::readIntData(std::streampos offset, unsigned int N, double* ptr )
 {
   readDataCommon(offset, N, ptr, intDataPointBytes, intDataType);
 }
@@ -501,7 +483,7 @@ imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, uns
   if(get_continuous() && !bForceResampling)
   {
     //Continuous mode, just load the spectrum intensity vector
-    readIntData(get_intOffset(pixelID) + ionIndex*get_intEncodingBytes(), ionCount, out);  
+    readIntData(get_intOffset(pixelID) + (std::streampos)(ionIndex*get_intEncodingBytes()), ionCount, out);  
   }
   else
   {
@@ -612,7 +594,7 @@ void ImzMLBinWrite::writeUUID(std::string suuid)
   writeUUID(uuid);
 }
 
-void ImzMLBinWrite::writeMzData(unsigned long offset, unsigned int N, double* ptr )
+void ImzMLBinWrite::writeMzData(std::streampos offset, unsigned int N, double* ptr )
 {
   if(fileMode == Mode::SequentialWriteFile)
   {
@@ -642,8 +624,8 @@ void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
     {
       //First mass axis write in continuous mode, so write it to hdd
       //In processed mode, just write and update indices
-      lmzOffset[sequentialWriteIndex_MzData] = ibdFile.tellp();
-      imzLength[sequentialWriteIndex_MzData] = N;
+      Offsets[sequentialWriteIndex_MzData].mzOffset = ibdFile.tellp();
+      Offsets[sequentialWriteIndex_MzData].mzLength = N;
       
       //Write data
       writeDataCommon(N, ptr, mzDataPointBytes, mzDataType);
@@ -651,15 +633,15 @@ void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
     else
     {
       //Just update indices
-      lmzOffset[sequentialWriteIndex_MzData] = lmzOffset[0];
-      imzLength[sequentialWriteIndex_MzData] = imzLength[0];
+      Offsets[sequentialWriteIndex_MzData].mzOffset =  Offsets[0].mzOffset;
+      Offsets[sequentialWriteIndex_MzData].mzLength = Offsets[0].mzLength;
     }
   }
   else
   {
     //In processed mode, just write and update indices
-    lmzOffset[sequentialWriteIndex_MzData] = ibdFile.tellp();
-    imzLength[sequentialWriteIndex_MzData] = N;
+    Offsets[sequentialWriteIndex_MzData].mzOffset = ibdFile.tellp();
+    Offsets[sequentialWriteIndex_MzData].mzLength = N;
   
     //Write data
     writeDataCommon(N, ptr, mzDataPointBytes, mzDataType);
@@ -668,7 +650,7 @@ void ImzMLBinWrite::writeMzData(unsigned int N, double* ptr )
   sequentialWriteIndex_MzData++;
 }
 
-void ImzMLBinWrite::writeIntData(unsigned long offset, unsigned int N, double* ptr )
+void ImzMLBinWrite::writeIntData(std::streampos offset, unsigned int N, double* ptr )
 {
   if(fileMode == Mode::SequentialWriteFile)
   {
@@ -691,13 +673,13 @@ void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
     throw std::runtime_error("ERROR: trying to write more spectral data than the maximum number of pixels set in the constructor");
   }
  
-  lintOffset[sequentialWriteIndex_IntData] = ibdFile.tellp();
-  iintLength[sequentialWriteIndex_IntData] = N;
+  Offsets[sequentialWriteIndex_IntData].intOffset = ibdFile.tellp();
+  Offsets[sequentialWriteIndex_IntData].intLength = N;
   /* DEBUG Prints must be commented out
   Rcpp::Rcout<<"DBG TRAP in writeIntData(): sequentialWriteIndex_IntData = " <<  sequentialWriteIndex_IntData << "\n";
-  Rcpp::Rcout<<"DBG TRAP in writeIntData(): lintOffset[sequentialWriteIndex_IntData] = " << lintOffset[sequentialWriteIndex_IntData] << " \n";
+  Rcpp::Rcout<<"DBG TRAP in writeIntData(): Offsets[sequentialWriteIndex_IntData].intOffset  = " << Offsets[sequentialWriteIndex_IntData].intOffset  << " \n";
   Rcpp::Rcout<<"DBG TRAP in writeIntData(): ibdFile.tellp() = " << ibdFile.tellp() << " \n";
-  Rcpp::Rcout<<"DBG TRAP in writeIntData(): iintLength[sequentialWriteIndex_IntData] = " << iintLength[sequentialWriteIndex_IntData] << " \n";
+  Rcpp::Rcout<<"DBG TRAP in writeIntData(): Offsets[sequentialWriteIndex_IntData].intLength = " << Offsets[sequentialWriteIndex_IntData].intLength << " \n";
   Rcpp::Rcout<<"DBG TRAP in writeIntData(): N = " << N << " \n";
   */
   sequentialWriteIndex_IntData++;
@@ -706,7 +688,7 @@ void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
   writeDataCommon(N, ptr, intDataPointBytes, intDataType);
 }
 
-void ImzMLBinWrite::writeDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
+void ImzMLBinWrite::writeDataCommon(std::streampos offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
 {
   ibdFile.seekp(offset);
   if(ibdFile.fail() || ibdFile.bad())
@@ -726,7 +708,7 @@ void ImzMLBinWrite::writeDataCommon(unsigned int N, double* ptr, unsigned int da
   switch(dataType)
   {
     case int32:
-      convertDouble2Bytes<int>(ptr, buffer, N);
+      convertDouble2Bytes<int32_t>(ptr, buffer, N);
       break;
       
     case float32:  
@@ -734,7 +716,7 @@ void ImzMLBinWrite::writeDataCommon(unsigned int N, double* ptr, unsigned int da
       break;
       
     case int64:
-      convertDouble2Bytes<long>(ptr, buffer, N);
+      convertDouble2Bytes<int64_t>(ptr, buffer, N);
       break;
       
     case float64:
@@ -762,7 +744,7 @@ void ImzMLBinWrite::writeDataCommon(unsigned int N, double* ptr, unsigned int da
 //' @param offset: offset in bytes at which the reading operation is started.
 //' @param read_mz: if true m/z data is readed, otherwise intensities are readed.
 //' @param continuous: true if imzML data is in continuous mode
-Rcpp::NumericVector imzMLBinReadGeneric(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool read_mz, bool continuous)
+Rcpp::NumericVector imzMLBinReadGeneric(const char* ibdFname, unsigned int NPixels, unsigned int N, uint64_t offset, Rcpp::String dataTypeString, bool read_mz, bool continuous)
 {
   Rcpp::NumericVector x(N);
   try
@@ -858,7 +840,7 @@ Rcpp::DataFrame testingimzMLBinWriteSequential(const char* ibdFname, Rcpp::Strin
 //' @param mzOffset: offset in the ibd file of the target mass axis.
 // [[Rcpp::export]]
 void CimzMLBinWriteModifyMass(const char* ibdFname, unsigned int NPixels, Rcpp::String mz_dataTypeString, Rcpp::String int_dataTypeString, bool continuous,
-                                           Rcpp::NumericVector mzNew, unsigned long mzOffset)
+                                           Rcpp::NumericVector mzNew, uint64_t mzOffset)
 {
   try
   {
@@ -882,7 +864,7 @@ void CimzMLBinWriteModifyMass(const char* ibdFname, unsigned int NPixels, Rcpp::
 //' @param offset: offset in bytes at which the reading operation is started.
 //' @param continuous: true if imzML data is in continuous mode
 // [[Rcpp::export]]
-Rcpp::NumericVector CimzMLBinReadMass(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool continuous)
+Rcpp::NumericVector CimzMLBinReadMass(const char* ibdFname, unsigned int NPixels, unsigned int N, uint64_t offset, Rcpp::String dataTypeString, bool continuous)
 {
   return imzMLBinReadGeneric(ibdFname, NPixels, N, offset, dataTypeString, true, continuous);
 }
@@ -897,7 +879,7 @@ Rcpp::NumericVector CimzMLBinReadMass(const char* ibdFname, unsigned int NPixels
 //' @param offset: offset in bytes at which the reading operation is started.
 //' @param continuous: true if imzML data is in continuous mode
 // [[Rcpp::export]]
-Rcpp::NumericVector CimzMLBinReadIntensity(const char* ibdFname, unsigned int NPixels, unsigned int N, unsigned long offset, Rcpp::String dataTypeString, bool continuous)
+Rcpp::NumericVector CimzMLBinReadIntensity(const char* ibdFname, unsigned int NPixels, unsigned int N, uint64_t offset, Rcpp::String dataTypeString, bool continuous)
 {
   return imzMLBinReadGeneric(ibdFname, NPixels, N, offset, dataTypeString, false, continuous);
 }

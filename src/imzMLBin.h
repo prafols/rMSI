@@ -50,9 +50,9 @@ class ImzMLBin
     const char* getIbdFilePath();
     bool get_continuous();
     unsigned int get_mzLength(unsigned int index);
-    unsigned long get_mzOffset(unsigned int index);
+    std::streampos get_mzOffset(unsigned int index);
     unsigned int get_intLength(unsigned int index);
-    unsigned long get_intOffset(unsigned int index);
+    std::streampos get_intOffset(unsigned int index);
     Rcpp::DataFrame get_OffsetsLengths(); //Get all offsets and legnth in a R data frame
     
     void set_mzLength(Rcpp::NumericVector* mzLength_vector);
@@ -78,10 +78,15 @@ class ImzMLBin
     unsigned int intDataPointBytes; //Number of bytes used to encode an intensity data point
     imzMLDataType mzDataType, intDataType;
     bool bContinuous;
-    unsigned int* imzLength;
-    unsigned long* lmzOffset;
-    unsigned int* iintLength;
-    unsigned long* lintOffset;
+    
+    typedef struct
+    {
+      unsigned int mzLength; //Number of datapoints in the mass axis
+      std::streampos mzOffset; //Offset in bytes to read a mass axis
+      unsigned int intLength; //Number of datapoints in the intensities data
+      std::streampos intOffset; //Offset in bytes to read a the intensities of a spectrum
+    } PixelOffsets;
+    std::vector<PixelOffsets> Offsets; 
     
     //Get the imzMLDataType from a string
     imzMLDataType string2imzMLDatatype(Rcpp::String data_type);
@@ -109,13 +114,13 @@ class ImzMLBinRead : public ImzMLBin
     //offset: offset in bytes at which the reading operation is started.
     //N: number of elements to read from the ibd file (N is elements, not bytes!)
     //ptr: Data will be stored at the ptr pointer
-    void readMzData(unsigned long offset, unsigned int N, double* ptr );
+    void readMzData(std::streampos offset, unsigned int N, double* ptr );
     
     //Read N elements from the ibd file and decode them as intensity data.
     //offset: offset in bytes at which the reading operation is started.
     //N: number of elements to read from the ibd file (N is elements, not bytes!)
     //ptr: Data will be stored at the ptr pointer
-    void readIntData(unsigned long offset, unsigned int N, double* ptr );
+    void readIntData(std::streampos offset, unsigned int N, double* ptr );
     
     // Set a common mass axis diferent than the original image mass axis. Thus, each readed spectrum will be interpolated to the common mass axis.
     //commonMassLength: number of points in the common mass axis.
@@ -137,7 +142,7 @@ class ImzMLBinRead : public ImzMLBin
     //ptr: Data will be stored at the ptr pointer
     //dataPointBytes: number of bytes used to encode a single data point.
     //dataType: data type used for the encoding.
-    void readDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
+    void readDataCommon(std::streampos offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
     
     //Process both mass axis and compare them. If diferent, the bForceResampling flag will be set to true.
     void checkCompareOriginalMassAxisAndCommonMassAxis();
@@ -166,7 +171,7 @@ class ImzMLBinWrite : public ImzMLBin
     
     //Write N elements to the ibd file at the given offset as m/z channels
     //Data is obtained from ptr pointer
-    void writeMzData(unsigned long offset, unsigned int N, double* ptr );
+    void writeMzData(std::streampos offset, unsigned int N, double* ptr );
     
     //Append N elements to the ibd file (write in sequential mode)
     //Data is obtained from ptr pointer
@@ -174,7 +179,7 @@ class ImzMLBinWrite : public ImzMLBin
     
     //Write N elements to the ibd file at the given offset as spectrum intensities
     //Data is obtained from ptr pointer
-    void writeIntData(unsigned long offset, unsigned int N, double* ptr );
+    void writeIntData(std::streampos offset, unsigned int N, double* ptr );
     
     //Append N elements to the ibd file (write in sequential mode)
     //Data is obtained from ptr pointer
@@ -191,7 +196,7 @@ class ImzMLBinWrite : public ImzMLBin
     //ptr: Pointer to the data to write
     //dataPointBytes: number of bytes used to encode a single data point.
     //dataType: data type used for the encoding.
-    void writeDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
+    void writeDataCommon(std::streampos offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
     
     //Write N elements to the ibd file encoded in the specified format.
     //This method is tailored to sequential writing mode
