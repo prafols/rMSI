@@ -312,8 +312,8 @@ void ImzMLBin::convertDouble2Bytes(double* inPtr, char* outBytes, unsigned int N
   delete[] auxBuffer;
 }
 
-ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd, bool forceResampling):
-  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, Mode::Read), bForceResampling(forceResampling), bOriginalMassAxisOnMem(false)
+ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd):
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, Mode::Read), bForceResampling(false), bOriginalMassAxisOnMem(false)
 {
   if(openIbd)
   {
@@ -424,6 +424,9 @@ void ImzMLBinRead::readMzData(unsigned long offset, unsigned int N, double* ptr 
       originalMassAxis.resize(N);
       readDataCommon(offset, N, originalMassAxis.data(), mzDataPointBytes, mzDataType);  
       bOriginalMassAxisOnMem = true;
+      
+      //Re-check if equals to the common mass axis
+      checkCompareOriginalMassAxisAndCommonMassAxis();
     }
     
     //Mass axis already in mem so just copy from it
@@ -441,17 +444,53 @@ void ImzMLBinRead::readIntData(unsigned long offset, unsigned int N, double* ptr
   readDataCommon(offset, N, ptr, intDataPointBytes, intDataType);
 }
 
+// Set a common mass axis diferent than the original image mass axis. Thus, each readed spectrum will be interpolated to the common mass axis.
+//commonMassLength: number of points in the common mass axis.
+//commonMass: pointer to the common mass axis
+void ImzMLBinRead::setCommonMassAxis(unsigned int commonMassLength, double *commonMass)
+{
+  commonMassAxis.resize(commonMassLength);
+  memcpy( commonMassAxis.data(), commonMass, commonMassLength * sizeof(double) );
+  
+  //Check if the common mass axis is diferent than the original mass axis
+  checkCompareOriginalMassAxisAndCommonMassAxis();
+}
+
+//Process both mass axis and compare them. If diferent, the bForceResampling flag will be set to true.
+void ImzMLBinRead::checkCompareOriginalMassAxisAndCommonMassAxis()
+{
+  bForceResampling = false;  
+  if( commonMassAxis.size() != originalMassAxis.size() )
+  {
+    bForceResampling = true;  
+  }
+  else
+  {
+    for(unsigned int i = 0; i < commonMassAxis.size(); i ++)
+    {
+      if(commonMassAxis[i] != originalMassAxis[i])
+      {
+        bForceResampling = true;
+        break;
+      }
+    }
+  } 
+}
+
 //Read a single spectrum from the imzML data
 //If data is in processed mode the spectrum will be interpolated to the common mass axis
 //pixelID: the pixel ID of the spectrum to read.
 //ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
 //ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
 //out: a pointer where data will be stored.
-//commonMassLength: number of points in the common mass axis.
-//commonMass: pointer to the common mass axis
-imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass)
+imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out)
 {
-  if( (ionIndex+ionCount) > commonMassLength )
+  if(commonMassAxis.size() == 0)
+  {
+    throw std::runtime_error("Error: common mass axis not available. Set it using  ImzMLBinRead::setCommonMassAxis() method\n"); 
+  }
+    
+  if( (ionIndex+ionCount) > commonMassAxis.size() )
   {
     throw std::runtime_error("Error: mass channels out of range\n"); 
   }
@@ -492,7 +531,7 @@ imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, uns
     mlinterp::interp(
       &massLength, (int)ionCount, // Number of points (imzML original, interpolated )
       imzMLSpc.imzMLintensity.data(), out, // Y axis  (imzML original, interpolated )
-      imzMLSpc.imzMLmass.data(), commonMass + ionIndex // X axis  (imzML original, interpolated )
+      imzMLSpc.imzMLmass.data(), commonMassAxis.data() + ionIndex // X axis  (imzML original, interpolated )
     );
     
   }

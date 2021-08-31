@@ -51,10 +51,9 @@ class CrMSIDataCubeIO
     
     //Appends an image to be processed.
     // - rMSIObj: The rMSI object describing a complete MSI image.
-    // - forceDataResampling: A boolean indicating if the data reading operation must force data resampling even for continuous mode. This is used to allow on-the-fly resampling of TOF datasets.
     // - outputImzMLuuid: UUID for the output imzML file. Only used if storeData is set in the constructor.
     // - outputImzMLsuffix: suffix for the output imzML filenmaes. Only used if storeData is set in the constructor.
-    void appedImageData(Rcpp::List rMSIOoj,  bool forceDataResampling, std::string outputImzMLuuid = "", std::string outputImzMLfname = "");
+    void appedImageData(Rcpp::List rMSIOoj,  std::string outputImzMLuuid = "", std::string outputImzMLfname = "");
     
     //Loads a data cube specified by iCube into data_ptr
     //WARNING: This is not a thread-safe method, it must be only used on the main thread who'll take care of loading data from HDD and copy it to other thread mem space.

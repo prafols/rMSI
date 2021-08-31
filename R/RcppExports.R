@@ -137,16 +137,16 @@ MergeMassAxisAutoBinSize <- function(mz1, mz2) {
     .Call('_rMSI_MergeMassAxisAutoBinSize', PACKAGE = 'rMSI', mz1, mz2)
 }
 
-COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, forceDataResampling, minTIC, maxTic) {
-    .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, forceDataResampling, minTIC, maxTic)
+COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis, minTIC, maxTic) {
+    .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis, minTIC, maxTic)
 }
 
-CNormalizations <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB) {
-    .Call('_rMSI_CNormalizations', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB)
+CNormalizations <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis) {
+    .Call('_rMSI_CNormalizations', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis)
 }
 
-CRunPreProcessing <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, forceDataResampling) {
-    .Call('_rMSI_CRunPreProcessing', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, forceDataResampling)
+CRunPreProcessing <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, commonMassAxis) {
+    .Call('_rMSI_CRunPreProcessing', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, commonMassAxis)
 }
 
 #' NoiseEstimationFFTCosWin.
@@ -321,8 +321,9 @@ Cload_rMSIXBinIonImage <- function(rMSIobj, ionIndex, ionCount, normalization_co
 #' Load spectra into a Matrix object interpolating to the common mass axis when necessary.
 #' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
 #' @param pixelIDs: pixel ID's of the spectra to load in C-style indexing (starting at 0).
-Cload_imzMLSpectra <- function(rMSIobj, pixelIDs) {
-    .Call('_rMSI_Cload_imzMLSpectra', PACKAGE = 'rMSI', rMSIobj, pixelIDs)
+#' @param commonMassAxis: a common mass axis that may be different than the mass axis in the rMSI object
+Cload_imzMLSpectra <- function(rMSIobj, pixelIDs, commonMassAxis) {
+    .Call('_rMSI_Cload_imzMLSpectra', PACKAGE = 'rMSI', rMSIobj, pixelIDs, commonMassAxis)
 }
 
 #' Smoothing_SavitzkyGolay.

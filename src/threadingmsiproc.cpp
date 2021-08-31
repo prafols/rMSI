@@ -20,9 +20,9 @@
 #include "progressbar.h"
 #include <stdexcept>
 
-ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, bool forceDataResampling,
+ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis,
                                    bool storeDataInimzml, Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames):
-  bProcDataExport(storeDataInimzml)
+  bProcDataExport(storeDataInimzml), massAxis(commonMassAxis)
 {
   if(bProcDataExport)
   {
@@ -42,8 +42,6 @@ ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads,
     }
   }
   
-  //Obtain the mass axis from the first image.
-  massAxis = Rcpp::as<Rcpp::NumericVector>((Rcpp::as<Rcpp::List>(rMSIObj_list[0]))["mass"]);
   numOfThreadsDouble = 2*numberOfThreads;
   ioObj = new CrMSIDataCubeIO( massAxis, memoryPerThreadMB, bProcDataExport, outputImzMLPath);
   
@@ -54,11 +52,11 @@ ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads,
     {
       Rcpp::String RcppStr_uuid = uuid[i];
       Rcpp::String RcppStr_outImzmls = outputImzMLfnames[i];
-      ioObj->appedImageData(rMSIObj_list[i], forceDataResampling, RcppStr_uuid.get_cstring(), RcppStr_outImzmls.get_cstring());
+      ioObj->appedImageData(rMSIObj_list[i], RcppStr_uuid.get_cstring(), RcppStr_outImzmls.get_cstring());
     }
     else
     {
-      ioObj->appedImageData(rMSIObj_list[i], forceDataResampling); 
+      ioObj->appedImageData(rMSIObj_list[i]); 
     }
   }
   

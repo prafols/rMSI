@@ -4,12 +4,14 @@
 \alias{InternalReferenceSpectrum}
 \title{InternalReferenceSpectrum.}
 \usage{
-InternalReferenceSpectrum(img, reference)
+InternalReferenceSpectrum(img, reference, commonMassAxis = img$mass)
 }
 \arguments{
 \item{img}{MSI image to calculate internal reference spectrum.}
 
 \item{reference}{the spectrum to use as reference for correlations.}
+
+\item{commonMassAxis}{the common mass axis for spectra interpolation.}
 }
 \value{
 a list with the intensity vector corresponding to the reference spectrum, the score and the pixel ID selected as reference.

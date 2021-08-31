@@ -170,37 +170,38 @@ BEGIN_RCPP
 END_RCPP
 }
 // COverallAverageSpectrum
-NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, bool forceDataResampling, double minTIC, double maxTic);
-RcppExport SEXP _rMSI_COverallAverageSpectrum(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP forceDataResamplingSEXP, SEXP minTICSEXP, SEXP maxTicSEXP) {
+NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis, double minTIC, double maxTic);
+RcppExport SEXP _rMSI_COverallAverageSpectrum(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP commonMassAxisSEXP, SEXP minTICSEXP, SEXP maxTicSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type rMSIObj_list(rMSIObj_listSEXP);
     Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
     Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
-    Rcpp::traits::input_parameter< bool >::type forceDataResampling(forceDataResamplingSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type commonMassAxis(commonMassAxisSEXP);
     Rcpp::traits::input_parameter< double >::type minTIC(minTICSEXP);
     Rcpp::traits::input_parameter< double >::type maxTic(maxTicSEXP);
-    rcpp_result_gen = Rcpp::wrap(COverallAverageSpectrum(rMSIObj_list, numOfThreads, memoryPerThreadMB, forceDataResampling, minTIC, maxTic));
+    rcpp_result_gen = Rcpp::wrap(COverallAverageSpectrum(rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis, minTIC, maxTic));
     return rcpp_result_gen;
 END_RCPP
 }
 // CNormalizations
-List CNormalizations(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB);
-RcppExport SEXP _rMSI_CNormalizations(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP) {
+List CNormalizations(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis);
+RcppExport SEXP _rMSI_CNormalizations(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP commonMassAxisSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type rMSIObj_list(rMSIObj_listSEXP);
     Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
     Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
-    rcpp_result_gen = Rcpp::wrap(CNormalizations(rMSIObj_list, numOfThreads, memoryPerThreadMB));
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type commonMassAxis(commonMassAxisSEXP);
+    rcpp_result_gen = Rcpp::wrap(CNormalizations(rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis));
     return rcpp_result_gen;
 END_RCPP
 }
 // CRunPreProcessing
-List CRunPreProcessing(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference, Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames, bool forceDataResampling);
-RcppExport SEXP _rMSI_CRunPreProcessing(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP preProcessingParamsSEXP, SEXP referenceSEXP, SEXP uuidSEXP, SEXP outputDataPathSEXP, SEXP imzMLoutFnamesSEXP, SEXP forceDataResamplingSEXP) {
+List CRunPreProcessing(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference, Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames, Rcpp::NumericVector commonMassAxis);
+RcppExport SEXP _rMSI_CRunPreProcessing(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP preProcessingParamsSEXP, SEXP referenceSEXP, SEXP uuidSEXP, SEXP outputDataPathSEXP, SEXP imzMLoutFnamesSEXP, SEXP commonMassAxisSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -212,8 +213,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::StringVector >::type uuid(uuidSEXP);
     Rcpp::traits::input_parameter< Rcpp::String >::type outputDataPath(outputDataPathSEXP);
     Rcpp::traits::input_parameter< Rcpp::StringVector >::type imzMLoutFnames(imzMLoutFnamesSEXP);
-    Rcpp::traits::input_parameter< bool >::type forceDataResampling(forceDataResamplingSEXP);
-    rcpp_result_gen = Rcpp::wrap(CRunPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, forceDataResampling));
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type commonMassAxis(commonMassAxisSEXP);
+    rcpp_result_gen = Rcpp::wrap(CRunPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, commonMassAxis));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -378,14 +379,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // Cload_imzMLSpectra
-NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs);
-RcppExport SEXP _rMSI_Cload_imzMLSpectra(SEXP rMSIobjSEXP, SEXP pixelIDsSEXP) {
+NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs, NumericVector commonMassAxis);
+RcppExport SEXP _rMSI_Cload_imzMLSpectra(SEXP rMSIobjSEXP, SEXP pixelIDsSEXP, SEXP commonMassAxisSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< List >::type rMSIobj(rMSIobjSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type pixelIDs(pixelIDsSEXP);
-    rcpp_result_gen = Rcpp::wrap(Cload_imzMLSpectra(rMSIobj, pixelIDs));
+    Rcpp::traits::input_parameter< NumericVector >::type commonMassAxis(commonMassAxisSEXP);
+    rcpp_result_gen = Rcpp::wrap(Cload_imzMLSpectra(rMSIobj, pixelIDs, commonMassAxis));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -415,7 +417,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
     {"_rMSI_MergeMassAxisAutoBinSize", (DL_FUNC) &_rMSI_MergeMassAxisAutoBinSize, 2},
     {"_rMSI_COverallAverageSpectrum", (DL_FUNC) &_rMSI_COverallAverageSpectrum, 6},
-    {"_rMSI_CNormalizations", (DL_FUNC) &_rMSI_CNormalizations, 3},
+    {"_rMSI_CNormalizations", (DL_FUNC) &_rMSI_CNormalizations, 4},
     {"_rMSI_CRunPreProcessing", (DL_FUNC) &_rMSI_CRunPreProcessing, 9},
     {"_rMSI_NoiseEstimationFFTCosWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTCosWin, 2},
     {"_rMSI_NoiseEstimationFFTExpWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWin, 2},
@@ -429,7 +431,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_Ccreate_rMSIXBinData", (DL_FUNC) &_rMSI_Ccreate_rMSIXBinData, 2},
     {"_rMSI_Cload_rMSIXBinData", (DL_FUNC) &_rMSI_Cload_rMSIXBinData, 2},
     {"_rMSI_Cload_rMSIXBinIonImage", (DL_FUNC) &_rMSI_Cload_rMSIXBinIonImage, 5},
-    {"_rMSI_Cload_imzMLSpectra", (DL_FUNC) &_rMSI_Cload_imzMLSpectra, 2},
+    {"_rMSI_Cload_imzMLSpectra", (DL_FUNC) &_rMSI_Cload_imzMLSpectra, 3},
     {"_rMSI_Smoothing_SavitzkyGolay", (DL_FUNC) &_rMSI_Smoothing_SavitzkyGolay, 2},
     {NULL, NULL, 0}
 };

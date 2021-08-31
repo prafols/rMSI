@@ -4,12 +4,14 @@
 \alias{loadImgChunkFromIds}
 \title{Loads a part of a img data in RAM.}
 \usage{
-loadImgChunkFromIds(Img, Ids)
+loadImgChunkFromIds(Img, Ids, MassAxis = Img$mass)
 }
 \arguments{
 \item{Img}{the rMSI object where the data is stored.}
 
 \item{Ids}{Identifiers of spectra to load.}
+
+\item{MassAxis}{a mass axis used for data interpolation. Defaults to Img$mass but may be different.}
 }
 \value{
 a matrix containing the loaded spectra.

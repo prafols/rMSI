@@ -96,7 +96,7 @@ class ImzMLBin
 class ImzMLBinRead : public ImzMLBin
 {
   public: 
-    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true, bool forceResampling = false);
+    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true);
     ~ImzMLBinRead();
     
     //Open the ibd file in reading mode
@@ -117,15 +117,18 @@ class ImzMLBinRead : public ImzMLBin
     //ptr: Data will be stored at the ptr pointer
     void readIntData(unsigned long offset, unsigned int N, double* ptr );
     
+    // Set a common mass axis diferent than the original image mass axis. Thus, each readed spectrum will be interpolated to the common mass axis.
+    //commonMassLength: number of points in the common mass axis.
+    //commonMass: pointer to the common mass axis
+    void setCommonMassAxis(unsigned int commonMassLength, double *commonMass);
+    
     //Read a single spectrum from the imzML data
     //If data is in processed mode the spectrum will be interpolated to the common mass axis
     //pixelID: the pixel ID of the spectrum to read.
     //ionIndex: the ion index at which to start reading the spectrum (0 means reading from the begining).
     //ionCount: the number of mass channels to read (massLength means reading the whole spectrum).
     //out: a pointer where data will be stored.
-    //commonMassLength: number of points in the common mass axis.
-    //commonMass: pointer to the common mass axis
-    imzMLSpectrum ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out, unsigned int commonMassLength, double *commonMass);
+    imzMLSpectrum ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out);
     
   private:
     //Read N elements from the ibd file and decode them.
@@ -136,9 +139,13 @@ class ImzMLBinRead : public ImzMLBin
     //dataType: data type used for the encoding.
     void readDataCommon(unsigned long offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType);
     
+    //Process both mass axis and compare them. If diferent, the bForceResampling flag will be set to true.
+    void checkCompareOriginalMassAxisAndCommonMassAxis();
+    
     bool bForceResampling; //Used in continuous mode to force resampling to different mass axis
-    bool bOriginalMassAxisOnMem; //A boolean to signal when the mass axis is already available in memory for continuous mode
-    std::vector<double> originalMassAxis; //A local copy of the original mass axis for continuous data interpolation
+    bool bOriginalMassAxisOnMem; //A boolean to signal when the original mass axis is already available in memory for continuous mode
+    std::vector<double> originalMassAxis; //A local copy of the original mass axis for continuous data interpolation (obtained from the rMSI object)
+    std::vector<double> commonMassAxis; //A local copy of the common mass axis used for data interpolation when needed.
 };
 
 class ImzMLBinWrite : public ImzMLBin

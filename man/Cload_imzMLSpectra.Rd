@@ -5,12 +5,14 @@
 \title{Cload_imzMLSpectra
 Load spectra into a Matrix object interpolating to the common mass axis when necessary.}
 \usage{
-Cload_imzMLSpectra(rMSIobj, pixelIDs)
+Cload_imzMLSpectra(rMSIobj, pixelIDs, commonMassAxis)
 }
 \arguments{
 \item{rMSIobj:}{an rMSI object prefilled with a parsed imzML.}
 
 \item{pixelIDs:}{pixel ID's of the spectra to load in C-style indexing (starting at 0).}
+
+\item{commonMassAxis:}{a common mass axis that may be different than the mass axis in the rMSI object}
 }
 \description{
 Cload_imzMLSpectra

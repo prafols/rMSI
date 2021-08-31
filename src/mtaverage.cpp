@@ -21,8 +21,8 @@
 #include "mtaverage.h"
 using namespace Rcpp;
 
-MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB,  bool forceDataResampling, double minTIC, double maxTIC) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, forceDataResampling),
+MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis, double minTIC, double maxTIC) : 
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, commonMassAxis),
   TICmin(minTIC), 
   TICmax(maxTIC)
 {
@@ -134,13 +134,13 @@ void MTAverage::ProcessingFunction(int threadSlot)
 NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list, 
                                int numOfThreads, 
                                double memoryPerThreadMB,
-                               bool forceDataResampling,
+                               Rcpp::NumericVector commonMassAxis,
                                double minTIC, double maxTic)
 {
   MTAverage myAverage(rMSIObj_list, 
                       numOfThreads, 
                       memoryPerThreadMB, 
-                      forceDataResampling,
+                      commonMassAxis,
                       minTIC,
                       maxTic);
  

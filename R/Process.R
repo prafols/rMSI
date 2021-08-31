@@ -143,9 +143,6 @@ RunPreProcessing <- function(proc_params,
     }
   }
   
-  #Set the ForceResampling (just set if mass axis are diferent and it will be ignored for the processed mode)
-  ForceResampling <- (!identicalMassAxis) 
-  
   # Calculate the new common mass axis 
   if(!identicalMassAxis)
   {
@@ -158,22 +155,12 @@ RunPreProcessing <- function(proc_params,
       }
       common_mass <- massMergeRes$mass
     }
-    
-    #Replace each image mass axis with the common
-    for( i in 1:length(img_lst))
-    {
-      img_lst[[i]]$mass <- common_mass
-      #TODO Crashes on noralizations when resampling is used... maybe the normalization method is using the mass.length() which is not the same now...
-      #TODO for data in processed mode this is enought since each spectrum will be interpolated to the common mass axis. But if I have a continuous dataset made of
-      #TODO several images (in example: various runs of TOF analysis) then the data must be resampled to the new mass axis before processing! Maybe I can use the same interpolator as in the processed mode? check this!!!!
-      #TODO check this using Synth data from Lluc's images
-    }
   }
     
   if(proc_params$preprocessing$alignment$enable)
   {  
     #Calculate normalizations, TIC normalization is needd for internal reference calculation so, when alginemtn is used normalizations will be precalculated
-    Normalizations <- CNormalizations(img_lst, numOfThreads, memoryPerThreadMB)
+    Normalizations <- CNormalizations(img_lst, numOfThreads, memoryPerThreadMB, common_mass)
     #Replace each image normalizations
     for( i in 1:length(img_lst))
     {
@@ -190,8 +177,8 @@ RunPreProcessing <- function(proc_params,
     rm(Normalizations)
     
     #Calculate the internal reference for alignment
-    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, ForceResampling, ticMin, ticMax) #TODO this crashes with a single image! debug me
-    refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum)
+    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, common_mass, ticMin, ticMax)
+    refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum, common_mass)
     cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
     refSpc <- refSpc$spectrum
     
@@ -209,7 +196,9 @@ RunPreProcessing <- function(proc_params,
   }
 
   #Run the preprocessing
-  if( proc_params$preprocessing$smoothing$enable || proc_params$preprocessing$alignment$enable || proc_params$preprocessing$massCalibration ) #TODO add basline condition here
+  if( proc_params$preprocessing$smoothing$enable ||
+      proc_params$preprocessing$alignment$enable ||
+      proc_params$preprocessing$massCalibration  ) #TODO add basline condition here
   {
     #Calc new UUID's'
     uuids_new <- c()
@@ -223,7 +212,7 @@ RunPreProcessing <- function(proc_params,
     result <-  CRunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
                                   proc_params$preprocessing, refSpc, 
                                   uuids_new, proc_params$outputpath, out_imzML_fnames, 
-                                  ForceResampling)
+                                  common_mass)
     
     #Calculate the calibration model
     pt <- Sys.time() #do not take into account the user-time during the calibration GUI!
@@ -232,7 +221,12 @@ RunPreProcessing <- function(proc_params,
       calModel <- CalibrationWindow(common_mass, refSpc) 
       #TODO the ref spectrum will be set to zero if alignment is disabled! check if zero and supply an average instead
       #TODO what about adding a menu in the calibration window to allow selecting from multiple calibration sources (the average of each image, the skyline etc..)
-      #TODO if alignment is not enabled the common_mass axis variable will not be available... but for the preprocessing I always need a common mass axis!!! revise this!
+      
+      if(is.null( calModel$model))
+      {
+        #Calibration aborted by user
+        stop("Calibration aborted") #TODO improve the abort sequence: maybe removing already created ibd files... asking for confirmation... think about it
+      }
     }
     calibrationElapsedTime <- Sys.time() - pt
     
@@ -242,9 +236,10 @@ RunPreProcessing <- function(proc_params,
     for( i in 1:length(img_lst))
     {
       img_lst_proc[[i]] <- img_lst[[i]] #copy the original data
+      img_lst_proc[[i]]$mass <- common_mass
       img_lst_proc[[i]]$name <- paste0(img_lst_proc[[i]]$name, "-proc")
-      img_lst_proc[[i]]$mean <-  result$AverageSpectra[[i]]
-      img_lst_proc[[i]]$base <-  result$BaseSpectra[[i]]
+      img_lst_proc[[i]]$mean <- result$AverageSpectra[[i]]
+      img_lst_proc[[i]]$base <- result$BaseSpectra[[i]]
       img_lst_proc[[i]]$data$path <- proc_params$outputpath
       img_lst_proc[[i]]$data$rMSIXBin$uuid <- uuid_timebased()
       img_lst_proc[[i]]$data$rMSIXBin$file <- img_lst_proc[[i]]$name 

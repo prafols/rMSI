@@ -21,8 +21,8 @@
 #include "mtnormalization.h"
 using namespace Rcpp;
 
-MTNormalization::MTNormalization(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, false)
+MTNormalization::MTNormalization(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis) : 
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, commonMassAxis)
 {
   for( int i = 0; i < rMSIObj_list.length(); i++)
   {
@@ -80,11 +80,12 @@ void MTNormalization::ProcessingFunction(int threadSlot)
 // [[Rcpp::export]]
 List CNormalizations(Rcpp::List rMSIObj_list, 
                                int numOfThreads, 
-                               double memoryPerThreadMB)
+                               double memoryPerThreadMB,
+                               Rcpp::NumericVector commonMassAxis)
 {
   MTNormalization myNorms(rMSIObj_list, 
                       numOfThreads, 
-                      memoryPerThreadMB);
- 
+                      memoryPerThreadMB,
+                      commonMassAxis);
   return myNorms.Run();
 }

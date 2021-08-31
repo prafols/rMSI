@@ -23,10 +23,11 @@
 #'
 #' @param img MSI image to calculate internal reference spectrum.
 #' @param reference the spectrum to use as reference for correlations.
+#' @param commonMassAxis the common mass axis for spectra interpolation.
 #'
 #' @return a list with the intensity vector corresponding to the reference spectrum, the score and the pixel ID selected as reference.
 #'
-InternalReferenceSpectrum <- function(img, reference)
+InternalReferenceSpectrum <- function(img, reference, commonMassAxis = img$mass)
 {
   pb <- txtProgressBar(min = 0,  max = nrow(img$pos), style = 3)
   maxScore <- 0
@@ -34,7 +35,7 @@ InternalReferenceSpectrum <- function(img, reference)
   selID <- NA
   for( id in 1:nrow(img$pos))
   {
-    spc <- rMSI::loadImgChunkFromIds(img, id)[1,]
+    spc <- rMSI::loadImgChunkFromIds(img, id, commonMassAxis)[1,]
     if(var(spc) > 0)
     {
       score <- cor(reference, spc )
@@ -49,7 +50,7 @@ InternalReferenceSpectrum <- function(img, reference)
   }
   
   close(pb)
-  return( list(spectrum = rMSI::loadImgChunkFromIds(img, maxId)[1,], score = maxScore, ID = selID ))
+  return( list(spectrum = rMSI::loadImgChunkFromIds(img, maxId, commonMassAxis)[1,], score = maxScore, ID = selID ))
 }
 
 #' InternalReferenceSpectrumMultipleDatasets.
@@ -59,17 +60,18 @@ InternalReferenceSpectrum <- function(img, reference)
 #'
 #' @param img_list a list of various rMSI objects.
 #' @param reference the spectrum to use as reference for correlations.
+#' @param commonMasAxis the common mass axis for spectra interpolation.
 #'
 #' @return a list with the intensity vector corresponding to the reference spectrum, the score, the image index which contains the refernce spectrum and the pixel ID selected as reference.
 #' 
-InternalReferenceSpectrumMultipleDatasets <- function(img_list, reference)
+InternalReferenceSpectrumMultipleDatasets <- function(img_list, reference, commonMasAxis)
 {
   #Calculate correlations
   bestRefs <- list()
   for( i in 1:length(img_list) )
   {
     cat(paste0("Calculating internal reference spectrum ", i, "/",length(img_list),"...\n"))
-    bestRefs[[i]] <- InternalReferenceSpectrum(img_list[[i]], reference)
+    bestRefs[[i]] <- InternalReferenceSpectrum(img_list[[i]], reference, commonMasAxis)
   }
   
   #Select the best correlation in all datasets

@@ -45,7 +45,7 @@ CrMSIDataCubeIO::~CrMSIDataCubeIO()
   }
 }
 
-void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, bool forceDataResampling, std::string outputImzMLuuid, std::string outputImzMLfname)
+void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, std::string outputImzMLuuid, std::string outputImzMLfname)
 {
   if(outputImzMLuuid.empty() && storeData)
   {
@@ -78,10 +78,12 @@ void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, bool forceDataResamplin
                                      as<String>(imzML["mz_dataType"]),
                                      as<String>(imzML["int_dataType"]) ,
                                      (as<bool>(imzML["continuous_mode"])),
-                                     false, //Do not call the file open() on constructor
-                                     forceDataResampling //If data is in continuous mode but resampling is needed, then read the imzML in processed mode to enable interpolation.
+                                     false //Do not call the file open() on constructor
                                      )); 
   
+  //If data is in continuous mode but resampling is needed, then read the imzML in processed mode to enable interpolation.
+  imzMLReaders.back()->setCommonMassAxis(mass.length(), mass.begin());
+
   NumericVector imzML_mzLength = imzMLrun["mzLength"];
   NumericVector imzML_mzOffsets = imzMLrun["mzOffset"];
   NumericVector imzML_intLength = imzMLrun["intLength"];
@@ -172,9 +174,8 @@ CrMSIDataCubeIO::DataCube *CrMSIDataCubeIO::loadDataCube(int iCube)
     data_ptr->dataOriginal[i] = imzMLReaders[current_imzML_id]->ReadSpectrum(dataCubesDesc[iCube][i].pixel_ID, //pixel id to read
                                                 0, //unsigned int ionIndex
                                                 mass.length(),//unsigned int ionCount
-                                                data_ptr->dataInterpolated[i], //Store data directely at the datacube mem
-                                                mass.length(),  //commonMassLength,
-                                                mass.begin()); //double *commonMass
+                                                data_ptr->dataInterpolated[i] //Store data directely at the datacube mem
+                                                );
                                   
     previous_imzML_id = current_imzML_id;
   }

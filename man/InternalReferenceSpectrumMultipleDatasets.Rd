@@ -4,12 +4,14 @@
 \alias{InternalReferenceSpectrumMultipleDatasets}
 \title{InternalReferenceSpectrumMultipleDatasets.}
 \usage{
-InternalReferenceSpectrumMultipleDatasets(img_list, reference)
+InternalReferenceSpectrumMultipleDatasets(img_list, reference, commonMasAxis)
 }
 \arguments{
 \item{img_list}{a list of various rMSI objects.}
 
 \item{reference}{the spectrum to use as reference for correlations.}
+
+\item{commonMasAxis}{the common mass axis for spectra interpolation.}
 }
 \value{
 a list with the intensity vector corresponding to the reference spectrum, the score, the image index which contains the refernce spectrum and the pixel ID selected as reference.

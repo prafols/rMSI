@@ -29,7 +29,8 @@ class MTNormalization : public ThreadingMsiProc
     // rMSIObj_list: A list of rMSI objects to process
     // numberOfThreads: Total number of threads to use during processing
     // memoryPerThreadMB: Maximum memory allocated by each thread in MB. The total allocated memory will be: 2*numberOfThreads*memoryPerThreadMB
-    MTNormalization(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB);
+    // commonMassAxis: The common mass axis used to process and interpolate multiple datasets.
+    MTNormalization(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis);
     ~MTNormalization();
     
     //Execute a full imatge processing using threaded methods

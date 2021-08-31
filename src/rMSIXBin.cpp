@@ -183,6 +183,7 @@ void rMSIXBin::CreateImgStream()
     imzMLReader->set_mzOffset(&imzML_mzOffsets);
     imzMLReader->set_intLength(&imzML_intLength);
     imzMLReader->set_intOffset(&imzML_intOffsets);
+    imzMLReader->setCommonMassAxis(massAxis.length(), massAxis.begin());
   }
   catch(std::runtime_error &e)
   {
@@ -259,7 +260,7 @@ void rMSIXBin::CreateImgStream()
         
         for(int i=0; i < _rMSIXBin->numOfPixels; i++)
         {
-          imzMLReader->ReadSpectrum(i, iIon, iIonImgCount, LoadBuffer_ptr + (i*iIonImgCount), massAxis.length(), massAxis.begin());
+          imzMLReader->ReadSpectrum(i, iIon, iIonImgCount, LoadBuffer_ptr + (i*iIonImgCount));
         }
         iRemainingIons = iRemainingIons - iIonImgCount;
       }
@@ -334,7 +335,7 @@ void rMSIXBin::CalculateAverageBaseNormalizations(ImzMLBinRead *imzMLreader)
     try
     {
       intensity_load = new double[massAxis.length()];
-      imzMLreader->ReadSpectrum(i, 0, massAxis.length(), intensity_load, massAxis.length(), massAxis.begin());
+      imzMLreader->ReadSpectrum(i, 0, massAxis.length(), intensity_load);
     }
     catch(std::runtime_error &e)
     {
@@ -1531,17 +1532,15 @@ NumericMatrix Cload_rMSIXBinIonImage(List rMSIobj, unsigned int ionIndex, unsign
 //' Load spectra into a Matrix object interpolating to the common mass axis when necessary.
 //' @param rMSIobj: an rMSI object prefilled with a parsed imzML.
 //' @param pixelIDs: pixel ID's of the spectra to load in C-style indexing (starting at 0).
+//' @param commonMassAxis: a common mass axis that may be different than the mass axis in the rMSI object
 // [[Rcpp::export]]
-NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
+NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs, NumericVector commonMassAxis)
 {
   NumericMatrix m_spc;
   double *buffer;
   
   try
   {
-    //Get the common mass axis
-    NumericVector commonMassAxis = rMSIobj["mass"];
-    
     //Allocate the spectra reading buffer
     buffer = new double[commonMassAxis.length()];
     
@@ -1565,6 +1564,8 @@ NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
                               as<String>(imzML["int_dataType"]) ,
                               as<bool>(imzML["continuous_mode"]));
     
+    imzMLReader.setCommonMassAxis(commonMassAxis.length(), commonMassAxis.begin());
+    
     NumericVector imzML_mzLength = imzMLrun["mzLength"];
     NumericVector imzML_mzOffsets = imzMLrun["mzOffset"];
     NumericVector imzML_intLength = imzMLrun["intLength"];
@@ -1577,7 +1578,7 @@ NumericMatrix Cload_imzMLSpectra(List rMSIobj, IntegerVector pixelIDs)
     //Load spectra and copy to the output array
     for(int i=0; i < pixelIDs.length(); i++)
     {
-      imzMLReader.ReadSpectrum(pixelIDs[i], 0, commonMassAxis.length(), buffer, commonMassAxis.length(), commonMassAxis.begin() ); 
+      imzMLReader.ReadSpectrum(pixelIDs[i], 0, commonMassAxis.length(), buffer ); 
       for(int j = 0; j < commonMassAxis.length(); j++)
       {
         m_spc(i,j) = buffer[j];

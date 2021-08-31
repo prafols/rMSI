@@ -24,12 +24,13 @@
 #'
 #' @param Img the rMSI object where the data is stored.
 #' @param Ids Identifiers of spectra to load.
+#' @param MassAxis a mass axis used for data interpolation. Defaults to Img$mass but may be different.
 #'
 #' @return a matrix containing the loaded spectra.
 #'
 #' @export
 #'
-loadImgChunkFromIds<-function(Img, Ids)
+loadImgChunkFromIds<-function(Img, Ids, MassAxis = Img$mass)
 {
   #Avoid duplicates
   Ids <- unique(Ids)
@@ -42,7 +43,7 @@ loadImgChunkFromIds<-function(Img, Ids)
     stop("imzML data is not available")
   }
       
-  return (Cload_imzMLSpectra(Img, Ids - 1)) #Ids-1 to translate from R-style indexting to C indexing
+  return (Cload_imzMLSpectra(Img, Ids - 1, MassAxis)) #Ids-1 to translate from R-style indexting to C indexing
 }
 
 
