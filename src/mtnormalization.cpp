@@ -83,9 +83,19 @@ List CNormalizations(Rcpp::List rMSIObj_list,
                                double memoryPerThreadMB,
                                Rcpp::NumericVector commonMassAxis)
 {
-  MTNormalization myNorms(rMSIObj_list, 
+  List out;
+  
+  try
+    {
+    MTNormalization myNorms(rMSIObj_list, 
                       numOfThreads, 
                       memoryPerThreadMB,
                       commonMassAxis);
-  return myNorms.Run();
+    out = myNorms.Run();
+    }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::stop(e.what());
+  }
+  return out;
 }

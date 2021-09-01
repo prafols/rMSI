@@ -185,6 +185,12 @@ class ImzMLBinWrite : public ImzMLBin
     //Data is obtained from ptr pointer
     void writeIntData( unsigned int N, double* ptr );
     
+    //Append N elements to the ibd file (write in sequential mode) without updating the Offsets table
+    //This is used to allow storing SNR, Area and binSize data following the intensity data in a peak list
+    //Data is stored using the same format as the intensity data
+    //Data is obtained from ptr pointer
+    void writePhantomData( unsigned int N, double* ptr );
+    
   private:
     unsigned int sequentialWriteIndex_MzData; //When sequentially writing data, this integers provides the index of the next pixel to store
     unsigned int sequentialWriteIndex_IntData; //When sequentially writing data, this integers provides the index of the next pixel to store

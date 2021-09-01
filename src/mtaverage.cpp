@@ -137,12 +137,21 @@ NumericVector COverallAverageSpectrum(Rcpp::List rMSIObj_list,
                                Rcpp::NumericVector commonMassAxis,
                                double minTIC, double maxTic)
 {
-  MTAverage myAverage(rMSIObj_list, 
+  NumericVector out;
+  try
+  {
+    MTAverage myAverage(rMSIObj_list, 
                       numOfThreads, 
                       memoryPerThreadMB, 
                       commonMassAxis,
                       minTIC,
                       maxTic);
  
-  return myAverage.Run();
+    out = myAverage.Run();
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::stop(e.what());
+  }
+  return out;
 }

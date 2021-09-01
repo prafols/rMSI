@@ -26,8 +26,8 @@
 using namespace Rcpp;
 
 
-CrMSIDataCubeIO::CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, bool storeDataInImzML, Rcpp::String imzMLOutputPath)
-  :mass(massAxis), storeData(storeDataInImzML), dataOutputPath(imzMLOutputPath.get_cstring())
+CrMSIDataCubeIO::CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, DataCubeIOMode storeDataModeEnum, Rcpp::String imzMLOutputPath)
+  :mass(massAxis), storeDataMode(storeDataModeEnum), dataOutputPath(imzMLOutputPath.get_cstring())
 {
   cubeMaxNumRows = std::ceil((1024*1024*cubeMemoryLimitMB)/(double)(8*mass.length()));
 }
@@ -47,17 +47,17 @@ CrMSIDataCubeIO::~CrMSIDataCubeIO()
 
 void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, std::string outputImzMLuuid, std::string outputImzMLfname)
 {
-  if(outputImzMLuuid.empty() && storeData)
+  if(outputImzMLuuid.empty() && storeDataMode != DataCubeIOMode::DATA_READ)
   {
     throw std::runtime_error("Error: A valid UUID must be provided for the stored imzML file.\n");
   }
   
-  if(outputImzMLfname.empty() && storeData)
+  if(outputImzMLfname.empty() && storeDataMode != DataCubeIOMode::DATA_READ)
   {
     throw std::runtime_error("Error: A filename suffix must be provided for the stored imzML file.\n");
   }
   
-  if(outputImzMLuuid.length() != 32 && storeData)
+  if(outputImzMLuuid.length() != 32 && storeDataMode != DataCubeIOMode::DATA_READ)
   {
     throw std::runtime_error("Error: The UUID must contain 16 bytes.\n");
   }
@@ -95,22 +95,41 @@ void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, std::string outputImzML
   
   
   //Create the imzMLwriter corresponding to the current imzMLreader
-  if(storeData)
+  if(storeDataMode == DataCubeIOMode::DATA_STORE || storeDataMode == DataCubeIOMode::PEAKLIST_STORE )
   {
     std::string sFnameImzMLOutput= dataOutputPath + "/" + outputImzMLfname + ".ibd"; 
-    imzMLWriters.push_back(new ImzMLBinWrite(sFnameImzMLOutput.c_str(),
+    
+    if(storeDataMode == DataCubeIOMode::DATA_STORE)
+    {
+      //Outputing spectral data
+      imzMLWriters.push_back(new ImzMLBinWrite(sFnameImzMLOutput.c_str(),
                                             imzMLrun.nrows(), 
                                             as<String>(imzML["mz_dataType"]),
                                             as<String>(imzML["int_dataType"]) ,
                                             as<bool>(imzML["continuous_mode"]),
                                             true, //Data cubes will be sotred using the sequential mode
                                             false)); //Dont call the file open() on constructor to allow directely writing the uuid, then I'll close it!
+      
+      //Only perform average accumulations when processing spectral data
+      acumulatedSpectrum.push_back(Rcpp::NumericVector(mass.length()));
+      baseSpectrum.push_back(Rcpp::NumericVector(mass.length()));
+    }
+    
+    if(storeDataMode == DataCubeIOMode::PEAKLIST_STORE)
+    {
+      //Outputing peaklist data
+      imzMLWriters.push_back(new ImzMLBinWrite(sFnameImzMLOutput.c_str(),
+                                               imzMLrun.nrows(), 
+                                               "double",
+                                               "double",
+                                               false,
+                                               true, //Data cubes will be sotred using the sequential mode
+                                               false)); //Dont call the file open() on constructor to allow directely writing the uuid, then I'll close it!
+    }
+    
     imzMLWriters.back()->open(true); //Open and truncate the file
     imzMLWriters.back()->writeUUID(outputImzMLuuid);
     imzMLWriters.back()->close(); 
-    
-    acumulatedSpectrum.push_back(Rcpp::NumericVector(mass.length()));
-    baseSpectrum.push_back(Rcpp::NumericVector(mass.length()));
   }
   
   //Initialize the cube description if this is the first call to appedImageData()
@@ -148,6 +167,11 @@ CrMSIDataCubeIO::DataCube *CrMSIDataCubeIO::loadDataCube(int iCube)
   data_ptr->ncols = mass.length();
   data_ptr->dataOriginal = new imzMLSpectrum[data_ptr->nrows];
   data_ptr->dataInterpolated = new double*[data_ptr->nrows];
+  if(storeDataMode == DataCubeIOMode::PEAKLIST_STORE)
+  {
+    data_ptr->peakLists = new PeakPicking::Peaks*[data_ptr->nrows];
+  }
+  
 
   //Data reading
   int current_imzML_id;
@@ -189,9 +213,17 @@ void CrMSIDataCubeIO::freeDataCube(DataCube *data_ptr)
   for( int i = 0; i < data_ptr->nrows; i++ )
   {
     delete[] data_ptr->dataInterpolated[i];
+    if(storeDataMode == DataCubeIOMode::PEAKLIST_STORE)
+    {
+      delete data_ptr->peakLists[i];
+    }
   }
   delete[] data_ptr->dataOriginal;
   delete[] data_ptr->dataInterpolated;
+  if(storeDataMode == DataCubeIOMode::PEAKLIST_STORE)
+  {
+    delete[] data_ptr->peakLists;
+  }
   delete data_ptr;
 }
 
@@ -222,24 +254,40 @@ void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr)
       imzMLWriters[current_imzML_id]->open();
     }
     
-    //Calc average and base spectrum
-    for(unsigned int j = 0; j < mass.length(); j++)
+    //Store Spectral data
+    if( storeDataMode == DataCubeIOMode::DATA_STORE)
     {
-      acumulatedSpectrum[current_imzML_id][j] += data_ptr->dataInterpolated[i][j];  
-      baseSpectrum[current_imzML_id][j] = data_ptr->dataInterpolated[i][j] > baseSpectrum[current_imzML_id][j] ? data_ptr->dataInterpolated[i][j] : baseSpectrum[current_imzML_id][j];
+      //Calc average and base spectrum
+      for(unsigned int j = 0; j < mass.length(); j++)
+      {
+        acumulatedSpectrum[current_imzML_id][j] += data_ptr->dataInterpolated[i][j];  
+        baseSpectrum[current_imzML_id][j] = data_ptr->dataInterpolated[i][j] > baseSpectrum[current_imzML_id][j] ? data_ptr->dataInterpolated[i][j] : baseSpectrum[current_imzML_id][j];
+      }
+      
+      if(imzMLWriters[current_imzML_id]->get_continuous())
+      {
+        //Continuous mode write
+        imzMLWriters[current_imzML_id]->writeMzData(mass.length(), mass.begin()); //The mass axis will be writtem only once
+        imzMLWriters[current_imzML_id]->writeIntData(mass.length(), data_ptr->dataInterpolated[i]);
+      }
+      else
+      {
+        //Processed mode write
+        imzMLWriters[current_imzML_id]->writeMzData(data_ptr->dataOriginal[i].imzMLmass.size(), data_ptr->dataOriginal[i].imzMLmass.data());
+        imzMLWriters[current_imzML_id]->writeIntData(data_ptr->dataOriginal[i].imzMLintensity.size(), data_ptr->dataOriginal[i].imzMLintensity.data());
+      }
     }
     
-    if(imzMLWriters[current_imzML_id]->get_continuous())
+    //Store Peak lists
+    if( storeDataMode == DataCubeIOMode::PEAKLIST_STORE)
     {
-      //Continuous mode write
-      imzMLWriters[current_imzML_id]->writeMzData(mass.length(), mass.begin()); //The mass axis will be writtem only once
-      imzMLWriters[current_imzML_id]->writeIntData(mass.length(), data_ptr->dataInterpolated[i]);
-    }
-    else
-    {
-      //Processed mode write
-      imzMLWriters[current_imzML_id]->writeMzData(data_ptr->dataOriginal[i].imzMLmass.size(), data_ptr->dataOriginal[i].imzMLmass.data());
-      imzMLWriters[current_imzML_id]->writeIntData(data_ptr->dataOriginal[i].imzMLintensity.size(), data_ptr->dataOriginal[i].imzMLintensity.data());
+      //Processed mode write with phantom data for snr, area and bin size
+      //Rcpp::Rcout<<"iCube = " <<iCube<< "  i = " <<i<<"  mass.size() = "<<data_ptr->peakLists[i]->mass.size()<< "  intensity.size() = " << data_ptr->peakLists[i]->intensity.size() <<"\n";
+      imzMLWriters[current_imzML_id]->writeMzData(data_ptr->peakLists[i]->mass.size(), data_ptr->peakLists[i]->mass.data());
+      imzMLWriters[current_imzML_id]->writeIntData(data_ptr->peakLists[i]->intensity.size(), data_ptr->peakLists[i]->intensity.data());
+      imzMLWriters[current_imzML_id]->writePhantomData(data_ptr->peakLists[i]->area.size(), data_ptr->peakLists[i]->area.data());
+      imzMLWriters[current_imzML_id]->writePhantomData(data_ptr->peakLists[i]->SNR.size(), data_ptr->peakLists[i]->SNR.data());
+      imzMLWriters[current_imzML_id]->writePhantomData(data_ptr->peakLists[i]->binSize.size(), data_ptr->peakLists[i]->binSize.data());
     }
     
     previous_imzML_id = current_imzML_id;

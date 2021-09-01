@@ -688,6 +688,18 @@ void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
   writeDataCommon(N, ptr, intDataPointBytes, intDataType);
 }
 
+void ImzMLBinWrite::writePhantomData(unsigned int N, double* ptr )
+{
+  
+  if(fileMode == Mode::ModifyFile)
+  {
+    throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing");
+  }
+  
+  //Write data
+  writeDataCommon(N, ptr, intDataPointBytes, intDataType);
+}
+
 void ImzMLBinWrite::writeDataCommon(std::streampos offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
 {
   ibdFile.seekp(offset);
@@ -701,6 +713,12 @@ void ImzMLBinWrite::writeDataCommon(std::streampos offset, unsigned int N, doubl
 
 void ImzMLBinWrite::writeDataCommon(unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
 {
+  if( N == 0)
+  {
+    //If data length is zero just dont try to save anything. This may be the case for an empty peak list. Offsets will be set but nothing stored
+    return;
+  }
+  
   unsigned int byteCount = N*dataPointBytes;
   char* buffer = new char [byteCount];
   

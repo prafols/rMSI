@@ -118,12 +118,9 @@ ProcessImages <- function(proc_params,
   #TODO So, at the end reuse them according to the desired output: if rMSIXBin must be exported reuse or calculate, if not just forget about normalizations.
   #TODO think about returning alignment lags here. Currently, im returning it but this may be confusing for the end user. Also the Calibration time... I dont need any of these!
   
-  #TODO peak-picking and binning
-  
   elap <- Sys.time() - pt
   elap <- elap - CalibrationWindowElapsedTime #Substract the calbration GUI elapsed time
-  cat("Total used processing time:\n")
-  print(elap)
+  display_processing_time(elap)
   
   return(result)
 }
@@ -208,12 +205,11 @@ RunPreProcessing <- function(proc_params,
     refSpc <- rep(0.0, length(img_lst[[1]]$mass)) 
   }
 
-  #Run the preprocessing
+  #Calc new UUID's for the processed imzML files
   if( proc_params$preprocessing$smoothing$enable ||
       proc_params$preprocessing$alignment$enable ||
       proc_params$preprocessing$massCalibration  ) #TODO add basline condition here
   {
-    #Calc new UUID's'
     uuids_new <- c()
     out_imzML_fnames <- c()
     for( i in 1:length(img_lst))
@@ -221,13 +217,22 @@ RunPreProcessing <- function(proc_params,
       uuids_new <- c(uuids_new, uuid_timebased())
       out_imzML_fnames <- c(out_imzML_fnames, paste0(img_lst[[i]]$name, "-proc"))
     }
+  }
+    
+  #Run the preprocessing
+  if( proc_params$preprocessing$smoothing$enable ||
+      proc_params$preprocessing$alignment$enable ) #TODO add basline condition here
+  {
     
     result <-  CRunPreProcessing( img_lst, numOfThreads, memoryPerThreadMB, 
                                   proc_params$preprocessing, refSpc, 
                                   uuids_new, proc_params$outputpath, out_imzML_fnames, 
                                   common_mass)
-    
-    #Calculate the calibration model
+  }
+
+  #Calculate the calibration model
+  if(proc_params$preprocessing$massCalibration)
+  {
     pt <- Sys.time() #do not take into account the user-time during the calibration GUI!
     if(proc_params$preprocessing$massCalibration)
     {
@@ -242,17 +247,23 @@ RunPreProcessing <- function(proc_params,
       }
     }
     calibrationElapsedTime <- Sys.time() - pt
-    
-    
-    #Set the preprocessed data using resulting offsets and original data info
+  }
+  else
+  {
+    calibrationElapsedTime <- 0 
+  }
+  
+  #Set the preprocessed data using resulting offsets and original data info
+  if( proc_params$preprocessing$smoothing$enable ||
+      proc_params$preprocessing$alignment$enable ||
+      proc_params$preprocessing$massCalibration  )  #TODO add basline condition here
+  {
     img_lst_proc <- list()
     for( i in 1:length(img_lst))
     {
       img_lst_proc[[i]] <- img_lst[[i]] #copy the original data
       img_lst_proc[[i]]$mass <- common_mass
       img_lst_proc[[i]]$name <- paste0(img_lst_proc[[i]]$name, "-proc")
-      img_lst_proc[[i]]$mean <- result$AverageSpectra[[i]]
-      img_lst_proc[[i]]$base <- result$BaseSpectra[[i]]
       img_lst_proc[[i]]$data$path <- proc_params$outputpath
       img_lst_proc[[i]]$data$rMSIXBin$uuid <- uuid_timebased()
       img_lst_proc[[i]]$data$rMSIXBin$file <- img_lst_proc[[i]]$name 
@@ -260,7 +271,15 @@ RunPreProcessing <- function(proc_params,
       img_lst_proc[[i]]$data$imzML$file <- out_imzML_fnames[i]
       img_lst_proc[[i]]$data$imzML$SHA <- NULL #Remove posible SHA checksum since it must be recalculated
       img_lst_proc[[i]]$data$imzML$MD5 <- NULL #Remove posible MD5 checksum since it must be recalculated
-      img_lst_proc[[i]]$data$imzML$run[, -c(1,2)] <- result$Offsets[[i]] 
+      
+      #Part only available if preprocessing enabled
+      if(proc_params$preprocessing$smoothing$enable ||
+         proc_params$preprocessing$alignment$enable)  #TODO add basline condition here
+      {
+        img_lst_proc[[i]]$mean <- result$AverageSpectra[[i]]
+        img_lst_proc[[i]]$base <- result$BaseSpectra[[i]] 
+        img_lst_proc[[i]]$data$imzML$run[, -c(1,2)] <- result$Offsets[[i]]
+      }
       
       #Apply mass recalibration here to all images
       if(proc_params$preprocessing$massCalibration)
@@ -270,13 +289,13 @@ RunPreProcessing <- function(proc_params,
       
       #The XML part is stored after the mass re-calibration since the mass axis overwrittening process will change the results of the checksums
       cat(paste0("Calculating MD5 checksum for image ", img_lst_proc[[i]]$name, "...\n"))
-      img_lst_proc[[i]]$data$imzML$MD5 <- toupper(digest::digest( file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".ibd")),
+      img_lst_proc[[i]]$data$imzML$MD5 <- toupper(digest::digest( file.path( img_lst_proc[[i]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".ibd")),
                                                                   algo = "md5",
                                                                   file = T))
       
       #Store the xml part
       cat(paste0("Writing the .imzML file for image ", img_lst_proc[[i]]$name, "...\n"))
-      if(!CimzMLStore( path.expand(file.path( img_lst_proc[[1]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".imzML"))), 
+      if(!CimzMLStore( path.expand(file.path( img_lst_proc[[i]]$data$path, paste0(img_lst_proc[[i]]$data$imzML$file, ".imzML"))), 
                        list( UUID = img_lst_proc[[i]]$data$imzML$uuid,
                              continuous_mode = img_lst_proc[[i]]$data$imzML$continuous_mode,
                              compression_mz = F,
@@ -294,11 +313,83 @@ RunPreProcessing <- function(proc_params,
     }
     
     cat("\nPre-processing completed\n")
-    return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh, CalibrationElapsedTime = calibrationElapsedTime ))
   }
   else
   {
     cat("\nPre-processing Bypassed\n")
-    return( list( raw_data = img_lst))
+    img_lst_proc <- img_lst
+    LagLow <- NULL
+    LagHigh <- NULL
   }
+  
+  #Peak-picking 
+  if(proc_params$preprocessing$peakpicking$enable)
+  {
+    #Calc new UUID's for the peaklists
+    uuids_peakLists <- c()
+    out_imzMLpeakLists_fnames <- c()
+    for( i in 1:length(img_lst))
+    {
+      uuids_peakLists <- c(uuids_peakLists, uuid_timebased())
+      out_imzMLpeakLists_fnames <- c(out_imzMLpeakLists_fnames, paste0(img_lst[[i]]$name, "-peaks"))
+    }
+    
+    peakListsOffsets <- CRunPeakPicking(img_lst_proc, numOfThreads, memoryPerThreadMB, 
+                                        proc_params$preprocessing, 
+                                        uuids_peakLists, proc_params$outputpath, out_imzMLpeakLists_fnames, 
+                                        common_mass)
+    
+    #Store peak lists imzML files and keep references to them in peaklists_lst
+    peaklists_lst <- list()
+    for( i in 1:length(img_lst_proc))
+    {
+      #Prepare the current peak list offset info
+      currentRunData <- img_lst_proc[[i]]$data$imzML$run
+      currentRunData[, -c(1,2)] <- peakListsOffsets[[i]]
+      
+      #The XML part is stored after the mass re-calibration since the mass axis overwrittening process will change the results of the checksums
+      cat(paste0("Calculating MD5 checksum for the peaks lists of image ", img_lst_proc[[i]]$name, "...\n"))
+      peaklistMD5 <- toupper(digest::digest( file.path( proc_params$outputpath, paste0(out_imzMLpeakLists_fnames[i], ".ibd")),
+                                                                  algo = "md5",
+                                                                  file = T))
+      
+      #Store peak list imzML info in a new list
+      peaklists_lst[[i]] <- list( UUID = uuids_peakLists[i],
+                                  continuous_mode = F,
+                                  compression_mz = F,
+                                  compression_int = F,
+                                  MD5 = peaklistMD5,
+                                  SHA = "",
+                                  mz_dataType = "double",
+                                  int_dataType = "double",
+                                  pixel_size_um = img_lst_proc[[i]]$pixel_size_um,
+                                  run_data = currentRunData,
+                                  file_path = proc_params$outputpath, #TODO adding a copy of file name and output path here to make i easier for peak binning, but revise it! 
+                                  file_name = out_imzMLpeakLists_fnames[i]
+                                  )
+      
+      #Store the xml part
+      cat(paste0("Writing the .imzML file the peaks lists of image ", img_lst_proc[[i]]$name, "...\n"))
+      if(!CimzMLStore( path.expand(file.path( peaklists_lst[[i]]$file_path , paste0(peaklists_lst[[i]]$file_name, ".imzML"))), 
+                       peaklists_lst[[i]]))
+      {
+        stop(paste0("ERROR: imzML exported for image ", img_lst_proc[[i]]$name, " failed. Aborting...\n" ))
+      }
+    }
+  }
+  
+  #TODO peak-binning. Peak lists are in peaklists_lst variable, I don't want to parse the imzML if this variable is available. But I want to process the imzML file of a peak list if them where generated in another run
+  #TODO don't forget the fillpeaks after running the binning routine
+  
+  return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh, CalibrationElapsedTime = calibrationElapsedTime ))
+}
+
+#Function to display processing time properly
+display_processing_time <- function(elap)
+{
+  dsec <- as.numeric(as.difftime(elap, unit = "secs"))
+  hours <- floor(dsec / 3600)
+  minutes <- floor((dsec - 3600 * hours) / 60)
+  seconds <- round(dsec - 3600*hours - 60*minutes, digits = 3)
+  cat(paste0("Total processing time: ", hours, " hours,   ", minutes, " minutes   and   ",  seconds," seconds"))
 }

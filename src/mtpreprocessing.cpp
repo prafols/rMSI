@@ -26,7 +26,7 @@ MTPreProcessing::MTPreProcessing(Rcpp::List rMSIObj_list, int numberOfThreads, d
                                  Rcpp::StringVector uuid,  Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames, 
                                  Rcpp::NumericVector commonMassAxis,
                                  int bitDepthReductionNoiseWindows) : 
-  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, commonMassAxis, true, uuid, outputImzMLPath, outputImzMLfnames), 
+  ThreadingMsiProc(rMSIObj_list, numberOfThreads, memoryPerThreadMB, commonMassAxis, DataCubeIOMode::DATA_STORE, uuid, outputImzMLPath, outputImzMLfnames), 
   NoiseWinSize(bitDepthReductionNoiseWindows)
 {
   //TODO add baseline params here!
@@ -210,9 +210,18 @@ List CRunPreProcessing( Rcpp::List rMSIObj_list,int numOfThreads, double memoryP
                      Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames,
                      Rcpp::NumericVector commonMassAxis)
 {
+  List out;
+  try
+  {
    MTPreProcessing myPreProcessing(rMSIObj_list, numOfThreads, memoryPerThreadMB,
                                   preProcessingParams, reference, 
                                   uuid, outputDataPath, imzMLoutFnames, 
                                   commonMassAxis);
-   return myPreProcessing.Run();
+   out =  myPreProcessing.Run();
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::stop(e.what());
+  }
+  return out;
 }

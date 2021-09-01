@@ -21,6 +21,7 @@
 #include <string>
 #include <Rcpp.h>
 #include "imzMLBin.h"
+#include "peakpicking.h" //needed for peak list definition
 
 /********************************************************************************
  *  CrMSIDataCubeIO: A C++ class to extract datacubes from multiple imzML files
@@ -28,6 +29,14 @@
  *  This class provides a simple interface to load and save data from imzML files
  *  using the rMSIproc multithread processing approach.
  ********************************************************************************/
+
+typedef enum DataCubeIOMode
+{
+  DATA_READ,
+  DATA_STORE,
+  PEAKLIST_STORE
+}DataCubeIOMode;
+
 class CrMSIDataCubeIO
 {
   public:
@@ -35,8 +44,8 @@ class CrMSIDataCubeIO
     // Constructor Arguments:
     // - massAxis: The common mass axis for all the data.
     // - cubeMemoryLimitMB: Memory limit for the interpolated spectra in a cube, thus the acutal used memory can be higher due to stored data as-is in the imzML.
-    // - storeDataInImzML: set this to true if processed data must be stored in new imzML files.
-    CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, bool storeDataInImzML, Rcpp::String imzMLOutputPath = "");
+    // - storeDataModeEnum: set the data store mode.
+    CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, DataCubeIOMode storeDataModeEnum, Rcpp::String imzMLOutputPath = "");
     ~CrMSIDataCubeIO();
     
     //Struct to define a whole data cube in memory
@@ -46,6 +55,7 @@ class CrMSIDataCubeIO
       int ncols;
       int nrows;
       imzMLSpectrum *dataOriginal; //Pointer to multiple imzMLSpectrum structs 
+      PeakPicking::Peaks **peakLists; //Pointer to the peaklists assosiated with a datacube
       double **dataInterpolated;   
     } DataCube;
     
@@ -93,7 +103,7 @@ class CrMSIDataCubeIO
     Rcpp::NumericVector get_BaseSpectrum(unsigned int index);
 
   private:
-    bool storeData; //A bool indcatinc whether processed data must be stored or not. By default it is false and the function setDataOutputPath() must be called to set it to true.
+    DataCubeIOMode storeDataMode; //An enum to set the data output mode.
     std::string dataOutputPath; //A path to save output imzML data
     unsigned int cubeMaxNumRows; //The maximum rows in a datacube calculated from the maximum memory allowed by each cube and the mass axis length.
     Rcpp::NumericVector mass; //A common mass axis for all images to process

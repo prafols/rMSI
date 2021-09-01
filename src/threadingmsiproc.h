@@ -33,10 +33,9 @@ class ThreadingMsiProc
     // rMSIObj_list: A list of rMSI objects to process
     // numberOfThreads: Total number of threads to use during processing
     // memoryPerThreadMB: Maximum memory allocated by each thread in MB. The total allocated memory will be: 2*numberOfThreads*memoryPerThreadMB
-    // forceDataResampling: if data in continuous mode and forceDataResampling is set to true interpolation will be used.
     // commonMassAxis: The common mass axis used to process and interpolate multiple datasets.
     ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis,
-                     bool storeDataInimzml = false, Rcpp::StringVector uuid = Rcpp::StringVector(), Rcpp::String outputImzMLPath = "", Rcpp::StringVector outputImzMLfnames = Rcpp::StringVector());
+                     DataCubeIOMode storeDataModeimzml = DataCubeIOMode::DATA_READ, Rcpp::StringVector uuid = Rcpp::StringVector(), Rcpp::String outputImzMLPath = "", Rcpp::StringVector outputImzMLfnames = Rcpp::StringVector());
     ~ThreadingMsiProc();
     
   protected:
@@ -64,7 +63,7 @@ class ThreadingMsiProc
     std::mutex mtx; //Lock mechanism for signalling bDataReady vector
     bool *bDataReady; //This vector will contain true when a worker thread completes a datacube processing
     bool *bRunningThread; //Keep track if a thread is runnning for a data slot
-    bool bProcDataExport; //True if the destination imzML file path is set and so the processed spectra can be stored
+    DataCubeIOMode dataStoreMode; 
     
     //Condition variable to notify thread ends
     std::condition_variable  life_end_cond;

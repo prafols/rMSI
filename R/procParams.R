@@ -199,15 +199,35 @@ AlignmentParams <- setRefClass("AlignmentParams",
 )
 
 
+PeakPickingParams <- setRefClass("PeakPickingParams", 
+                               fields = list(
+                                 enable = "logical",
+                                 SNR = "numeric",
+                                 WinSize = "integer",
+                                 overSampling = "integer"
+                               ),
+                               
+                               #Constructor
+                               method = list(
+                                 initialize = function(...,
+                                                       enable = T,
+                                                       SNR = 5,
+                                                       WinSize = as.integer(10),
+                                                       overSampling = as.integer(10)
+                                                       )
+                                 {
+                                   callSuper(..., enable = enable, SNR = SNR, WinSize = WinSize, overSampling = overSampling)
+                                 })
+)
 
 PreProcParams <- setRefClass("PreProcParams", 
                              fields = list(
                               merge = "logical", #TRUE to process multiple images using a common mass axis
                               smoothing = "SmoothingParams",
                               alignment = "AlignmentParams",
-                              massCalibration = "logical"
-                              
-                              #TODO compplete with all params, each stage its own class
+                              massCalibration = "logical",
+                              peakpicking = "PeakPickingParams"
+                              #TODO complete with all params, each stage its own class
                               ),
                              
                              #Constructor

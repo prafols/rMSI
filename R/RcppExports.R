@@ -145,6 +145,10 @@ CNormalizations <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, commo
     .Call('_rMSI_CNormalizations', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis)
 }
 
+CRunPeakPicking <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, uuid, outputDataPath, imzMLoutFnames, commonMassAxis) {
+    .Call('_rMSI_CRunPeakPicking', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, uuid, outputDataPath, imzMLoutFnames, commonMassAxis)
+}
+
 CRunPreProcessing <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, commonMassAxis) {
     .Call('_rMSI_CRunPreProcessing', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, reference, uuid, outputDataPath, imzMLoutFnames, commonMassAxis)
 }

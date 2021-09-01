@@ -21,10 +21,10 @@
 #include <stdexcept>
 
 ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads, double memoryPerThreadMB, Rcpp::NumericVector commonMassAxis,
-                                   bool storeDataInimzml, Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames):
-  bProcDataExport(storeDataInimzml), massAxis(commonMassAxis)
+                                   DataCubeIOMode storeDataModeimzml, Rcpp::StringVector uuid, Rcpp::String outputImzMLPath, Rcpp::StringVector outputImzMLfnames):
+  dataStoreMode(storeDataModeimzml), massAxis(commonMassAxis)
 {
-  if(bProcDataExport)
+  if(dataStoreMode != DataCubeIOMode::DATA_READ)
   {
     if(uuid.size() != rMSIObj_list.length())
     {
@@ -43,12 +43,12 @@ ThreadingMsiProc::ThreadingMsiProc(Rcpp::List rMSIObj_list, int numberOfThreads,
   }
   
   numOfThreadsDouble = 2*numberOfThreads;
-  ioObj = new CrMSIDataCubeIO( massAxis, memoryPerThreadMB, bProcDataExport, outputImzMLPath);
+  ioObj = new CrMSIDataCubeIO( massAxis, memoryPerThreadMB, dataStoreMode, outputImzMLPath);
   
   //Call the append method for each image in the list
   for(int i = 0; i < rMSIObj_list.length(); i++)
   {
-    if(bProcDataExport)
+    if(dataStoreMode != DataCubeIOMode::DATA_READ)
     {
       Rcpp::String RcppStr_uuid = uuid[i];
       Rcpp::String RcppStr_outImzmls = outputImzMLfnames[i];
@@ -147,12 +147,12 @@ void ThreadingMsiProc::runMSIProcessingCpp()
     //Save data and free thread slots
     for(int iThread = 0; iThread < numOfThreadsDouble; iThread++)
     {
-      if(bDataReady[iThread] && ((nextCubeStore == iCube[iThread]) || (!bProcDataExport)) ) 
+      if(bDataReady[iThread] && ((nextCubeStore == iCube[iThread]) || (dataStoreMode == DataCubeIOMode::DATA_READ)) ) 
       {
         //If destination imzML is set then store the data
-        if(bProcDataExport)
+        if(dataStoreMode != DataCubeIOMode::DATA_READ)
         {
-          ioObj->storeDataCube(iCube[iThread], cubes[iThread]);
+          ioObj->storeDataCube(iCube[iThread], cubes[iThread]);   
           nextCubeStore++;
         }
         

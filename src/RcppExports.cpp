@@ -199,6 +199,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// CRunPeakPicking
+Rcpp::List CRunPeakPicking(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::Reference preProcessingParams, Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames, Rcpp::NumericVector commonMassAxis);
+RcppExport SEXP _rMSI_CRunPeakPicking(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP preProcessingParamsSEXP, SEXP uuidSEXP, SEXP outputDataPathSEXP, SEXP imzMLoutFnamesSEXP, SEXP commonMassAxisSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type rMSIObj_list(rMSIObj_listSEXP);
+    Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
+    Rcpp::traits::input_parameter< double >::type memoryPerThreadMB(memoryPerThreadMBSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Reference >::type preProcessingParams(preProcessingParamsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::StringVector >::type uuid(uuidSEXP);
+    Rcpp::traits::input_parameter< Rcpp::String >::type outputDataPath(outputDataPathSEXP);
+    Rcpp::traits::input_parameter< Rcpp::StringVector >::type imzMLoutFnames(imzMLoutFnamesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type commonMassAxis(commonMassAxisSEXP);
+    rcpp_result_gen = Rcpp::wrap(CRunPeakPicking(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, uuid, outputDataPath, imzMLoutFnames, commonMassAxis));
+    return rcpp_result_gen;
+END_RCPP
+}
 // CRunPreProcessing
 List CRunPreProcessing(Rcpp::List rMSIObj_list, int numOfThreads, double memoryPerThreadMB, Rcpp::Reference preProcessingParams, Rcpp::NumericVector reference, Rcpp::StringVector uuid, Rcpp::String outputDataPath, Rcpp::StringVector imzMLoutFnames, Rcpp::NumericVector commonMassAxis);
 RcppExport SEXP _rMSI_CRunPreProcessing(SEXP rMSIObj_listSEXP, SEXP numOfThreadsSEXP, SEXP memoryPerThreadMBSEXP, SEXP preProcessingParamsSEXP, SEXP referenceSEXP, SEXP uuidSEXP, SEXP outputDataPathSEXP, SEXP imzMLoutFnamesSEXP, SEXP commonMassAxisSEXP) {
@@ -418,6 +436,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_MergeMassAxisAutoBinSize", (DL_FUNC) &_rMSI_MergeMassAxisAutoBinSize, 2},
     {"_rMSI_COverallAverageSpectrum", (DL_FUNC) &_rMSI_COverallAverageSpectrum, 6},
     {"_rMSI_CNormalizations", (DL_FUNC) &_rMSI_CNormalizations, 4},
+    {"_rMSI_CRunPeakPicking", (DL_FUNC) &_rMSI_CRunPeakPicking, 8},
     {"_rMSI_CRunPreProcessing", (DL_FUNC) &_rMSI_CRunPreProcessing, 9},
     {"_rMSI_NoiseEstimationFFTCosWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTCosWin, 2},
     {"_rMSI_NoiseEstimationFFTExpWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWin, 2},
