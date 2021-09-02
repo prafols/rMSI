@@ -284,6 +284,33 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// MergePeakMatricesC
+List MergePeakMatricesC(List PeakMatrices, double binningTolerance, double binningFilter);
+RcppExport SEXP _rMSI_MergePeakMatricesC(SEXP PeakMatricesSEXP, SEXP binningToleranceSEXP, SEXP binningFilterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type PeakMatrices(PeakMatricesSEXP);
+    Rcpp::traits::input_parameter< double >::type binningTolerance(binningToleranceSEXP);
+    Rcpp::traits::input_parameter< double >::type binningFilter(binningFilterSEXP);
+    rcpp_result_gen = Rcpp::wrap(MergePeakMatricesC(PeakMatrices, binningTolerance, binningFilter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// CPeakList2PeakMatrix
+List CPeakList2PeakMatrix(List RpeakList, double BinTolerance, double BinFilter, bool BinToleranceUsingPPM);
+RcppExport SEXP _rMSI_CPeakList2PeakMatrix(SEXP RpeakListSEXP, SEXP BinToleranceSEXP, SEXP BinFilterSEXP, SEXP BinToleranceUsingPPMSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type RpeakList(RpeakListSEXP);
+    Rcpp::traits::input_parameter< double >::type BinTolerance(BinToleranceSEXP);
+    Rcpp::traits::input_parameter< double >::type BinFilter(BinFilterSEXP);
+    Rcpp::traits::input_parameter< bool >::type BinToleranceUsingPPM(BinToleranceUsingPPMSEXP);
+    rcpp_result_gen = Rcpp::wrap(CPeakList2PeakMatrix(RpeakList, BinTolerance, BinFilter, BinToleranceUsingPPM));
+    return rcpp_result_gen;
+END_RCPP
+}
 // DetectPeaks_C
 NumericMatrix DetectPeaks_C(NumericVector mass, NumericVector intensity, double SNR, int WinSize, int UpSampling);
 RcppExport SEXP _rMSI_DetectPeaks_C(SEXP massSEXP, SEXP intensitySEXP, SEXP SNRSEXP, SEXP WinSizeSEXP, SEXP UpSamplingSEXP) {
@@ -442,6 +469,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_NoiseEstimationFFTExpWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWin, 2},
     {"_rMSI_NoiseEstimationFFTCosWinMat", (DL_FUNC) &_rMSI_NoiseEstimationFFTCosWinMat, 2},
     {"_rMSI_NoiseEstimationFFTExpWinMat", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWinMat, 2},
+    {"_rMSI_MergePeakMatricesC", (DL_FUNC) &_rMSI_MergePeakMatricesC, 3},
+    {"_rMSI_CPeakList2PeakMatrix", (DL_FUNC) &_rMSI_CPeakList2PeakMatrix, 4},
     {"_rMSI_DetectPeaks_C", (DL_FUNC) &_rMSI_DetectPeaks_C, 5},
     {"_rMSI_TestPeakInterpolation_C", (DL_FUNC) &_rMSI_TestPeakInterpolation_C, 7},
     {"_rMSI_TestHanningWindow", (DL_FUNC) &_rMSI_TestHanningWindow, 3},

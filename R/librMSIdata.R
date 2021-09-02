@@ -100,7 +100,7 @@ LoadMsiData<-function(data_file,
     stop("The slected file is not valid.\n")
   }
   pt<-proc.time() - pt
-  cat(paste("Data loading time:",round(pt["elapsed"], digits = 1),"seconds\n"))
+  display_processing_time(pt, "Data loading time")
   return(imgData)
 }
 
@@ -1120,3 +1120,20 @@ uuid_timebased <- function()
   return(sUUID)
 }
 
+#Function to display processing time properly
+display_processing_time <- function(time_elapsed, message)
+{
+  if(class(time_elapsed) != "proc_time")
+  {
+    stop("time_elapsed invalid class time")  
+  }
+  
+  dsec <- time_elapsed["elapsed"]
+  hours <- floor(dsec / 3600)
+  minutes <- floor((dsec - 3600 * hours) / 60)
+  seconds <- round(dsec - 3600*hours - 60*minutes, digits = 3)
+  cat(paste0(message, ": "))
+  if(hours > 0) cat(paste0(hours, " hours,\t"))
+  if(minutes > 0 || hours > 0) cat(paste0(minutes, " minutes,\t"))
+  cat(paste0(seconds, " seconds\n"))
+}

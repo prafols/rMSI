@@ -47,7 +47,7 @@ ProcessImages <- function(proc_params,
     stop("ERROR: data_description argument must be an object of class \"DataInfo\". Use the rMSI::ImzMLDataDescription() function to create a valid data_description.\n")
   }
   
-  pt <- Sys.time()
+  pt <- proc.time()
   CalibrationWindowElapsedTime <- 0 #Keep track of the elapsed time during the calibration GUI
   
   #Start by parsing ROI information
@@ -118,9 +118,9 @@ ProcessImages <- function(proc_params,
   #TODO So, at the end reuse them according to the desired output: if rMSIXBin must be exported reuse or calculate, if not just forget about normalizations.
   #TODO think about returning alignment lags here. Currently, im returning it but this may be confusing for the end user. Also the Calibration time... I dont need any of these!
   
-  elap <- Sys.time() - pt
-  elap <- elap - CalibrationWindowElapsedTime #Substract the calbration GUI elapsed time
-  display_processing_time(elap)
+  #Display the used processing time
+  elap <- proc.time() - pt - CalibrationWindowElapsedTime
+  display_processing_time(elap, "Total data processing time")
   
   return(result)
 }
@@ -187,7 +187,8 @@ RunPreProcessing <- function(proc_params,
     rm(Normalizations)
     
     #Calculate the internal reference for alignment
-    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, common_mass, ticMin, ticMax)
+    AverageSpectrum <- COverallAverageSpectrum(img_lst, numOfThreads, memoryPerThreadMB, common_mass, ticMin, ticMax) 
+    
     refSpc <- InternalReferenceSpectrumMultipleDatasets(img_lst, AverageSpectrum, common_mass)
     cat(paste0("Pixel with ID ", refSpc$ID, " from image indexed as ", refSpc$imgIndex, " (", img_lst[[ refSpc$imgIndex]]$name, ") selected as internal reference.\n"))
     refSpc <- refSpc$spectrum
@@ -233,7 +234,7 @@ RunPreProcessing <- function(proc_params,
   #Calculate the calibration model
   if(proc_params$preprocessing$massCalibration)
   {
-    pt <- Sys.time() #do not take into account the user-time during the calibration GUI!
+    pt <- proc.time() #do not take into account the user-time during the calibration GUI!
     if(proc_params$preprocessing$massCalibration)
     {
       calModel <- CalibrationWindow(common_mass, refSpc) 
@@ -246,7 +247,7 @@ RunPreProcessing <- function(proc_params,
         stop("Calibration aborted") #TODO improve the abort sequence: maybe removing already created ibd files... asking for confirmation... think about it
       }
     }
-    calibrationElapsedTime <- Sys.time() - pt
+    calibrationElapsedTime <- proc.time() - pt
   }
   else
   {
@@ -375,6 +376,9 @@ RunPreProcessing <- function(proc_params,
       {
         stop(paste0("ERROR: imzML exported for image ", img_lst_proc[[i]]$name, " failed. Aborting...\n" ))
       }
+      
+      #Add peak list description to each rMSI object
+      #TODO document and implement
     }
   }
   
@@ -384,12 +388,3 @@ RunPreProcessing <- function(proc_params,
   return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh, CalibrationElapsedTime = calibrationElapsedTime ))
 }
 
-#Function to display processing time properly
-display_processing_time <- function(elap)
-{
-  dsec <- as.numeric(as.difftime(elap, unit = "secs"))
-  hours <- floor(dsec / 3600)
-  minutes <- floor((dsec - 3600 * hours) / 60)
-  seconds <- round(dsec - 3600*hours - 60*minutes, digits = 3)
-  cat(paste0("Total processing time: ", hours, " hours,   ", minutes, " minutes   and   ",  seconds," seconds"))
-}

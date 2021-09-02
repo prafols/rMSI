@@ -44,11 +44,13 @@ MTAverage::MTAverage(Rcpp::List rMSIObj_list, int numberOfThreads, double memory
   }
   
   //Get normalizations
+  TicNormalizations = new double*[rMSIObj_list.size()];
   for(int i = 0; i < rMSIObj_list.size(); i++)
   {
-    lNormalizations.push_back(Rcpp::as<Rcpp::DataFrame>((Rcpp::as<Rcpp::List>(rMSIObj_list[i]))["normalizations"]));
+    NumericVector tics = Rcpp::as<NumericVector>(Rcpp::as<Rcpp::DataFrame>((Rcpp::as<Rcpp::List>(rMSIObj_list[i]))["normalizations"])["TIC"]);
+    TicNormalizations[i] = new double[tics.length()];
+    memcpy(TicNormalizations[i], tics.begin(), tics.length() * sizeof(double));
   }
-  
 }
 
 MTAverage::~MTAverage()
@@ -57,8 +59,14 @@ MTAverage::~MTAverage()
   {
      delete[] sm[i];
   }
-  
   delete[] sm;
+  
+  for (int i = 0; i < ioObj->get_images_count(); i++)
+  {
+    delete[] TicNormalizations[i];
+  }
+  delete[] TicNormalizations;
+  
   delete[] validPixelCount;
 }
 
@@ -107,7 +115,8 @@ void MTAverage::ProcessingFunction(int threadSlot)
   {
     int imageIndex = ioObj->getImageIndex(cubes[threadSlot]->cubeID, j);
     int pixelIndex = ioObj->getPixelId(cubes[threadSlot]->cubeID, j);
-    double TICval = (Rcpp::as<Rcpp::NumericVector>((Rcpp::as<Rcpp::DataFrame>(lNormalizations[imageIndex])["TIC"])))[pixelIndex];
+    
+    double TICval = TicNormalizations[imageIndex][pixelIndex];
     
     if(TICval >= TICmin && TICval <= TICmax)
     {

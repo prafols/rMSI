@@ -205,6 +205,23 @@ NoiseEstimationFFTExpWinMat <- function(x, filWinSize = 40L) {
     .Call('_rMSI_NoiseEstimationFFTExpWinMat', PACKAGE = 'rMSI', x, filWinSize)
 }
 
+MergePeakMatricesC <- function(PeakMatrices, binningTolerance = 100, binningFilter = 0.01) {
+    .Call('_rMSI_MergePeakMatricesC', PACKAGE = 'rMSI', PeakMatrices, binningTolerance, binningFilter)
+}
+
+#' CPeakList2PeakMatrix.
+#' 
+#' Convert's an R peak list into a peak matrix.
+#' @param RpeakList R peak list.
+#' @param the tolerance used to merge peaks to the same bin. It is recomanded to use the half of peak width in ppm units. 
+#' @param BinFilter the peaks bins non detected in at least the BinFitler*TotalNumberOfPixels spectra will be deleted.
+#' @param BinToleranceUsingPPM if True the peak binning tolerance is specified in ppm, if false the tolerance is set using scans.
+#' @return peak matrix.
+#' 
+CPeakList2PeakMatrix <- function(RpeakList, BinTolerance = 5, BinFilter = 0.1, BinToleranceUsingPPM = TRUE) {
+    .Call('_rMSI_CPeakList2PeakMatrix', PACKAGE = 'rMSI', RpeakList, BinTolerance, BinFilter, BinToleranceUsingPPM)
+}
+
 #' DetectPeaks_C.
 #' 
 #' Detect peaks from a Rcpp::NumericVector object and returns data in a R matrix.

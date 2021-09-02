@@ -39,9 +39,9 @@ class MTAverage : public ThreadingMsiProc
     
   private:
     double **sm;  //A matrix containing the partial average spectrum of the datacubes
-    unsigned int *validPixelCount; //Count the number of pixels thats meat the TIC condition in each datacube
+    unsigned int *validPixelCount; //Count the number of pixels that meet the TIC condition in each datacube
     double TICmin, TICmax;
-    Rcpp::List lNormalizations;
+    double **TicNormalizations; //Copy of TIC normalization values for each image in rMSIObj_list. Need to allow a safe axes to TIC values from working threads
     
     
     //Thread Processing function definition
