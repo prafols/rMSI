@@ -23,6 +23,7 @@
 #include <fstream>
 #include <vector>
 #include <Rcpp.h>
+#include "peakpicking.h" //Used to get the datatype Peaks to allow a direct acces to imzML with peak lists
 
 typedef struct
 {
@@ -185,11 +186,11 @@ class ImzMLBinWrite : public ImzMLBin
     //Data is obtained from ptr pointer
     void writeIntData( unsigned int N, double* ptr );
     
-    //Append N elements to the ibd file (write in sequential mode) without updating the Offsets table
+    //Append N peaks to the ibd file (write in sequential mode). Used to write a peak list inside a imzML file.
     //This is used to allow storing SNR, Area and binSize data following the intensity data in a peak list
     //Data is stored using the same format as the intensity data
-    //Data is obtained from ptr pointer
-    void writePhantomData( unsigned int N, double* ptr );
+    //Data is obtained from ptr pointers
+    void writePeakList( unsigned int N, double* ptrMass, double* ptrIntensity, double* ptrArea, double* ptrSNR, double* ptrBinSize);
     
   private:
     unsigned int sequentialWriteIndex_MzData; //When sequentially writing data, this integers provides the index of the next pixel to store

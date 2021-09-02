@@ -118,6 +118,9 @@ PeakPicking::Peaks *PeakPicking::detectPeaks( double *spectrum, double *noise, d
   const int HalfWinSize = FFT_Size/2;
   double slope = 0.0;
   double slope_ant = 0.0;
+  double mass_centroide = -1.0;
+  double mass_centroide_previous = -1.0;
+  double local_binSize = 0.0;
   PeakPicking::Peaks *m_peaks = new PeakPicking::Peaks();
   for( int i=0; i < (dataLength - 1); i++)
   {
@@ -127,11 +130,17 @@ PeakPicking::Peaks *PeakPicking::detectPeaks( double *spectrum, double *noise, d
     {
       if(spectrum[i]/noise[i] >= SNR)
       {
-        m_peaks->mass.push_back( predictPeakMass(spectrum, i)); //Compute peak accurately using FFT interpolation); 
-        m_peaks->intensity.push_back(spectrum[i]);
-        m_peaks->SNR.push_back(spectrum[i]/noise[i]); 
-        m_peaks->area.push_back(predictPeakArea(spectrum, i)); //Normalized to non-FFT sapce
-        m_peaks->binSize.push_back( fabs(mass[i + 1] - mass[i]) );
+        mass_centroide = predictPeakMass(spectrum, i); //Compute peak accurately using FFT interpolation);
+        local_binSize = fabs(mass[i + 1] - mass[i]) ;
+        if(fabs(mass_centroide - mass_centroide_previous) >= local_binSize  ) //Avoid duplicates
+        {
+          m_peaks->mass.push_back(mass_centroide); 
+          m_peaks->intensity.push_back(spectrum[i]);
+          m_peaks->SNR.push_back(spectrum[i]/noise[i]); 
+          m_peaks->area.push_back(predictPeakArea(spectrum, i)); //Normalized to non-FFT sapce
+          m_peaks->binSize.push_back( local_binSize );
+        }
+        mass_centroide_previous = mass_centroide;
       }
     }
     slope_ant = slope;

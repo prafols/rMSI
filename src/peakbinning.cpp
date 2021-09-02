@@ -39,6 +39,9 @@ List PeakBinning::BinPeaks()
 {
   //Compute each peak obj TIC, I'll start binning from the highest spectrum which is assumed to have a lower mass error (at least for higher peaks)
   double Tic[numOfPixels];
+  
+  //TODO use TIC from rMSI_obj normalizations!
+  /*
   for(int i = 0; i < numOfPixels; i++)
   {
     Tic[i] = 0.0;
@@ -47,6 +50,7 @@ List PeakBinning::BinPeaks()
       Tic[i] += mPeaks[i]->intensity[j];
     }
   }
+   */
   
   //Apply binning starting with most intens spectra
   double dMax;
@@ -55,6 +59,7 @@ List PeakBinning::BinPeaks()
   NumericVector binMass; //The mass name for each matrix column
   NumericVector binSizeVec; //The raw spectra bin size for each matrix column
   NumericVector binAvgInt; //The average spectra intensity of each bin
+  PeakPicking::Peaks *mPeaks; //Pointer to a pixel peak list
   Rcout<<"Binning...\n";
   int iCount = 0;
   
@@ -83,23 +88,27 @@ List PeakBinning::BinPeaks()
     
     Tic[iMax] = -1.0; //Mark current spectrum as processed by deleting its TIC
     
-    while( mPeaks[iMax]->mass.size() > 0 )
+    
+    //mPeaks = readPeakListFromImzML(iMax); //TODO implement a method in the imzMLBin Class to allow reading a single pixel peal list from an imzML. Think how to get the proper image and pixel...
+    
+    /***************************** COMMENTED OUT BECAUSE I NEED TO THINK HOW TO PORT THIS... TODO... 
+    while( mPeaks->mass.size() > 0 )
     {
-      binMass.push_back(mPeaks[iMax]->mass[0]); //Append element to the mass vector (names of bin Matrix)
-      binSizeVec.push_back(mPeaks[iMax]->binSize[0]); //Append element to the binSize vector (names of bin Matrix)
-      binAvgInt.push_back(mPeaks[iMax]->intensity[0]); //Append element to intensity bin
+      binMass.push_back(mPeaks->mass[0]); //Append element to the mass vector (names of bin Matrix)
+      binSizeVec.push_back(mPeaks->binSize[0]); //Append element to the binSize vector (names of bin Matrix)
+      binAvgInt.push_back(mPeaks->intensity[0]); //Append element to intensity bin
       binMat.resize(binMat.size() + 1); //Append new column
       binMat[binMat.size() - 1].resize(numOfPixels); //Extenend all new column elements
-      binMat[binMat.size() - 1][iMax].intensity = mPeaks[iMax]->intensity[0]; 
-      binMat[binMat.size() - 1][iMax].SNR = mPeaks[iMax]->SNR[0];
-      binMat[binMat.size() - 1][iMax].area = mPeaks[iMax]->area[0];
+      binMat[binMat.size() - 1][iMax].intensity = mPeaks->intensity[0]; 
+      binMat[binMat.size() - 1][iMax].SNR = mPeaks->SNR[0];
+      binMat[binMat.size() - 1][iMax].area = mPeaks->area[0];
       
       //Delete current peak
-      mPeaks[iMax]->mass.erase(mPeaks[iMax]->mass.begin());
-      mPeaks[iMax]->intensity.erase(mPeaks[iMax]->intensity.begin());
-      mPeaks[iMax]->SNR.erase(mPeaks[iMax]->SNR.begin());
-      mPeaks[iMax]->area.erase(mPeaks[iMax]->area.begin());
-      mPeaks[iMax]->binSize.erase(mPeaks[iMax]->binSize.begin());
+      mPeaks->mass.erase(mPeaks->mass.begin());
+      mPeaks->intensity.erase(mPeaks->intensity.begin());
+      mPeaks->SNR.erase(mPeaks->SNR.begin());
+      mPeaks->area.erase(mPeaks->area.begin());
+      mPeaks->binSize.erase(mPeaks->binSize.begin());
       
       double numMasses = 1.0; //number of peak masses used to compute each mass centroid
       int countPeaks = 1; //Number of peaks in current column
@@ -114,10 +123,10 @@ List PeakBinning::BinPeaks()
           double dist_ant;
           double dist_ant_ppm = 1e50;
           int iPos = 0;
-          for( unsigned int imass = 0; imass <  mPeaks[j]->mass.size(); imass++)
+          for( unsigned int imass = 0; imass <  mPeaks[j]->mass.size(); imass++) //TODO ufffff aixo es fotut! implica llegir tot imzml varies vegades...ufff
           {
             iPos = imass;
-            dist = binMass[binMass.size() - 1] - mPeaks[j]->mass[imass];
+            dist = binMass[binMass.size() - 1] - mPeaks[j]->mass[imass]; //TODO fotuda!
             dist_ppm = 1e6*dist/binMass[binMass.size() - 1]; //Translation to ppm
             if(dist_ppm <= 0)
             {
@@ -190,6 +199,8 @@ List PeakBinning::BinPeaks()
       }
       
     }
+     
+     ***********************************************************************/ //COMMENTED OUT BECAUSE I NEED TO THINK HOW TO PORT THIS... TODO... 
   }
   Rcout<<"Bining complete with a total number of "<<binMass.size()<<" bins\n";
   
@@ -253,7 +264,10 @@ List PeakBinning::BinPeaks()
 // [[Rcpp::export]]
 List CPeakList2PeakMatrix(List RpeakList, double BinTolerance = 5, double BinFilter = 0.1, bool BinToleranceUsingPPM = true )
 {
-  PeakBinning myPeakBinning(RpeakList, BinTolerance, BinToleranceUsingPPM, BinFilter);
-  return myPeakBinning.BinPeaks(); 
+  //TODO commented out because it needs revision
+  //PeakBinning myPeakBinning(RpeakList, BinTolerance, BinToleranceUsingPPM, BinFilter);
+  //return myPeakBinning.BinPeaks(); 
+  
+  return Rcpp::List::create();
 }
 

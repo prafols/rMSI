@@ -205,10 +205,6 @@ NoiseEstimationFFTExpWinMat <- function(x, filWinSize = 40L) {
     .Call('_rMSI_NoiseEstimationFFTExpWinMat', PACKAGE = 'rMSI', x, filWinSize)
 }
 
-MergePeakMatricesC <- function(PeakMatrices, binningTolerance = 100, binningFilter = 0.01) {
-    .Call('_rMSI_MergePeakMatricesC', PACKAGE = 'rMSI', PeakMatrices, binningTolerance, binningFilter)
-}
-
 #' CPeakList2PeakMatrix.
 #' 
 #' Convert's an R peak list into a peak matrix.

@@ -283,11 +283,12 @@ void CrMSIDataCubeIO::storeDataCube(int iCube, DataCube *data_ptr)
     {
       //Processed mode write with phantom data for snr, area and bin size
       //Rcpp::Rcout<<"iCube = " <<iCube<< "  i = " <<i<<"  mass.size() = "<<data_ptr->peakLists[i]->mass.size()<< "  intensity.size() = " << data_ptr->peakLists[i]->intensity.size() <<"\n";
-      imzMLWriters[current_imzML_id]->writeMzData(data_ptr->peakLists[i]->mass.size(), data_ptr->peakLists[i]->mass.data());
-      imzMLWriters[current_imzML_id]->writeIntData(data_ptr->peakLists[i]->intensity.size(), data_ptr->peakLists[i]->intensity.data());
-      imzMLWriters[current_imzML_id]->writePhantomData(data_ptr->peakLists[i]->area.size(), data_ptr->peakLists[i]->area.data());
-      imzMLWriters[current_imzML_id]->writePhantomData(data_ptr->peakLists[i]->SNR.size(), data_ptr->peakLists[i]->SNR.data());
-      imzMLWriters[current_imzML_id]->writePhantomData(data_ptr->peakLists[i]->binSize.size(), data_ptr->peakLists[i]->binSize.data());
+      imzMLWriters[current_imzML_id]->writePeakList(data_ptr->peakLists[i]->mass.size(), 
+                                                    data_ptr->peakLists[i]->mass.data(),
+                                                    data_ptr->peakLists[i]->intensity.data(),
+                                                    data_ptr->peakLists[i]->area.data(),
+                                                    data_ptr->peakLists[i]->SNR.data(),
+                                                    data_ptr->peakLists[i]->binSize.data() );
     }
     
     previous_imzML_id = current_imzML_id;

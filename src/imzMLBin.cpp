@@ -688,16 +688,42 @@ void ImzMLBinWrite::writeIntData(unsigned int N, double* ptr )
   writeDataCommon(N, ptr, intDataPointBytes, intDataType);
 }
 
-void ImzMLBinWrite::writePhantomData(unsigned int N, double* ptr )
+void ImzMLBinWrite::writePeakList( unsigned int N, double* ptrMass, double* ptrIntensity, double* ptrArea, double* ptrSNR, double* ptrBinSize)
 {
+  if(get_continuous())
+  {
+    throw std::runtime_error("ERROR: peaklist are only supported for imzML in processed mode");
+  }
   
   if(fileMode == Mode::ModifyFile)
   {
     throw std::runtime_error("ERROR: ibd file was opened in an invalid mode for sequencial writing");
   }
   
-  //Write data
-  writeDataCommon(N, ptr, intDataPointBytes, intDataType);
+  //Check offsets and length
+  if(sequentialWriteIndex_MzData >= Npixels || sequentialWriteIndex_IntData >= Npixels)
+  {
+    throw std::runtime_error("ERROR: trying to write more spectral data than the maximum number of pixels set in the constructor");
+  }
+  
+  //Update indices for the peak masses
+  Offsets[sequentialWriteIndex_MzData].mzOffset = ibdFile.tellp();
+  Offsets[sequentialWriteIndex_MzData].mzLength = N;
+  
+  //Write peak masses
+  writeDataCommon(N, ptrMass, mzDataPointBytes, mzDataType);
+  sequentialWriteIndex_MzData++;
+  
+  //Update indices for the peak data
+  Offsets[sequentialWriteIndex_IntData].intOffset = ibdFile.tellp();
+  Offsets[sequentialWriteIndex_IntData].intLength = N;
+  
+  //Write peakData
+  writeDataCommon(N, ptrIntensity, intDataPointBytes, intDataType);
+  writeDataCommon(N, ptrArea, intDataPointBytes, intDataType);
+  writeDataCommon(N, ptrSNR, intDataPointBytes, intDataType);
+  writeDataCommon(N, ptrBinSize, intDataPointBytes, intDataType);
+  sequentialWriteIndex_IntData++;
 }
 
 void ImzMLBinWrite::writeDataCommon(std::streampos offset, unsigned int N, double* ptr, unsigned int dataPointBytes, imzMLDataType dataType)
