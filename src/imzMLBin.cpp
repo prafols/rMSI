@@ -294,8 +294,8 @@ void ImzMLBin::convertDouble2Bytes(double* inPtr, char* outBytes, unsigned int N
   delete[] auxBuffer;
 }
 
-ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd):
-  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, Mode::Read), bForceResampling(false), bOriginalMassAxisOnMem(false)
+ImzMLBinRead::ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd, bool peakListrMSIformat):
+  ImzMLBin(ibd_fname, num_of_pixels, Str_mzType, Str_intType, continuous, Mode::Read), bForceResampling(false), bOriginalMassAxisOnMem(false), bPeakListInrMSIFormat(peakListrMSIformat)
 {
   if(openIbd)
   {
@@ -519,6 +519,58 @@ imzMLSpectrum ImzMLBinRead::ReadSpectrum(int pixelID, unsigned int ionIndex, uns
   }
   
   return imzMLSpc;
+}
+
+PeakPicking::Peaks *ImzMLBinRead::ReadPeakList(int pixelID)
+{
+  if(get_continuous())
+  {
+    throw std::runtime_error("Error: trying to read a peak list from imzML in continuous mode.\n");
+  }
+  
+  const int massLength = get_mzLength(pixelID);
+  if( massLength != get_intLength(pixelID))
+  {
+    throw std::runtime_error("Error: different mass and intensity length in the imzML data\n"); 
+  }
+  
+  PeakPicking::Peaks *mPeaks = new PeakPicking::Peaks;
+  mPeaks->mass.resize(massLength);
+  mPeaks->intensity.resize(massLength);
+  if(bPeakListInrMSIFormat)
+  {
+    mPeaks->area.resize(massLength);
+    mPeaks->SNR.resize(massLength);
+    mPeaks->binSize.resize(massLength);
+  }
+  
+  std::streampos rMSIPeakDataOffset;
+  //Read peak list data
+  try
+  {
+    readMzData(get_mzOffset(pixelID),  mPeaks->mass.size(), mPeaks->mass.data());
+    readIntData(get_intOffset(pixelID), mPeaks->intensity.size(), mPeaks->intensity.data());
+    if(bPeakListInrMSIFormat)
+    {
+      rMSIPeakDataOffset = get_intOffset(pixelID) + (std::streampos)(massLength*intDataPointBytes);
+      readIntData(rMSIPeakDataOffset, mPeaks->area.size(), mPeaks->area.data());
+      rMSIPeakDataOffset += (std::streampos)(massLength*intDataPointBytes);
+      readIntData(rMSIPeakDataOffset, mPeaks->SNR.size(), mPeaks->SNR.data());
+      rMSIPeakDataOffset += (std::streampos)(massLength*intDataPointBytes);
+      readIntData(rMSIPeakDataOffset, mPeaks->binSize.size(), mPeaks->binSize.data());
+    }
+  }
+  catch(std::runtime_error &e)
+  {
+    throw std::runtime_error(e.what());
+  }
+  
+  return mPeaks;
+}
+
+bool ImzMLBinRead::get_rMSIPeakListFormat()
+{
+  return bPeakListInrMSIFormat;
 }
 
 ImzMLBinWrite::ImzMLBinWrite(const char* ibd_fname,  unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool sequentialMode, bool openIbd) :
@@ -926,4 +978,78 @@ Rcpp::NumericVector CimzMLBinReadMass(const char* ibdFname, unsigned int NPixels
 Rcpp::NumericVector CimzMLBinReadIntensity(const char* ibdFname, unsigned int NPixels, unsigned int N, uint64_t offset, Rcpp::String dataTypeString, bool continuous)
 {
   return imzMLBinReadGeneric(ibdFname, NPixels, N, offset, dataTypeString, false, continuous);
+}
+
+//' Method to read a peak list from an imzML file. Processed mode is assumed.
+//' testingimzMLBinRead
+//' @param ibdFname: full path to the ibd file.
+//' @param imzML_peakList_descriptor: imzML file description as it is returned by the CimzMLParse() function.
+//' @param PixelID: the pixel ID to read a peak list.
+// [[Rcpp::export]]
+Rcpp::List CimzMLReadPeakList(const char* ibdFname, Rcpp::List imzML_peakList_descriptor, unsigned int PixelID)
+{
+  if (Rcpp::as<bool>(imzML_peakList_descriptor["continuous_mode"]))
+  {
+    Rcpp::stop("ERROR: imzML file is in continuous mode so it cannot be readed as  peak list.\n");  
+  }
+
+  //Extract the RunData Matrix 
+  Rcpp::DataFrame runMat = Rcpp::as<Rcpp::DataFrame>(imzML_peakList_descriptor["run_data"]);
+  
+  unsigned int NPixels = runMat.nrows();
+  Rcpp::String Str_mzType = Rcpp::as< Rcpp::String>(imzML_peakList_descriptor["mz_dataType"]); 
+  Rcpp::String Str_intType = Rcpp::as< Rcpp::String>(imzML_peakList_descriptor["int_dataType"]); 
+  Rcpp::NumericVector mzLength_vector = runMat["mzLength"];
+  Rcpp::NumericVector mzOffset_vector = runMat["mzOffset"]; 
+  Rcpp::NumericVector intLength_vector = runMat["intLength"]; 
+  Rcpp::NumericVector intOffset_vector = runMat["intOffset"]; 
+  bool bPeakListrMSIformat = Rcpp::as<bool>(imzML_peakList_descriptor["rMSIpeakList"]); 
+  
+  PeakPicking::Peaks *mpeaks;
+  
+  try
+  {
+    ImzMLBinRead myReader(ibdFname, NPixels, Str_mzType, Str_intType, false, true, bPeakListrMSIformat);
+    myReader.set_mzLength(&mzLength_vector);
+    myReader.set_mzOffset(&mzOffset_vector);
+    myReader.set_intLength(&intLength_vector);
+    myReader.set_intOffset(&intOffset_vector);
+    mpeaks = myReader.ReadPeakList(PixelID);
+    myReader.close();
+  }
+  catch(std::runtime_error &e)
+  {
+    delete mpeaks;
+    Rcpp::stop(e.what());
+  }
+  
+  Rcpp::NumericVector vmass(mpeaks->mass.size());
+  Rcpp::NumericVector vintensity(mpeaks->intensity.size());
+  Rcpp::NumericVector varea(mpeaks->area.size());
+  Rcpp::NumericVector vsnr(mpeaks->SNR.size());
+  Rcpp::NumericVector vbinsize(mpeaks->binSize.size());
+  
+  memcpy(vmass.begin(), mpeaks->mass.data(), vmass.length() * sizeof(double) );
+  memcpy(vintensity.begin(), mpeaks->intensity.data(), vintensity.length() * sizeof(double));
+  memcpy(varea.begin(), mpeaks->area.data(), varea.length() * sizeof(double) );
+  memcpy(vsnr.begin(), mpeaks->SNR.data(), vsnr.length() * sizeof(double) );
+  memcpy(vbinsize.begin(), mpeaks->binSize.data(), vbinsize.length() * sizeof(double) );
+  
+  delete mpeaks;
+  
+  if(bPeakListrMSIformat)
+  {
+    return Rcpp::List::create( Rcpp::Named("ID") = PixelID,
+                             Rcpp::Named("mass") = vmass,
+                             Rcpp::Named("intensity") = vintensity,
+                             Rcpp::Named("area") = varea,
+                             Rcpp::Named("SNR") = vsnr,
+                             Rcpp::Named("binSize") = vbinsize);
+  }
+  else
+  {
+    return Rcpp::List::create( Rcpp::Named("ID") = PixelID,
+                               Rcpp::Named("mass") = vmass,
+                               Rcpp::Named("intensity") = vintensity);
+  }
 }

@@ -1137,3 +1137,24 @@ display_processing_time <- function(time_elapsed, message)
   if(minutes > 0 || hours > 0) cat(paste0(minutes, " minutes,\t"))
   cat(paste0(seconds, " seconds\n"))
 }
+
+#' readimzML_singlePixelPeakList.
+#' 
+#' Reads a single pixel peaklist directely from an imzML file in processed mode.
+#' Extra peak information will be available if the peak list was previously stored in the rMSI peak list format. 
+#' The extra peak infor include peak area, SNR and bin size.
+#'
+#' @param imzML_file path to the imzML file containing the peak list (with or without extension).
+#' @param pixel_id the pixel ID in the imzML to read.
+#'
+#' @return a list containg the peak information for the given pixel.
+#' @export
+#'
+readimzML_singlePixelPeakList <- function(imzML_file, pixel_id)
+{
+  imzML_file <- as.character(strsplit(imzML_file, split = ".imzML", fixed = T)[[1]]) 
+  imzMLDesc <- CimzMLParse(path.expand(paste0(imzML_file, ".imzML")))
+  peakList <- CimzMLReadPeakList(path.expand(paste0(imzML_file, ".ibd")), imzMLDesc, pixel_id-1) #C-style indexing so -1  
+  return ( peakList )
+}
+

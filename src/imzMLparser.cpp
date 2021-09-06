@@ -81,6 +81,7 @@ List CimzMLParse( String xml_path )
   String sMzDataType = "";
   String sIntDataType = "";
   double dPixelSize = 0.0;
+  bool bDataIsAPeakListInRMSIFormat;
   
   // Error control
   bool bUUID_present = false;
@@ -139,6 +140,27 @@ List CimzMLParse( String xml_path )
   {
     return( List::create(Named("Error") = "imzML parse error: Data mode continuous/processed not present") );
   }
+  
+  //Reading the  accession="MS:1000560" 
+  xml_node sourceFileList = fileDesc.child("sourceFileList");
+  if( sourceFileList != NULL )
+  {
+    xml_node sourceFile = sourceFileList.child("sourceFile");
+    if( sourceFile != NULL )
+    {
+      for (xml_node cvParam = sourceFile.child("cvParam"); cvParam; cvParam = cvParam.next_sibling("cvParam"))
+      {
+        accession = cvParam.attribute("accession").value();
+        value = cvParam.attribute("value").value();
+        
+        if(accession == "MS:1000560")
+        {
+          bDataIsAPeakListInRMSIFormat = value == "rMSIpeakList";
+        }
+      }
+    }
+  }
+  
 
   //referenceableParamGroupList
   xml_node refParamGrpLst = mzML.child("referenceableParamGroupList");
@@ -390,6 +412,7 @@ List CimzMLParse( String xml_path )
                       Named("SHA") = sSHA_Checksum,
                       Named("MD5") = sMD5_Checksum,
                       Named("continuous_mode")= bContinuous,
+                      Named("rMSIpeakList")=bDataIsAPeakListInRMSIFormat,
                       Named("compression_mz")= bCompressionMz,
                       Named("compression_int")= bCompressionInt,
                       Named("mz_dataType") = sMzDataType,
@@ -462,9 +485,13 @@ int AppendimzMLDataTypeNode(const std::string sDataType, pugi::xml_node *imzMLno
 // $pixel_size_um a double with the pixel area? check this...
 // $run_data a data.frane with the columns: x, y, mzLength, mzOffset, intLength, intOffset
 //
+// mass_spectrometer_file_format: text string to specify the mass spectrometer (CV accession: MS:1000560). 
+//    this defaults to "rMSI exported imzML" but can be customized. Use the exact string "rMSIpeakList" to store rMSI formated peak lists in the imzML file
+//
+//
 // full path to xml_path must be specified... R function path.expand() can be used 4 this
 // [[Rcpp::export]]
-bool CimzMLStore( String fname, List imgInfo )
+bool CimzMLStore( String fname, List imgInfo, const char* mass_spectrometer_file_format = "rMSI exported imzML"  )
 {
   //Reusable pugi variables
   pugi::xml_node cvParam;
@@ -583,7 +610,7 @@ bool CimzMLStore( String fname, List imgInfo )
   cvParam.append_attribute("accession") = "MS:1000560";
   cvParam.append_attribute("cvRef") = "MS";
   cvParam.append_attribute("name") = "mass spectrometer file format";
-  cvParam.append_attribute("value") = "rMSI exported imzML";
+  cvParam.append_attribute("value") = mass_spectrometer_file_format;
   
   cvParam = srcFile.append_child("cvParam");
   cvParam.append_attribute("accession") = "MS:1002333";

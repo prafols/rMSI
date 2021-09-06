@@ -76,12 +76,21 @@ CimzMLBinReadIntensity <- function(ibdFname, NPixels, N, offset, dataTypeString,
     .Call('_rMSI_CimzMLBinReadIntensity', PACKAGE = 'rMSI', ibdFname, NPixels, N, offset, dataTypeString, continuous)
 }
 
+#' Method to read a peak list from an imzML file. Processed mode is assumed.
+#' testingimzMLBinRead
+#' @param ibdFname: full path to the ibd file.
+#' @param imzML_peakList_descriptor: imzML file description as it is returned by the CimzMLParse() function.
+#' @param PixelID: the pixel ID to read a peak list.
+CimzMLReadPeakList <- function(ibdFname, imzML_peakList_descriptor, PixelID) {
+    .Call('_rMSI_CimzMLReadPeakList', PACKAGE = 'rMSI', ibdFname, imzML_peakList_descriptor, PixelID)
+}
+
 CimzMLParse <- function(xml_path) {
     .Call('_rMSI_CimzMLParse', PACKAGE = 'rMSI', xml_path)
 }
 
-CimzMLStore <- function(fname, imgInfo) {
-    .Call('_rMSI_CimzMLStore', PACKAGE = 'rMSI', fname, imgInfo)
+CimzMLStore <- function(fname, imgInfo, mass_spectrometer_file_format = "rMSI exported imzML") {
+    .Call('_rMSI_CimzMLStore', PACKAGE = 'rMSI', fname, imgInfo, mass_spectrometer_file_format)
 }
 
 AlignSpectrumToReference <- function(mass, ref, spectrumInterpolated, massProcessedMode, intensityProcessedMode, bilinear = FALSE, lagRefLow = 0.1, lagRefMid = 0.5, lagRefHigh = 0.9, iterations = 1L, lagLimitppm = 200, fftOverSampling = 10L, winSizeRelative = 0.6) {
@@ -205,17 +214,8 @@ NoiseEstimationFFTExpWinMat <- function(x, filWinSize = 40L) {
     .Call('_rMSI_NoiseEstimationFFTExpWinMat', PACKAGE = 'rMSI', x, filWinSize)
 }
 
-#' CPeakList2PeakMatrix.
-#' 
-#' Convert's an R peak list into a peak matrix.
-#' @param RpeakList R peak list.
-#' @param the tolerance used to merge peaks to the same bin. It is recomanded to use the half of peak width in ppm units. 
-#' @param BinFilter the peaks bins non detected in at least the BinFitler*TotalNumberOfPixels spectra will be deleted.
-#' @param BinToleranceUsingPPM if True the peak binning tolerance is specified in ppm, if false the tolerance is set using scans.
-#' @return peak matrix.
-#' 
-CPeakList2PeakMatrix <- function(RpeakList, BinTolerance = 5, BinFilter = 0.1, BinToleranceUsingPPM = TRUE) {
-    .Call('_rMSI_CPeakList2PeakMatrix', PACKAGE = 'rMSI', RpeakList, BinTolerance, BinFilter, BinToleranceUsingPPM)
+CRunPeakBinning <- function(imzMLDescriptor, preProcessingParams, numOfThreads) {
+    .Call('_rMSI_CRunPeakBinning', PACKAGE = 'rMSI', imzMLDescriptor, preProcessingParams, numOfThreads)
 }
 
 #' DetectPeaks_C.

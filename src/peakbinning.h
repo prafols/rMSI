@@ -20,25 +20,32 @@
 #define PEAKBINNING_H
 #include <Rcpp.h>
 #include "peakpicking.h"
+#include "imzMLBin.h"
 
 class PeakBinning
 {
 public:
-  //TODO replace PeakPicking::Peaks **peakList, int pixelCount with a data structure refencing the imzML peaklist
-  PeakBinning(PeakPicking::Peaks **peakList, int pixelCount, double binTolerance, bool toleranceInppm, double binFilter);
+  
+  //Constructor arguments:
+  // preProcessingParams: An R reference class with the pre-processing parameters.
+  // numberOfThreads: Total number of threads to use during processing
+  PeakBinning(Rcpp::Reference preProcessingParams, int numberOfThreads);
   ~PeakBinning();
   
-  //Perfomr peak binning, this is mono-thread implemented.
+  //Appends an image to be processed.
+  // - imzMLDescriptor: An R list object describing the peakList file. Same format as outputed by the imzML parser
+  void appedImageData(Rcpp::List imzMLDescriptor);
+  
+  //Perfomr peak binning, this is mono-thread implemented. //TODO work on the multithreaded implementation using C++11 tasks and paralelizin mass searches
   Rcpp::List BinPeaks(); 
 
 private:
-  bool binSizeInppm;
   double binFilter;
   double tolerance;
   bool tolerance_in_ppm; //If true the binning tolerance is specified in  ppm, if false then the number of datapoints per peak is used instead
-  int numOfPixels;
+  int totalNumOfPixels;
   
-  //TODO add datastructure to handle peak list in imzML an Tic normalizations... maybe I can add the peak list info inside each rMSIobject...
+  std::vector<ImzMLBinRead*> imzMLReaders;  //Pointers to multiple imzMLReadrs initialized with openIbd = false to avoid exiding the maximum open files.
   
   typedef struct
   {

@@ -85,6 +85,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// CimzMLReadPeakList
+Rcpp::List CimzMLReadPeakList(const char* ibdFname, Rcpp::List imzML_peakList_descriptor, unsigned int PixelID);
+RcppExport SEXP _rMSI_CimzMLReadPeakList(SEXP ibdFnameSEXP, SEXP imzML_peakList_descriptorSEXP, SEXP PixelIDSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const char* >::type ibdFname(ibdFnameSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type imzML_peakList_descriptor(imzML_peakList_descriptorSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type PixelID(PixelIDSEXP);
+    rcpp_result_gen = Rcpp::wrap(CimzMLReadPeakList(ibdFname, imzML_peakList_descriptor, PixelID));
+    return rcpp_result_gen;
+END_RCPP
+}
 // CimzMLParse
 List CimzMLParse(String xml_path);
 RcppExport SEXP _rMSI_CimzMLParse(SEXP xml_pathSEXP) {
@@ -97,14 +110,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // CimzMLStore
-bool CimzMLStore(String fname, List imgInfo);
-RcppExport SEXP _rMSI_CimzMLStore(SEXP fnameSEXP, SEXP imgInfoSEXP) {
+bool CimzMLStore(String fname, List imgInfo, const char* mass_spectrometer_file_format);
+RcppExport SEXP _rMSI_CimzMLStore(SEXP fnameSEXP, SEXP imgInfoSEXP, SEXP mass_spectrometer_file_formatSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< String >::type fname(fnameSEXP);
     Rcpp::traits::input_parameter< List >::type imgInfo(imgInfoSEXP);
-    rcpp_result_gen = Rcpp::wrap(CimzMLStore(fname, imgInfo));
+    Rcpp::traits::input_parameter< const char* >::type mass_spectrometer_file_format(mass_spectrometer_file_formatSEXP);
+    rcpp_result_gen = Rcpp::wrap(CimzMLStore(fname, imgInfo, mass_spectrometer_file_format));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -284,17 +298,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// CPeakList2PeakMatrix
-List CPeakList2PeakMatrix(List RpeakList, double BinTolerance, double BinFilter, bool BinToleranceUsingPPM);
-RcppExport SEXP _rMSI_CPeakList2PeakMatrix(SEXP RpeakListSEXP, SEXP BinToleranceSEXP, SEXP BinFilterSEXP, SEXP BinToleranceUsingPPMSEXP) {
+// CRunPeakBinning
+List CRunPeakBinning(Rcpp::List imzMLDescriptor, Rcpp::Reference preProcessingParams, int numOfThreads);
+RcppExport SEXP _rMSI_CRunPeakBinning(SEXP imzMLDescriptorSEXP, SEXP preProcessingParamsSEXP, SEXP numOfThreadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< List >::type RpeakList(RpeakListSEXP);
-    Rcpp::traits::input_parameter< double >::type BinTolerance(BinToleranceSEXP);
-    Rcpp::traits::input_parameter< double >::type BinFilter(BinFilterSEXP);
-    Rcpp::traits::input_parameter< bool >::type BinToleranceUsingPPM(BinToleranceUsingPPMSEXP);
-    rcpp_result_gen = Rcpp::wrap(CPeakList2PeakMatrix(RpeakList, BinTolerance, BinFilter, BinToleranceUsingPPM));
+    Rcpp::traits::input_parameter< Rcpp::List >::type imzMLDescriptor(imzMLDescriptorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Reference >::type preProcessingParams(preProcessingParamsSEXP);
+    Rcpp::traits::input_parameter< int >::type numOfThreads(numOfThreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(CRunPeakBinning(imzMLDescriptor, preProcessingParams, numOfThreads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -442,8 +455,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_CimzMLBinWriteModifyMass", (DL_FUNC) &_rMSI_CimzMLBinWriteModifyMass, 7},
     {"_rMSI_CimzMLBinReadMass", (DL_FUNC) &_rMSI_CimzMLBinReadMass, 6},
     {"_rMSI_CimzMLBinReadIntensity", (DL_FUNC) &_rMSI_CimzMLBinReadIntensity, 6},
+    {"_rMSI_CimzMLReadPeakList", (DL_FUNC) &_rMSI_CimzMLReadPeakList, 3},
     {"_rMSI_CimzMLParse", (DL_FUNC) &_rMSI_CimzMLParse, 1},
-    {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 2},
+    {"_rMSI_CimzMLStore", (DL_FUNC) &_rMSI_CimzMLStore, 3},
     {"_rMSI_AlignSpectrumToReference", (DL_FUNC) &_rMSI_AlignSpectrumToReference, 13},
     {"_rMSI_CalcMassAxisBinSize", (DL_FUNC) &_rMSI_CalcMassAxisBinSize, 2},
     {"_rMSI_MergeMassAxis", (DL_FUNC) &_rMSI_MergeMassAxis, 4},
@@ -456,7 +470,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rMSI_NoiseEstimationFFTExpWin", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWin, 2},
     {"_rMSI_NoiseEstimationFFTCosWinMat", (DL_FUNC) &_rMSI_NoiseEstimationFFTCosWinMat, 2},
     {"_rMSI_NoiseEstimationFFTExpWinMat", (DL_FUNC) &_rMSI_NoiseEstimationFFTExpWinMat, 2},
-    {"_rMSI_CPeakList2PeakMatrix", (DL_FUNC) &_rMSI_CPeakList2PeakMatrix, 4},
+    {"_rMSI_CRunPeakBinning", (DL_FUNC) &_rMSI_CRunPeakBinning, 3},
     {"_rMSI_DetectPeaks_C", (DL_FUNC) &_rMSI_DetectPeaks_C, 5},
     {"_rMSI_TestPeakInterpolation_C", (DL_FUNC) &_rMSI_TestPeakInterpolation_C, 7},
     {"_rMSI_TestHanningWindow", (DL_FUNC) &_rMSI_TestHanningWindow, 3},

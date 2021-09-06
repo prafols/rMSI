@@ -19,202 +19,192 @@
 #include <Rcpp.h>
 #include "peakbinning.h"
 #include "progressbar.h"
+#include <limits>       // std::numeric_limits
+#include <stdexcept>
 using namespace Rcpp;
 
-PeakBinning::PeakBinning(PeakPicking::Peaks **peakList, int pixelCount, double binTolerance, bool toleranceInppm, double binFilter) :
-  numOfPixels(pixelCount),
-  tolerance(binTolerance),
-  binSizeInppm(toleranceInppm),
-  binFilter(binFilter)
+PeakBinning::PeakBinning(Rcpp::Reference preProcessingParams, int numberOfThreads) //TODO currently the numberOfThreads is not used since the implementation is not multithreaded.. think about it
 {
-  //TODO implement me!
+  //Start with total number of pixels set to zero, it will be increased when data is appended
+  totalNumOfPixels = 0;
+  
+  //Get the parameters
+  Rcpp::Reference binningParams = preProcessingParams.field("peakbinning");
+  tolerance = binningParams.field("tolerance");
+  tolerance_in_ppm = binningParams.field("tolerance_in_ppm");
+  binFilter = binningParams.field("binFilter"); 
 }
 
 PeakBinning::~PeakBinning()
 {
+  for( int i = 0; i < imzMLReaders.size(); i++)
+  {
+    delete imzMLReaders[i];
+  }
+}
 
+void PeakBinning::appedImageData(Rcpp::List imzMLDescriptor)
+{
+  //Set the imzML reader
+  DataFrame imzMLrun = as<DataFrame>(imzMLDescriptor["run_data"]);
+  std::string sFilePath = as<std::string>(imzMLDescriptor["path"]);
+  std::string sFnameImzML = as<std::string>(imzMLDescriptor["file"]);
+  std::string sFnameImzMLInput = sFilePath + "/" + sFnameImzML + ".ibd";
+  bool bPeakListrMSIformat = as<bool>(imzMLDescriptor["rMSIpeakList"]);
+  
+  if(!bPeakListrMSIformat && !tolerance_in_ppm)
+  {
+    throw std::runtime_error("ERROR: a peak list is not in rMSI imzML format, please set the bining tolerance in ppm to use non-rMSI peak lists.\n");
+  }
+  
+  //Append the imzML Reader
+  imzMLReaders.push_back(new ImzMLBinRead(sFnameImzMLInput.c_str(), 
+                                          imzMLrun.nrows(), 
+                                          as<String>(imzMLDescriptor["mz_dataType"]),
+                                          as<String>(imzMLDescriptor["int_dataType"]) ,
+                                          false, //A peak list is allways processed mode
+                                          false, //Do not call the file open() on constructor
+                                          bPeakListrMSIformat
+                                          )); 
+  
+  NumericVector imzML_mzLength = imzMLrun["mzLength"];
+  NumericVector imzML_mzOffsets = imzMLrun["mzOffset"];
+  NumericVector imzML_intLength = imzMLrun["intLength"];
+  NumericVector imzML_intOffsets = imzMLrun["intOffset"];
+  imzMLReaders.back()->set_mzLength(&imzML_mzLength);  
+  imzMLReaders.back()->set_mzOffset(&imzML_mzOffsets);
+  imzMLReaders.back()->set_intLength(&imzML_intLength);
+  imzMLReaders.back()->set_intOffset(&imzML_intOffsets);
+  
+  totalNumOfPixels += imzMLrun.nrows();
 }
 
 List PeakBinning::BinPeaks()
 {
-  //Compute each peak obj TIC, I'll start binning from the highest spectrum which is assumed to have a lower mass error (at least for higher peaks)
-  double Tic[numOfPixels];
+  Rcout<<"Binning peaks...\n";
+  unsigned int iCount = 0; //Used for the progress bar
+  PeakPicking::Peaks *mpeaks; //Pointer to the current peaklist
   
-  //TODO use TIC from rMSI_obj normalizations!
-  /*
-  for(int i = 0; i < numOfPixels; i++)
-  {
-    Tic[i] = 0.0;
-    for( unsigned int j = 0; j < mPeaks[i]->intensity.size(); j++)
-    {
-      Tic[i] += mPeaks[i]->intensity[j];
-    }
-  }
-   */
+  //The mass name for each matrix column
+  std::vector<double> binMass; 
   
-  //Apply binning starting with most intens spectra
-  double dMax;
-  int iMax;
+  //Store the number of peaks added to each column to apply the bin filter at the end
+  std::vector<unsigned int> columnsPeakCounters;
+  
+  //Peak matrices starting with zero columns
   std::vector<std::vector<TBin> > binMat; //A matrix containing binning values
-  NumericVector binMass; //The mass name for each matrix column
-  NumericVector binSizeVec; //The raw spectra bin size for each matrix column
-  NumericVector binAvgInt; //The average spectra intensity of each bin
-  PeakPicking::Peaks *mPeaks; //Pointer to a pixel peak list
-  Rcout<<"Binning...\n";
-  int iCount = 0;
   
-  double alpha = 0; //Use to calculate bin mass related to peak intensity
-  while(true)
+  for(int iimg = 0; iimg < imzMLReaders.size(); iimg++)
   {
-    progressBar(iCount, numOfPixels, "=", " ");
-    iCount++;
-    //Locate current most intens spectrum
-    iMax = -1;
-    dMax = -1.0;
-    for(int i = 0; i < numOfPixels; i++)
+    imzMLReaders[iimg]->open();
+    for(int ipixel = 0; ipixel < imzMLReaders[iimg]->get_number_of_pixels(); ipixel++)
     {
-      if(Tic[i] > dMax && Tic[i] >= 0)
+      progressBar(iCount, totalNumOfPixels, "=", " ");
+      iCount++;
+      mpeaks = imzMLReaders[iimg]->ReadPeakList(ipixel);
+      for(int imass = 0; imass < mpeaks->mass.size(); imass++)
       {
-        dMax = Tic[i];
-        iMax = i;
-      }
-    }
-    
-    //End condition
-    if(iMax == -1)
-    {
-      break;
-    }
-    
-    Tic[iMax] = -1.0; //Mark current spectrum as processed by deleting its TIC
-    
-    
-    //mPeaks = readPeakListFromImzML(iMax); //TODO implement a method in the imzMLBin Class to allow reading a single pixel peal list from an imzML. Think how to get the proper image and pixel...
-    
-    /***************************** COMMENTED OUT BECAUSE I NEED TO THINK HOW TO PORT THIS... TODO... 
-    while( mPeaks->mass.size() > 0 )
-    {
-      binMass.push_back(mPeaks->mass[0]); //Append element to the mass vector (names of bin Matrix)
-      binSizeVec.push_back(mPeaks->binSize[0]); //Append element to the binSize vector (names of bin Matrix)
-      binAvgInt.push_back(mPeaks->intensity[0]); //Append element to intensity bin
-      binMat.resize(binMat.size() + 1); //Append new column
-      binMat[binMat.size() - 1].resize(numOfPixels); //Extenend all new column elements
-      binMat[binMat.size() - 1][iMax].intensity = mPeaks->intensity[0]; 
-      binMat[binMat.size() - 1][iMax].SNR = mPeaks->SNR[0];
-      binMat[binMat.size() - 1][iMax].area = mPeaks->area[0];
-      
-      //Delete current peak
-      mPeaks->mass.erase(mPeaks->mass.begin());
-      mPeaks->intensity.erase(mPeaks->intensity.begin());
-      mPeaks->SNR.erase(mPeaks->SNR.begin());
-      mPeaks->area.erase(mPeaks->area.begin());
-      mPeaks->binSize.erase(mPeaks->binSize.begin());
-      
-      double numMasses = 1.0; //number of peak masses used to compute each mass centroid
-      int countPeaks = 1; //Number of peaks in current column
-      
-      for( int j = 0; j < numOfPixels; j++)
-      {
-        if(j != iMax) //Do not process current Peaks obj
+        //Search the closest mass bin
+        double minMassDistance = std::numeric_limits<double>::max();
+        int minDistanceIndex = -1;
+        double currentMassDistance;
+        for(int icol = 0; icol < binMass.size(); icol++)
         {
-          //Find the nearest peak, the nearest peak postion is reatined in iPos var
-          double dist = 0.0;
-          double dist_ppm;
-          double dist_ant;
-          double dist_ant_ppm = 1e50;
-          int iPos = 0;
-          for( unsigned int imass = 0; imass <  mPeaks[j]->mass.size(); imass++) //TODO ufffff aixo es fotut! implica llegir tot imzml varies vegades...ufff
+          currentMassDistance = fabs(mpeaks->mass[imass] - binMass[icol]);
+          if(currentMassDistance < minMassDistance)
           {
-            iPos = imass;
-            dist = binMass[binMass.size() - 1] - mPeaks[j]->mass[imass]; //TODO fotuda!
-            dist_ppm = 1e6*dist/binMass[binMass.size() - 1]; //Translation to ppm
-            if(dist_ppm <= 0)
-            {
-              if(std::abs(dist_ant_ppm) < std::abs(dist_ppm))
-              {
-                iPos = imass - 1;
-                dist_ppm = dist_ant_ppm;
-                dist = dist_ant;
-              }
-              break; //avoid all the loop
-            }
-            dist_ant_ppm = dist_ppm;
-            dist_ant = dist;
+            minMassDistance = currentMassDistance;
+            minDistanceIndex = icol;
           }
-          
-          //Select the kind of binning tolerance
-          double compTolerance;
-          if(binSizeInppm)
+        }
+        
+        //Select the kind of binning tolerance
+        double compTolerance;
+        if(tolerance_in_ppm)
+        {
+          minMassDistance = 1e6*(minMassDistance/mpeaks->mass[imass]); //Compute distance in ppm
+          compTolerance = tolerance;
+        }
+        else
+        {
+          compTolerance = tolerance * mpeaks->binSize[imass];
+        } 
+        
+        /**** DEBUG Pints
+        Rcout << "ipixel = " << ipixel << " of " << totalNumOfPixels << "\n"; 
+        Rcout << "mpeaks->mass[ " << imass << " ] = " << mpeaks->mass[imass] << "\n"; 
+        Rcout << "minMassDistance = " << minMassDistance << "\n";
+        Rcout << "minDistanceIndex = " << minDistanceIndex << "\n";
+        Rcout << "compTolerance = " << compTolerance << "\n";
+        Rcout << "binMat ncols = " << binMat.size() << "\n";
+        if(binMat.size() > 20000)
+        {
+          stop("ABORTING!!!! too much columns!!!\n");
+        }
+        */
+        
+        if( (minMassDistance < compTolerance) && (minDistanceIndex >= 0) )
+        {
+          //The peak must be binned with the minDistanceIndex column of the peak matrix
+          columnsPeakCounters[minDistanceIndex]++;
+          binMass[minDistanceIndex] = 0.5*(binMass[minDistanceIndex] + mpeaks->mass[imass]); //Recompute the peak matrix mass by simply averaging it
+          binMat[minDistanceIndex][ipixel].intensity = mpeaks->intensity[imass] > binMat[minDistanceIndex][ipixel].intensity ? mpeaks->intensity[imass] : binMat[minDistanceIndex][ipixel].intensity;
+          if(imzMLReaders[iimg]->get_rMSIPeakListFormat())
           {
-            dist = dist_ppm;
-            compTolerance = tolerance;
+            binMat[minDistanceIndex][ipixel].SNR = mpeaks->SNR[imass] > binMat[minDistanceIndex][ipixel].SNR ? mpeaks->SNR[imass] : binMat[minDistanceIndex][ipixel].SNR;
+            binMat[minDistanceIndex][ipixel].area = mpeaks->area[imass] > binMat[minDistanceIndex][ipixel].area ? binMat[minDistanceIndex][ipixel].area : binMat[minDistanceIndex][ipixel].area;
           }
-          else
+        }
+        else
+        {
+          //A new column must be added to the peak matrix
+          binMass.push_back(mpeaks->mass[imass]); //Append element to the mass vector (names of bin Matrix)
+          columnsPeakCounters.push_back(1);
+          binMat.resize(binMat.size() + 1); //Append new column
+          binMat[binMat.size() - 1].resize(totalNumOfPixels); //Extenend all new column elements
+          binMat[binMat.size() - 1][ipixel].intensity = mpeaks->intensity[imass];
+          if(imzMLReaders[iimg]->get_rMSIPeakListFormat())
           {
-            compTolerance = tolerance * binSizeVec[binSizeVec.size() - 1];
-          } 
-          
-          //Check if is in the same mass bin and fill the matrix value accordingly
-          if(std::abs(dist) <= compTolerance && mPeaks[j]->mass.size() > 0)
-          {
-            binMat[binMat.size() - 1][j].intensity = mPeaks[j]->intensity[iPos];
-            binMat[binMat.size() - 1][j].SNR = mPeaks[j]->SNR[iPos];
-            binMat[binMat.size() - 1][j].area = mPeaks[j]->area[iPos];
-            countPeaks++;
-         
-            //Recompute mass centroid using a continuous average
-            alpha =  binAvgInt[binAvgInt.size() - 1] / ( binAvgInt[binAvgInt.size() - 1] + mPeaks[j]->intensity[iPos]);
-            binMass[binMass.size() - 1] = alpha * binMass[binMass.size() - 1] +  (1.0 - alpha) * mPeaks[j]->mass[iPos];
-            binSizeVec[binSizeVec.size() - 1] *= numMasses;
-            binAvgInt[binAvgInt.size() - 1] *= numMasses;
-            binSizeVec[binSizeVec.size() - 1] +=  mPeaks[j]->binSize[iPos];
-            binAvgInt[binAvgInt.size() - 1] += mPeaks[j]->intensity[iPos];
-            numMasses++;
-            binSizeVec[binSizeVec.size() - 1] /= numMasses;
-            binAvgInt[binAvgInt.size() - 1] /= numMasses;
-            
-            //Delete datapoint from current peaks
-            mPeaks[j]->mass.erase(mPeaks[j]->mass.begin() + iPos);
-            mPeaks[j]->intensity.erase(mPeaks[j]->intensity.begin() + iPos);
-            mPeaks[j]->SNR.erase(mPeaks[j]->SNR.begin() + iPos);
-            mPeaks[j]->area.erase(mPeaks[j]->area.begin() + iPos);
-            mPeaks[j]->binSize.erase(mPeaks[j]->binSize.begin() + iPos);
-          }
-          else
-          {
-            binMat[binMat.size() - 1][j].intensity = 0.0;
-            binMat[binMat.size() - 1][j].SNR = 0.0;
-            binMat[binMat.size() - 1][j].area = 0.0;
+            binMat[binMat.size() - 1][ipixel].SNR = mpeaks->SNR[imass]; 
+            binMat[binMat.size() - 1][ipixel].area = mpeaks->area[imass]; 
           }
         }
       }
       
-      //Delete last column if it does not fit minimum filter criterion
-      if(countPeaks < (int)(numOfPixels * binFilter))
-      {
-        binMass.erase(binMass.begin() + binMass.size() - 1);
-        binSizeVec.erase(binSizeVec.begin() + binSizeVec.size() - 1);
-        binAvgInt.erase(binAvgInt.begin() + binAvgInt.size() - 1);
-        binMat.erase(binMat.begin() + binMat.size() - 1);
-      }
-      
+      delete mpeaks;
     }
-     
-     ***********************************************************************/ //COMMENTED OUT BECAUSE I NEED TO THINK HOW TO PORT THIS... TODO... 
+    imzMLReaders[iimg]->close();
   }
-  Rcout<<"Bining complete with a total number of "<<binMass.size()<<" bins\n";
+  
+  //Apply binFilter
+  std::vector<bool> keepColumns(columnsPeakCounters.size());
+  unsigned int number_of_columns_to_remove = 0;
+  for( int i=0; i < keepColumns.size(); i++)
+  {
+    keepColumns[i] = (double)columnsPeakCounters[i] > binFilter*(double)totalNumOfPixels;
+    if(!keepColumns[i])
+    {
+      number_of_columns_to_remove++;
+    }
+  }
+  if(number_of_columns_to_remove >= binMass.size())
+  {
+    throw std::runtime_error("ERROR: all peaks were removed by the bin filter. Consider decresin the bin filter or SNR.\n");
+  }
+
+  Rcout<<"Bining complete with a total number of "<<binMass.size() - number_of_columns_to_remove<<" bins\n"; 
   
   //Copy data to R matrices
   Rcout<<"Coping data to R object...\n";
-  NumericMatrix binMatIntensity(numOfPixels, binMass.size());
-  NumericMatrix binMatSNR(numOfPixels, binMass.size());
-  NumericMatrix binMatArea(numOfPixels, binMass.size());
+  NumericMatrix binMatIntensity(totalNumOfPixels, binMass.size() - number_of_columns_to_remove);
+  NumericMatrix binMatSNR(totalNumOfPixels, binMass.size() - number_of_columns_to_remove);
+  NumericMatrix binMatArea(totalNumOfPixels, binMass.size()- number_of_columns_to_remove);
   
   //Sort columns by mass
   Rcout<<"Sorting columns by mass...\n";
-  NumericVector massSorting(binMass.size());
-  NumericVector binsizeSorting(binSizeVec.size());
-  memcpy(massSorting.begin(), binMass.begin(), sizeof(double)*binMass.size());
+  NumericVector massCopy(binMass.size());
+  NumericVector massSorted(binMass.size() - number_of_columns_to_remove);
+  memcpy(massCopy.begin(), binMass.data(), sizeof(double)*binMass.size());
   int sortedInds[binMass.size()];
   double minVal;
   for(int i = 0; i < binMass.size(); i++)
@@ -222,52 +212,64 @@ List PeakBinning::BinPeaks()
     minVal = std::numeric_limits<double>::max();
     for( int j = 0; j < binMass.size(); j++ )
     {
-      if( massSorting[j] < minVal && massSorting[j] > 0 )
+      if( massCopy[j] < minVal && massCopy[j] > 0 )
       {
-        minVal = massSorting[j];
+        minVal = massCopy[j];
         sortedInds[i] = j;
       }  
     }
-    massSorting[ sortedInds[i]  ] = -1; //Mark as sorted
+    massCopy[ sortedInds[i]  ] = -1; //Mark as sorted
   }
   
   //Copy the mass axis sorting it
+  unsigned int icopy = 0;
   for(int i = 0; i < binMass.size(); i++)
   {
-    massSorting[i] = binMass[sortedInds[i]];
-    binsizeSorting[i] = binSizeVec[sortedInds[i]];
-  }
-  
-  //Copy the matrix sorting it
-  for( int ir = 0;  ir < numOfPixels; ir++)
-  {
-    for(int ic = 0; ic < binMass.size(); ic++)
+    if(keepColumns[i])
     {
-      binMatIntensity(ir, ic ) = binMat[sortedInds[ic]][ir].intensity;
-      binMatSNR      (ir, ic ) = binMat[sortedInds[ic]][ir].SNR;
-      binMatArea     (ir, ic ) = binMat[sortedInds[ic]][ir].area;
+      massSorted[icopy] = binMass[sortedInds[i]];
+      icopy++;
     }
   }
   
-  return List::create( Named("mass") = massSorting, Named("intensity") = binMatIntensity, Named("SNR") = binMatSNR, Named("area") = binMatArea, Named("binsize") = binsizeSorting );
+  //Copy the matrix sorting it
+  for( int ir = 0;  ir < totalNumOfPixels; ir++)
+  {
+    icopy = 0;
+    for(int ic = 0; ic < binMass.size(); ic++)
+    {
+      if(keepColumns[ic])
+      {
+        binMatIntensity(ir, icopy ) = binMat[sortedInds[ic]][ir].intensity;
+        binMatSNR      (ir, icopy ) = binMat[sortedInds[ic]][ir].SNR;
+        binMatArea     (ir, icopy ) = binMat[sortedInds[ic]][ir].area;
+        icopy++;
+      }
+    }
+  }
+  
+  return List::create( Named("mass") = massSorted, Named("intensity") = binMatIntensity, Named("SNR") = binMatSNR, Named("area") = binMatArea );
 }
 
-//' CPeakList2PeakMatrix.
-//' 
-//' Convert's an R peak list into a peak matrix.
-//' @param RpeakList R peak list.
-//' @param the tolerance used to merge peaks to the same bin. It is recomanded to use the half of peak width in ppm units. 
-//' @param BinFilter the peaks bins non detected in at least the BinFitler*TotalNumberOfPixels spectra will be deleted.
-//' @param BinToleranceUsingPPM if True the peak binning tolerance is specified in ppm, if false the tolerance is set using scans.
-//' @return peak matrix.
-//' 
 // [[Rcpp::export]]
-List CPeakList2PeakMatrix(List RpeakList, double BinTolerance = 5, double BinFilter = 0.1, bool BinToleranceUsingPPM = true )
+List CRunPeakBinning(Rcpp::List imzMLDescriptor, Rcpp::Reference preProcessingParams, int numOfThreads)
 {
-  //TODO commented out because it needs revision
-  //PeakBinning myPeakBinning(RpeakList, BinTolerance, BinToleranceUsingPPM, BinFilter);
-  //return myPeakBinning.BinPeaks(); 
-  
-  return Rcpp::List::create();
+  List out;
+  try
+  {
+    PeakBinning myPeakBinning(preProcessingParams, numOfThreads);
+    
+    for(int i = 0; i < imzMLDescriptor.length(); i++)
+    {
+      myPeakBinning.appedImageData(imzMLDescriptor[i]);
+    }
+    
+    out = myPeakBinning.BinPeaks(); 
+  }
+  catch(std::runtime_error &e)
+  {
+    Rcpp::stop(e.what());
+  }
+  return out;
 }
 

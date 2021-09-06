@@ -365,26 +365,35 @@ RunPreProcessing <- function(proc_params,
                                   int_dataType = "double",
                                   pixel_size_um = img_lst_proc[[i]]$pixel_size_um,
                                   run_data = currentRunData,
-                                  file_path = proc_params$outputpath, #TODO adding a copy of file name and output path here to make i easier for peak binning, but revise it! 
-                                  file_name = out_imzMLpeakLists_fnames[i]
+                                  path = proc_params$outputpath,
+                                  file = out_imzMLpeakLists_fnames[i],
+                                  rMSIpeakList = T #Peak list created with rMSI format
                                   )
       
-      #Store the xml part
+      #Store the xml part of the peak list specifing it is a peak list in rMSI format
       cat(paste0("Writing the .imzML file the peaks lists of image ", img_lst_proc[[i]]$name, "...\n"))
-      if(!CimzMLStore( path.expand(file.path( peaklists_lst[[i]]$file_path , paste0(peaklists_lst[[i]]$file_name, ".imzML"))), 
-                       peaklists_lst[[i]]))
+      if(!CimzMLStore( path.expand(file.path( peaklists_lst[[i]]$path , paste0(peaklists_lst[[i]]$file, ".imzML"))), 
+                       peaklists_lst[[i]],
+                        "rMSIpeakList"))
       {
         stop(paste0("ERROR: imzML exported for image ", img_lst_proc[[i]]$name, " failed. Aborting...\n" ))
       }
       
       #Add peak list description to each rMSI object
-      #TODO document and implement
+      img_lst_proc[[i]]$data$peaklist <- peaklists_lst[[i]]
     }
   }
   
-  #TODO peak-binning. Peak lists are in peaklists_lst variable, I don't want to parse the imzML if this variable is available. But I want to process the imzML file of a peak list if them where generated in another run
-  #TODO don't forget the fillpeaks after running the binning routine
+  #Run the peakbining
+  if(proc_params$preprocessing$peakbinning$enable)
+  {
+    peakMatrix <- CRunPeakBinning(peaklists_lst,  proc_params$preprocessing, numOfThreads)
+    
+    #TODO peak-binning. Peak lists are in peaklists_lst variable, I don't want to parse the imzML if this variable is available. But I want to process the imzML file of a peak list if them where generated in another run
   
-  return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh, CalibrationElapsedTime = calibrationElapsedTime ))
+    #TODO don't forget the fillpeaks after running the binning routine, fill peaks must only be executed when spectral data is available....  rethink the flow
+  }
+  
+  return( list( processed_data = img_lst_proc, LagLow = result$LagLow, LagHigh = result$LagHigh, CalibrationElapsedTime = calibrationElapsedTime, PeakMatrix = peakMatrix ))
 }
 

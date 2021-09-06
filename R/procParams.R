@@ -220,14 +220,35 @@ PeakPickingParams <- setRefClass("PeakPickingParams",
                                  })
 )
 
+PeakBinningParams <- setRefClass("PeakBinningParams", 
+                                 fields = list(
+                                   enable = "logical",
+                                   tolerance = "numeric",
+                                   tolerance_in_ppm = "logical",
+                                   binFilter = "numeric"
+                                 ),
+                                 
+                                 #Constructor
+                                 method = list(
+                                   initialize = function(...,
+                                                         enable = T,
+                                                         tolerance = 5,
+                                                         tolerance_in_ppm = F,
+                                                         binFilter = 0.01
+                                   )
+                                   {
+                                     callSuper(..., enable = enable, tolerance = tolerance, tolerance_in_ppm = tolerance_in_ppm, binFilter = binFilter)
+                                   })
+)
+
 PreProcParams <- setRefClass("PreProcParams", 
                              fields = list(
                               merge = "logical", #TRUE to process multiple images using a common mass axis
                               smoothing = "SmoothingParams",
                               alignment = "AlignmentParams",
                               massCalibration = "logical",
-                              peakpicking = "PeakPickingParams"
-                              #TODO complete with all params, each stage its own class
+                              peakpicking = "PeakPickingParams",
+                              peakbinning = "PeakBinningParams"
                               ),
                              
                              #Constructor

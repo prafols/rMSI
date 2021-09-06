@@ -102,7 +102,8 @@ class ImzMLBin
 class ImzMLBinRead : public ImzMLBin
 {
   public: 
-    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, bool openIbd = true);
+    ImzMLBinRead(const char* ibd_fname, unsigned int num_of_pixels, Rcpp::String Str_mzType, Rcpp::String Str_intType, bool continuous, 
+                 bool openIbd = true, bool peakListrMSIformat = false);
     ~ImzMLBinRead();
     
     //Open the ibd file in reading mode
@@ -136,6 +137,14 @@ class ImzMLBinRead : public ImzMLBin
     //out: a pointer where data will be stored.
     imzMLSpectrum ReadSpectrum(int pixelID, unsigned int ionIndex, unsigned int ionCount, double *out);
     
+    //Read a spectrum of a imzML in processed mode as a peak list.
+    // pixelID: the pixel ID of the peaklist to read.
+    // return a pointer to a PeakPicking::Peaks datatype.
+    PeakPicking::Peaks *ReadPeakList(int pixelID);
+    
+    //Returns true if the peaklist is in rMSI dataformat
+    bool get_rMSIPeakListFormat();
+    
   private:
     //Read N elements from the ibd file and decode them.
     //offset: offset in bytes at which the reading operation is started.
@@ -152,6 +161,8 @@ class ImzMLBinRead : public ImzMLBin
     bool bOriginalMassAxisOnMem; //A boolean to signal when the original mass axis is already available in memory for continuous mode
     std::vector<double> originalMassAxis; //A local copy of the original mass axis for continuous data interpolation (obtained from the rMSI object)
     std::vector<double> commonMassAxis; //A local copy of the common mass axis used for data interpolation when needed.
+    
+    bool bPeakListInrMSIFormat; //If peak list must be readed using rMSI trick of appending Area, SNR and binsize after intensity
 };
 
 class ImzMLBinWrite : public ImzMLBin
