@@ -90,6 +90,9 @@ class CrMSIDataCubeIO
     //Return the pixel id in an image (imzMLreader/writer for a given pixels specified as cube id and pixel row)
     int getPixelId(int iCube, int cubeRow);
     
+    //Return the corresponding peak Matrix row for a specific row in an cube
+    unsigned int getPeakMatrixRow(int iCube, int cubeRow);
+    
     //Return a Data Frame with the imzML offsets of a specified imzMLWriter
     Rcpp::DataFrame get_OffsetsLengths(unsigned int index);
     
@@ -112,11 +115,14 @@ class CrMSIDataCubeIO
     std::vector<Rcpp::NumericVector> acumulatedSpectrum; //A vector to contain all the average spectra (there is one for each imzMLWriter)
     std::vector<Rcpp::NumericVector> baseSpectrum; //A vector to contain all the base spectra (there is one for each imzMLWriter)  
     
+    unsigned int next_peakMatrix_row; //A counter to follow added peak matrix rows
+    
     //Struct to internally handle data cube accessors
     typedef struct
     {
       int pixel_ID; //ID of a pixel in the imzML file
       int imzML_ID; //integer pointing to a imzML Handle (reader and writer) for a pixel ID, -1 value is allowed to indicate to an unallocated imzML
+      unsigned int peakMatrix_row; //The row index (C style begining with zero) the pixel will ocuppy in the peak matrix
     } PixelDescription;
     
     typedef std::vector<PixelDescription> DataCubeDescription; //Each data cube is defined as standard vector of pixel descriptions

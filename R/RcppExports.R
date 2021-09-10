@@ -150,6 +150,10 @@ COverallAverageSpectrum <- function(rMSIObj_list, numOfThreads, memoryPerThreadM
     .Call('_rMSI_COverallAverageSpectrum', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis, minTIC, maxTic)
 }
 
+CRunFillPeaks <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, commonMassAxis, peakMatrix) {
+    invisible(.Call('_rMSI_CRunFillPeaks', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, preProcessingParams, commonMassAxis, peakMatrix))
+}
+
 CNormalizations <- function(rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis) {
     .Call('_rMSI_CNormalizations', PACKAGE = 'rMSI', rMSIObj_list, numOfThreads, memoryPerThreadMB, commonMassAxis)
 }

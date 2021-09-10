@@ -94,6 +94,7 @@ List PeakBinning::BinPeaks()
   //Peak matrices starting with zero columns
   std::vector<std::vector<TBin> > binMat; //A matrix containing binning values
   
+  int iPixelPeakMatRowOffset = 0;
   for(int iimg = 0; iimg < imzMLReaders.size(); iimg++)
   {
     imzMLReaders[iimg]->open();
@@ -148,11 +149,11 @@ List PeakBinning::BinPeaks()
           //The peak must be binned with the minDistanceIndex column of the peak matrix
           columnsPeakCounters[minDistanceIndex]++;
           binMass[minDistanceIndex] = 0.5*(binMass[minDistanceIndex] + mpeaks->mass[imass]); //Recompute the peak matrix mass by simply averaging it
-          binMat[minDistanceIndex][ipixel].intensity = mpeaks->intensity[imass] > binMat[minDistanceIndex][ipixel].intensity ? mpeaks->intensity[imass] : binMat[minDistanceIndex][ipixel].intensity;
+          binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].intensity = mpeaks->intensity[imass] > binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].intensity ? mpeaks->intensity[imass] : binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].intensity;
           if(imzMLReaders[iimg]->get_rMSIPeakListFormat())
           {
-            binMat[minDistanceIndex][ipixel].SNR = mpeaks->SNR[imass] > binMat[minDistanceIndex][ipixel].SNR ? mpeaks->SNR[imass] : binMat[minDistanceIndex][ipixel].SNR;
-            binMat[minDistanceIndex][ipixel].area = mpeaks->area[imass] > binMat[minDistanceIndex][ipixel].area ? binMat[minDistanceIndex][ipixel].area : binMat[minDistanceIndex][ipixel].area;
+            binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].SNR = mpeaks->SNR[imass] > binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].SNR ? mpeaks->SNR[imass] : binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].SNR;
+            binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].area = mpeaks->area[imass] > binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].area ? mpeaks->area[imass] : binMat[minDistanceIndex][ipixel + iPixelPeakMatRowOffset].area;
           }
         }
         else
@@ -162,11 +163,11 @@ List PeakBinning::BinPeaks()
           columnsPeakCounters.push_back(1);
           binMat.resize(binMat.size() + 1); //Append new column
           binMat[binMat.size() - 1].resize(totalNumOfPixels); //Extenend all new column elements
-          binMat[binMat.size() - 1][ipixel].intensity = mpeaks->intensity[imass];
+          binMat[binMat.size() - 1][ipixel + iPixelPeakMatRowOffset].intensity = mpeaks->intensity[imass];
           if(imzMLReaders[iimg]->get_rMSIPeakListFormat())
           {
-            binMat[binMat.size() - 1][ipixel].SNR = mpeaks->SNR[imass]; 
-            binMat[binMat.size() - 1][ipixel].area = mpeaks->area[imass]; 
+            binMat[binMat.size() - 1][ipixel + iPixelPeakMatRowOffset].SNR = mpeaks->SNR[imass]; 
+            binMat[binMat.size() - 1][ipixel + iPixelPeakMatRowOffset].area = mpeaks->area[imass]; 
           }
         }
       }
@@ -174,6 +175,8 @@ List PeakBinning::BinPeaks()
       delete mpeaks;
     }
     imzMLReaders[iimg]->close();
+    
+    iPixelPeakMatRowOffset += imzMLReaders[iimg]->get_number_of_pixels();
   }
   
   //Apply binFilter

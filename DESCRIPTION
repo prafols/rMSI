@@ -3,12 +3,15 @@ Type: Package
 Title: MSI Tools
 Version: 0.8
 Date: 2015-11-30
-Author: Pere Rafols Soler
+Author:  Pere Rafols[aut], Lluc Semente [aut]
+Authors@R: c( person("Pere", "Rafols", email="pere.rafols@urv.cat",
+        role=c("aut")), person("Lluc", "Semente",
+        email="lluc.semente@urv.cat", role=c("aut")))
 Maintainer: Pere Rafols Soler<pere.rafols@urv.cat>
 Description: MSI data handling and visualization in R
 License: GPL3
 LazyData: TRUE
-SystemRequirements: C++11
+SystemRequirements: C++11, fftw3 (>= 3.3.5)
 Depends:
     R (>= 3.6),
     methods,
@@ -23,5 +26,8 @@ Imports:
     sp (>= 1.2-0),
     digest (>= 0.6.9),
     Rcpp (>= 0.12.2)
+Suggests:
+    ggplot2 (>= 3.0.0),
+    gridExtra (>= 2.3)
 LinkingTo: Rcpp
 RoxygenNote: 7.1.1

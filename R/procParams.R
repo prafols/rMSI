@@ -225,7 +225,8 @@ PeakBinningParams <- setRefClass("PeakBinningParams",
                                    enable = "logical",
                                    tolerance = "numeric",
                                    tolerance_in_ppm = "logical",
-                                   binFilter = "numeric"
+                                   binFilter = "numeric",
+                                   fillpeaks = "logical"
                                  ),
                                  
                                  #Constructor
@@ -234,10 +235,11 @@ PeakBinningParams <- setRefClass("PeakBinningParams",
                                                          enable = T,
                                                          tolerance = 5,
                                                          tolerance_in_ppm = F,
-                                                         binFilter = 0.01
+                                                         binFilter = 0.01,
+                                                         fillpeaks = T
                                    )
                                    {
-                                     callSuper(..., enable = enable, tolerance = tolerance, tolerance_in_ppm = tolerance_in_ppm, binFilter = binFilter)
+                                     callSuper(..., enable = enable, tolerance = tolerance, tolerance_in_ppm = tolerance_in_ppm, binFilter = binFilter, fillpeaks = fillpeaks)
                                    })
 )
 

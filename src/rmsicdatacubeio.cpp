@@ -27,7 +27,7 @@ using namespace Rcpp;
 
 
 CrMSIDataCubeIO::CrMSIDataCubeIO(Rcpp::NumericVector massAxis, double cubeMemoryLimitMB, DataCubeIOMode storeDataModeEnum, Rcpp::String imzMLOutputPath)
-  :mass(massAxis), storeDataMode(storeDataModeEnum), dataOutputPath(imzMLOutputPath.get_cstring())
+  :mass(massAxis), storeDataMode(storeDataModeEnum), dataOutputPath(imzMLOutputPath.get_cstring()), next_peakMatrix_row(0)
 {
   cubeMaxNumRows = std::ceil((1024*1024*cubeMemoryLimitMB)/(double)(8*mass.length()));
 }
@@ -149,6 +149,8 @@ void CrMSIDataCubeIO::appedImageData(Rcpp::List rMSIobj, std::string outputImzML
     dataCubesDesc.back().push_back(PixelDescription());
     dataCubesDesc.back().back().pixel_ID = i;
     dataCubesDesc.back().back().imzML_ID = imzMLReaders.size()-1;
+    dataCubesDesc.back().back().peakMatrix_row = next_peakMatrix_row;
+    next_peakMatrix_row++;
   }
 }
 
@@ -355,6 +357,19 @@ int CrMSIDataCubeIO::getPixelId(int iCube, int cubeRow)
     throw std::runtime_error("Error: DataCube row out of range\n");
   }
   return dataCubesDesc[iCube][cubeRow].pixel_ID;
+}
+
+unsigned int CrMSIDataCubeIO::getPeakMatrixRow(int iCube, int cubeRow)
+{
+  if(iCube >= dataCubesDesc.size())
+  {
+    throw std::runtime_error("Error: DataCube index out of range\n");
+  }
+  if( cubeRow >= dataCubesDesc[iCube].size())
+  {
+    throw std::runtime_error("Error: DataCube row out of range\n");
+  }
+  return dataCubesDesc[iCube][cubeRow].peakMatrix_row;
 }
 
 Rcpp::NumericVector CrMSIDataCubeIO::get_AverageSpectrum(unsigned int index)
