@@ -43,6 +43,7 @@ fuzzyCmeans <- function(intensityMatrix, numberOfClusters = 2, ROIs = NULL, m = 
     hardMembership[i] <- result[[2]][i, hardClustering[i]]  
   }
   result[[4]] <- data.frame(cluster = hardClustering, membership = hardMembership)
-  names(result) <- c("centroidMatrix", "membershipMatrix","objectiveFunction", "clustering")
+  result[[5]] <- apply(result[[2]],1,function(x, k) prod(x)*k^k, k = numberOfClusters)
+  names(result) <- c("centroidMatrix", "membershipMatrix","objectiveFunction", "clustering", "heterogeneity")
   return(result)
 }
