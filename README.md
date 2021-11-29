@@ -102,4 +102,4 @@ The rMSI main GUI can be used to obtain spectra ID’s from a set of pixels. Fir
 
 ###  Example Data
 Some MS images are available at the following link to test rMSI package:
-<https://drive.google.com/drive/folders/0Bw0ksDAUk_BDWWttY0dTdnFWSVU?usp=sharing>
+<https://drive.google.com/file/d/0Bw0ksDAUk_BDQ2dFSGo1cjAzRkE/view?usp=sharing&resourcekey=0-WcpstoxAmFbAkY2pWluS7w>
